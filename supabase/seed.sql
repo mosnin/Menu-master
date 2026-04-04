@@ -1436,3 +1436,235 @@ INSERT INTO listing_handoff_events (id, listing_id, offer_id, transaction_id, or
  'a0000000-0000-4000-8000-000000000001',
  'b0000000-0000-4000-8000-000000000001', 3, 2,
  'Clean handoff — all listing docs and seller contacts carried forward');
+
+-- ===========================================================================
+-- Workflow Builder Seed Data
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- Workflow 1: "Completeness Check on Document Upload" (published)
+-- ---------------------------------------------------------------------------
+INSERT INTO workflows (id, organization_id, name, description, created_by_user_id, is_active) VALUES
+('e1000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+ 'Completeness Check on Document Upload',
+ 'Evaluates transaction completeness whenever a document is uploaded. Notifies coordinator if score drops below 70%.',
+ 'b0000000-0000-4000-8000-000000000001', true);
+
+-- Version 1 (archived)
+INSERT INTO workflow_versions (id, workflow_id, version_number, status, graph_data,
+  validation_errors, published_by_user_id, published_at, created_by_user_id) VALUES
+('e2000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 1, 'archived',
+ '{"nodes": [
+    {"id": "start_1", "type": "start", "label": "Start", "config": {}, "position": {"x": 0, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "eval_1", "type": "evaluate_transaction_completeness", "label": "Evaluate Completeness", "config": {}, "position": {"x": 200, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "stop_1", "type": "stop", "label": "End", "config": {}, "position": {"x": 400, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null}
+  ], "edges": [
+    {"id": "e_start_eval", "source_node_id": "start_1", "target_node_id": "eval_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_eval_stop", "source_node_id": "eval_1", "target_node_id": "stop_1", "condition": null, "label": null, "order": 0}
+  ], "triggers": []}'::jsonb,
+ '[]'::jsonb,
+ 'b0000000-0000-4000-8000-000000000001', '2026-03-15 10:00:00-06',
+ 'b0000000-0000-4000-8000-000000000001');
+
+-- Version 2 (published) — adds condition branch for low score notification
+INSERT INTO workflow_versions (id, workflow_id, version_number, status, graph_data,
+  validation_errors, published_by_user_id, published_at, created_by_user_id) VALUES
+('e2000000-0000-4000-8000-000000000002', 'e1000000-0000-4000-8000-000000000001', 2, 'published',
+ '{"nodes": [
+    {"id": "start_1", "type": "start", "label": "Start", "config": {}, "position": {"x": 0, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "eval_1", "type": "evaluate_transaction_completeness", "label": "Evaluate Completeness", "config": {}, "position": {"x": 200, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "cond_1", "type": "condition", "label": "Score < 70?", "config": {"expression": "output.score < 70"}, "position": {"x": 400, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "notify_1", "type": "create_notification", "label": "Notify Low Score", "config": {"recipient_role": "coordinator", "severity": "warning", "template": "completeness_low"}, "position": {"x": 600, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "stop_1", "type": "stop", "label": "End (notified)", "config": {}, "position": {"x": 800, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "stop_2", "type": "stop", "label": "End (ok)", "config": {}, "position": {"x": 600, "y": 200}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null}
+  ], "edges": [
+    {"id": "e_start_eval", "source_node_id": "start_1", "target_node_id": "eval_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_eval_cond", "source_node_id": "eval_1", "target_node_id": "cond_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_cond_notify", "source_node_id": "cond_1", "target_node_id": "notify_1", "condition": "output.score < 70", "label": "Low score", "order": 0},
+    {"id": "e_cond_stop2", "source_node_id": "cond_1", "target_node_id": "stop_2", "condition": "output.score >= 70", "label": "OK", "order": 1},
+    {"id": "e_notify_stop1", "source_node_id": "notify_1", "target_node_id": "stop_1", "condition": null, "label": null, "order": 0}
+  ], "triggers": [
+    {"event_type": "document_uploaded", "event_filter": {}}
+  ]}'::jsonb,
+ '[]'::jsonb,
+ 'b0000000-0000-4000-8000-000000000001', '2026-03-20 14:00:00-06',
+ 'b0000000-0000-4000-8000-000000000001');
+
+-- Trigger for Workflow 1
+INSERT INTO workflow_triggers (id, workflow_id, workflow_version_id, event_type, event_filter, is_active) VALUES
+('e3000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001',
+ 'e2000000-0000-4000-8000-000000000002', 'document_uploaded', '{}'::jsonb, true);
+
+-- Completed run for Workflow 1
+INSERT INTO workflow_runs (id, workflow_id, workflow_version_id, organization_id, status,
+  trigger_event_type, trigger_payload, context_data, current_node_id,
+  started_at, completed_at, entity_type, entity_id,
+  initiated_by_user_id, total_steps, completed_steps) VALUES
+('e4000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001',
+ 'e2000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001',
+ 'completed', 'document_uploaded',
+ '{"document_id": "c4000000-0000-4000-8000-000000000001"}'::jsonb,
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000001", "score": 62}'::jsonb,
+ 'stop_1',
+ '2026-03-25 09:00:00-06', '2026-03-25 09:00:04-06',
+ 'transaction', 'e0000000-0000-4000-8000-000000000001',
+ null, 4, 4);
+
+-- 4 steps for the completed run (start → eval → condition → notify → stop)
+INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, node_label, step_number,
+  status, input_data, output_data, started_at, completed_at, duration_ms) VALUES
+('e5000000-0000-4000-8000-000000000001', 'e4000000-0000-4000-8000-000000000001',
+ 'start_1', 'start', 'Start', 1, 'completed',
+ '{}'::jsonb, '{}'::jsonb,
+ '2026-03-25 09:00:00-06', '2026-03-25 09:00:00-06', 5),
+('e5000000-0000-4000-8000-000000000002', 'e4000000-0000-4000-8000-000000000001',
+ 'eval_1', 'evaluate_transaction_completeness', 'Evaluate Completeness', 2, 'completed',
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000001"}'::jsonb,
+ '{"score": 62, "missing_items": ["seller_disclosure", "inspection_report"]}'::jsonb,
+ '2026-03-25 09:00:00-06', '2026-03-25 09:00:02-06', 1850),
+('e5000000-0000-4000-8000-000000000003', 'e4000000-0000-4000-8000-000000000001',
+ 'cond_1', 'condition', 'Score < 70?', 3, 'completed',
+ '{"score": 62}'::jsonb, '{"branch": "low_score"}'::jsonb,
+ '2026-03-25 09:00:02-06', '2026-03-25 09:00:02-06', 10),
+('e5000000-0000-4000-8000-000000000004', 'e4000000-0000-4000-8000-000000000001',
+ 'notify_1', 'create_notification', 'Notify Low Score', 4, 'completed',
+ '{"recipient_role": "coordinator", "severity": "warning"}'::jsonb,
+ '{"notification_id": "generated-notif-001"}'::jsonb,
+ '2026-03-25 09:00:02-06', '2026-03-25 09:00:04-06', 1500);
+
+-- ---------------------------------------------------------------------------
+-- Workflow 2: "Listing Launch Readiness" (draft, incomplete)
+-- ---------------------------------------------------------------------------
+INSERT INTO workflows (id, organization_id, name, description, created_by_user_id, is_active) VALUES
+('e1000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001',
+ 'Listing Launch Readiness',
+ 'Checks whether a listing is ready to go live. Work in progress — graph incomplete.',
+ 'b0000000-0000-4000-8000-000000000002', true);
+
+-- Version 1 (draft, has validation errors)
+INSERT INTO workflow_versions (id, workflow_id, version_number, status, graph_data,
+  validation_errors, created_by_user_id) VALUES
+('e2000000-0000-4000-8000-000000000003', 'e1000000-0000-4000-8000-000000000002', 1, 'draft',
+ '{"nodes": [
+    {"id": "start_1", "type": "start", "label": "Start", "config": {}, "position": {"x": 0, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "eval_lr", "type": "evaluate_listing_readiness", "label": "Evaluate Listing Readiness", "config": {}, "position": {"x": 200, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null}
+  ], "edges": [
+    {"id": "e_start_eval", "source_node_id": "start_1", "target_node_id": "eval_lr", "condition": null, "label": null, "order": 0}
+  ], "triggers": []}'::jsonb,
+ '[{"code": "NO_STOP_NODE", "message": "Workflow must have at least one stop node"}]'::jsonb,
+ 'b0000000-0000-4000-8000-000000000002');
+
+-- No triggers, no runs for Workflow 2
+
+-- ---------------------------------------------------------------------------
+-- Workflow 3: "Closing Prep Workflow" (published)
+-- ---------------------------------------------------------------------------
+INSERT INTO workflows (id, organization_id, name, description, created_by_user_id, is_active) VALUES
+('e1000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+ 'Closing Prep Workflow',
+ 'Checks closing readiness on stage change. If ready, transitions stage. If not, creates checklist item and waits for human review.',
+ 'b0000000-0000-4000-8000-000000000001', true);
+
+-- Version 1 (published)
+INSERT INTO workflow_versions (id, workflow_id, version_number, status, graph_data,
+  validation_errors, published_by_user_id, published_at, created_by_user_id) VALUES
+('e2000000-0000-4000-8000-000000000004', 'e1000000-0000-4000-8000-000000000003', 1, 'published',
+ '{"nodes": [
+    {"id": "start_1", "type": "start", "label": "Start", "config": {}, "position": {"x": 0, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "eval_cr", "type": "evaluate_closing_readiness", "label": "Evaluate Closing Readiness", "config": {}, "position": {"x": 200, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "cond_1", "type": "condition", "label": "Ready to Close?", "config": {"expression": "output.ready === true"}, "position": {"x": 400, "y": 100}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "transition_1", "type": "transition_transaction_stage", "label": "Advance to Closing", "config": {"target_stage": "closing"}, "position": {"x": 600, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "stop_1", "type": "stop", "label": "End (advanced)", "config": {}, "position": {"x": 800, "y": 0}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "checklist_1", "type": "create_checklist_item", "label": "Create Closing Checklist", "config": {"checklist_template": "closing_prep"}, "position": {"x": 600, "y": 200}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "hc_1", "type": "human_checkpoint", "label": "Coordinator Review", "config": {"assignee_role": "coordinator"}, "position": {"x": 800, "y": 200}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null},
+    {"id": "stop_2", "type": "stop", "label": "End (needs work)", "config": {}, "position": {"x": 1000, "y": 200}, "input_mapping": {}, "output_contract": {}, "retry_policy": null, "timeout_ms": null}
+  ], "edges": [
+    {"id": "e_start_eval", "source_node_id": "start_1", "target_node_id": "eval_cr", "condition": null, "label": null, "order": 0},
+    {"id": "e_eval_cond", "source_node_id": "eval_cr", "target_node_id": "cond_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_cond_transition", "source_node_id": "cond_1", "target_node_id": "transition_1", "condition": "output.ready === true", "label": "Ready", "order": 0},
+    {"id": "e_cond_checklist", "source_node_id": "cond_1", "target_node_id": "checklist_1", "condition": "output.ready === false", "label": "Not ready", "order": 1},
+    {"id": "e_transition_stop1", "source_node_id": "transition_1", "target_node_id": "stop_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_checklist_hc", "source_node_id": "checklist_1", "target_node_id": "hc_1", "condition": null, "label": null, "order": 0},
+    {"id": "e_hc_stop2", "source_node_id": "hc_1", "target_node_id": "stop_2", "condition": null, "label": null, "order": 0}
+  ], "triggers": [
+    {"event_type": "stage_changed", "event_filter": {"to_stage": "pre_closing"}}
+  ]}'::jsonb,
+ '[]'::jsonb,
+ 'b0000000-0000-4000-8000-000000000001', '2026-03-28 16:00:00-06',
+ 'b0000000-0000-4000-8000-000000000001');
+
+-- Trigger for Workflow 3
+INSERT INTO workflow_triggers (id, workflow_id, workflow_version_id, event_type, event_filter, is_active) VALUES
+('e3000000-0000-4000-8000-000000000002', 'e1000000-0000-4000-8000-000000000003',
+ 'e2000000-0000-4000-8000-000000000004', 'stage_changed',
+ '{"to_stage": "pre_closing"}'::jsonb, true);
+
+-- Running run for Workflow 3 (currently waiting at human checkpoint)
+INSERT INTO workflow_runs (id, workflow_id, workflow_version_id, organization_id, status,
+  trigger_event_type, trigger_payload, context_data, current_node_id,
+  started_at, entity_type, entity_id,
+  initiated_by_user_id, total_steps, completed_steps) VALUES
+('e4000000-0000-4000-8000-000000000002', 'e1000000-0000-4000-8000-000000000003',
+ 'e2000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+ 'waiting', 'stage_changed',
+ '{"from_stage": "active", "to_stage": "pre_closing"}'::jsonb,
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000004", "ready": false}'::jsonb,
+ 'hc_1',
+ '2026-04-01 11:00:00-06',
+ 'transaction', 'e0000000-0000-4000-8000-000000000004',
+ null, 5, 3);
+
+-- Steps for the running run (3 completed, 1 waiting)
+INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, node_label, step_number,
+  status, input_data, output_data, started_at, completed_at, duration_ms) VALUES
+('e5000000-0000-4000-8000-000000000005', 'e4000000-0000-4000-8000-000000000002',
+ 'start_1', 'start', 'Start', 1, 'completed',
+ '{}'::jsonb, '{}'::jsonb,
+ '2026-04-01 11:00:00-06', '2026-04-01 11:00:00-06', 4),
+('e5000000-0000-4000-8000-000000000006', 'e4000000-0000-4000-8000-000000000002',
+ 'eval_cr', 'evaluate_closing_readiness', 'Evaluate Closing Readiness', 2, 'completed',
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000004"}'::jsonb,
+ '{"ready": false, "blockers": ["title_search_pending", "final_walkthrough_not_scheduled"]}'::jsonb,
+ '2026-04-01 11:00:00-06', '2026-04-01 11:00:03-06', 2800),
+('e5000000-0000-4000-8000-000000000007', 'e4000000-0000-4000-8000-000000000002',
+ 'cond_1', 'condition', 'Ready to Close?', 3, 'completed',
+ '{"ready": false}'::jsonb, '{"branch": "not_ready"}'::jsonb,
+ '2026-04-01 11:00:03-06', '2026-04-01 11:00:03-06', 8),
+('e5000000-0000-4000-8000-000000000008', 'e4000000-0000-4000-8000-000000000002',
+ 'checklist_1', 'create_checklist_item', 'Create Closing Checklist', 4, 'completed',
+ '{"checklist_template": "closing_prep"}'::jsonb,
+ '{"checklist_item_id": "generated-checklist-001"}'::jsonb,
+ '2026-04-01 11:00:03-06', '2026-04-01 11:00:04-06', 950),
+('e5000000-0000-4000-8000-000000000009', 'e4000000-0000-4000-8000-000000000002',
+ 'hc_1', 'human_checkpoint', 'Coordinator Review', 5, 'waiting',
+ '{"assignee_role": "coordinator"}'::jsonb, '{}'::jsonb,
+ '2026-04-01 11:00:04-06', null, null);
+
+-- Failed run for Workflow 3 (error during evaluation)
+INSERT INTO workflow_runs (id, workflow_id, workflow_version_id, organization_id, status,
+  trigger_event_type, trigger_payload, context_data, current_node_id,
+  started_at, completed_at, error_message, entity_type, entity_id,
+  initiated_by_user_id, total_steps, completed_steps) VALUES
+('e4000000-0000-4000-8000-000000000003', 'e1000000-0000-4000-8000-000000000003',
+ 'e2000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+ 'failed', 'stage_changed',
+ '{"from_stage": "active", "to_stage": "pre_closing"}'::jsonb,
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000002"}'::jsonb,
+ 'eval_cr',
+ '2026-03-30 15:00:00-06', '2026-03-30 15:00:03-06',
+ 'Error evaluating closing readiness: transaction e0000000-...-000000000002 missing required closing_date field',
+ 'transaction', 'e0000000-0000-4000-8000-000000000002',
+ null, 2, 1);
+
+-- Steps for the failed run
+INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, node_label, step_number,
+  status, input_data, output_data, error_message, started_at, completed_at, duration_ms) VALUES
+('e5000000-0000-4000-8000-000000000010', 'e4000000-0000-4000-8000-000000000003',
+ 'start_1', 'start', 'Start', 1, 'completed',
+ '{}'::jsonb, '{}'::jsonb, null,
+ '2026-03-30 15:00:00-06', '2026-03-30 15:00:00-06', 3),
+('e5000000-0000-4000-8000-000000000011', 'e4000000-0000-4000-8000-000000000003',
+ 'eval_cr', 'evaluate_closing_readiness', 'Evaluate Closing Readiness', 2, 'failed',
+ '{"transaction_id": "e0000000-0000-4000-8000-000000000002"}'::jsonb, '{}'::jsonb,
+ 'transaction e0000000-...-000000000002 missing required closing_date field',
+ '2026-03-30 15:00:00-06', '2026-03-30 15:00:03-06', 2500);
