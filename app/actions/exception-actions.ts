@@ -4,11 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { resolveException, getActiveExceptions } from '@/lib/services/exception-service';
 import { supabase } from '@/lib/db/client';
+import { ResolveExceptionSchema, UuidSchema } from '@/lib/validation/schemas';
 
 export async function resolveExceptionAction(
   exceptionId: string,
   resolution: string,
 ) {
+  const validated = ResolveExceptionSchema.parse({ exceptionId, resolution });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -30,7 +32,7 @@ export async function resolveExceptionAction(
 
   await requireOrgMembership(transaction.organization_id);
 
-  const result = await resolveException(exceptionId, resolution, profile.id);
+  const result = await resolveException(validated.exceptionId, profile.id, validated.resolution);
 
   revalidatePath(`/transactions/${exception.transaction_id}`);
 
@@ -38,6 +40,7 @@ export async function resolveExceptionAction(
 }
 
 export async function getExceptionsAction(transactionId: string) {
+  UuidSchema.parse(transactionId);
   await requireAuth();
 
   const { data: transaction } = await supabase

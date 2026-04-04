@@ -77,7 +77,7 @@ export async function updateRule(
       .eq('id', ruleId)
       .single();
 
-    if (fetchError) throw fetchError;
+    if (fetchError) throw new Error(`Failed to fetch rule config: ${fetchError.message}`);
 
     const currentConfig = (existing?.rule_config ?? {}) as Record<string, unknown>;
     patchFields.rule_config = {
@@ -188,7 +188,7 @@ export async function applyTemplate(
     .eq('id', templateId)
     .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) throw new Error(`Failed to fetch template: ${fetchError.message}`);
   if (!template) throw new Error(`Template ${templateId} not found`);
 
   const tpl = template as OrganizationTemplate;

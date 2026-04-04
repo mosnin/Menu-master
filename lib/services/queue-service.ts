@@ -247,7 +247,7 @@ export async function getQueueStats(orgId: string): Promise<QueueStats> {
     .eq('organization_id', orgId)
     .eq('status', 'pending');
 
-  if (paErr) throw paErr;
+  if (paErr) throw new Error(`Failed to fetch pending approvals count: ${paErr.message}`);
 
   // Overdue checklist items
   const now = new Date().toISOString();
@@ -261,7 +261,7 @@ export async function getQueueStats(orgId: string): Promise<QueueStats> {
     .not('status', 'in', '("completed","skipped")')
     .lt('due_date', now);
 
-  if (odErr) throw odErr;
+  if (odErr) throw new Error(`Failed to fetch overdue items count: ${odErr.message}`);
 
   // Unassigned transactions — active transactions with no assignment record
   // or all role columns null
@@ -271,7 +271,7 @@ export async function getQueueStats(orgId: string): Promise<QueueStats> {
     .eq('organization_id', orgId)
     .not('status', 'in', '("closed","cancelled")');
 
-  if (txErr) throw txErr;
+  if (txErr) throw new Error(`Failed to fetch transactions: ${txErr.message}`);
 
   const unassignedTransactions = (txData ?? []).filter((tx: any) => {
     const a = Array.isArray(tx.transaction_assignments)
@@ -290,7 +290,7 @@ export async function getQueueStats(orgId: string): Promise<QueueStats> {
     .eq('organization_id', orgId)
     .eq('processing_status', 'processing');
 
-  if (dpErr) throw dpErr;
+  if (dpErr) throw new Error(`Failed to fetch processing documents count: ${dpErr.message}`);
 
   return {
     pendingApprovals: pendingApprovals ?? 0,
@@ -350,6 +350,6 @@ export async function getQueueViews(
     .eq('organization_id', orgId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(`Failed to fetch queue views: ${error.message}`);
   return (data ?? []) as QueueView[];
 }

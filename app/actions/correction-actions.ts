@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { applyCorrection, getCorrectionsForDocument } from '@/lib/services/field-correction-service';
 import { supabase } from '@/lib/db/client';
+import { ApplyFieldCorrectionSchema, UuidSchema } from '@/lib/validation/schemas';
 
 export async function applyFieldCorrectionAction(
   documentId: string,
@@ -12,6 +13,14 @@ export async function applyFieldCorrectionAction(
   correctedValue: string,
   reason?: string,
 ) {
+  const validated = ApplyFieldCorrectionSchema.parse({
+    documentId,
+    fieldName,
+    originalValue,
+    correctedValue,
+    reason,
+  });
+
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -27,11 +36,11 @@ export async function applyFieldCorrectionAction(
   await requireOrgMembership(document.organization_id);
 
   const correction = await applyCorrection({
-    documentId,
-    fieldName,
-    originalValue,
-    correctedValue,
-    reason,
+    documentId: validated.documentId,
+    fieldName: validated.fieldName,
+    originalValue: validated.originalValue,
+    correctedValue: validated.correctedValue,
+    reason: validated.reason,
     correctedByUserId: profile.id,
   });
 
@@ -42,6 +51,7 @@ export async function applyFieldCorrectionAction(
 }
 
 export async function getCorrectionsAction(documentId: string) {
+  UuidSchema.parse(documentId);
   await requireAuth();
 
   // Look up the document to verify org membership

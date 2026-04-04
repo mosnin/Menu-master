@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { addComment, getComments, markMentionRead } from '@/lib/services/comment-service';
 import { supabase } from '@/lib/db/client';
+import { AddCommentSchema, UuidSchema } from '@/lib/validation/schemas';
+import type { CommentEntityType } from '@/types';
 
 async function getOrgIdForEntity(entityType: string, entityId: string): Promise<{ orgId: string; transactionId: string | null }> {
   if (entityType === 'transaction') {
@@ -62,6 +64,7 @@ export async function addCommentAction(
   body: string,
   parentCommentId?: string,
 ) {
+  const validated = AddCommentSchema.parse({ entityType, entityId, body, parentCommentId });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -70,10 +73,10 @@ export async function addCommentAction(
   await requireOrgMembership(orgId);
 
   const comment = await addComment({
-    entityType: entityType as import('@/types').CommentEntityType,
-    entityId,
-    body,
-    parentCommentId,
+    entityType: validated.entityType as CommentEntityType,
+    entityId: validated.entityId,
+    body: validated.body,
+    parentCommentId: validated.parentCommentId,
     authorUserId: profile.id,
     orgId,
   });
@@ -86,17 +89,20 @@ export async function addCommentAction(
 }
 
 export async function getCommentsAction(entityType: string, entityId: string) {
+  const validatedEntityType = AddCommentSchema.shape.entityType.parse(entityType);
+  UuidSchema.parse(entityId);
   await requireAuth();
 
-  const { orgId } = await getOrgIdForEntity(entityType, entityId);
+  const { orgId } = await getOrgIdForEntity(validatedEntityType, entityId);
   await requireOrgMembership(orgId);
 
-  const comments = await getComments(entityType as import('@/types').CommentEntityType, entityId);
+  const comments = await getComments(validatedEntityType as CommentEntityType, entityId);
 
   return comments;
 }
 
 export async function markMentionReadAction(mentionId: string) {
+  UuidSchema.parse(mentionId);
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');

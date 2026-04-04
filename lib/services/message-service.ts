@@ -206,7 +206,7 @@ export async function sendApprovedMessage(
       },
     });
 
-    throw error;
+    throw error instanceof Error ? error : new Error('Failed to send message');
   }
 }
 

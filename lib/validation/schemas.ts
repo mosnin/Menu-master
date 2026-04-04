@@ -60,6 +60,74 @@ export const CreateReminderSchema = z.object({
   scheduledFor: z.string().datetime(),
 });
 
+// ---------------------------------------------------------------------------
+// Phase 2 schemas
+// ---------------------------------------------------------------------------
+
+export const UuidSchema = z.string().uuid('Invalid UUID');
+
+export const ApplyFieldCorrectionSchema = z.object({
+  documentId: z.string().uuid(),
+  fieldName: z.string().min(1, 'Field name is required'),
+  originalValue: z.string(),
+  correctedValue: z.string().min(1, 'Corrected value is required'),
+  reason: z.string().optional(),
+});
+
+export const ResolveExceptionSchema = z.object({
+  exceptionId: z.string().uuid(),
+  resolution: z.string().min(1, 'Resolution is required'),
+});
+
+export const AssignTransactionSchema = z.object({
+  transactionId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: z.enum(['primary_agent', 'coordinator_owner', 'broker_reviewer']),
+});
+
+export const AssignChecklistItemSchema = z.object({
+  itemId: z.string().uuid(),
+  userId: z.string().uuid(),
+});
+
+export const AssignApprovalReviewerSchema = z.object({
+  approvalId: z.string().uuid(),
+  reviewerId: z.string().uuid(),
+});
+
+export const AddCommentSchema = z.object({
+  entityType: z.enum(['transaction', 'document', 'approval', 'checklist_item']),
+  entityId: z.string().uuid(),
+  body: z.string().min(1, 'Comment body is required').max(10000),
+  parentCommentId: z.string().uuid().optional(),
+});
+
+export const CreateRuleSchema = z.object({
+  ruleType: z.string().min(1, 'Rule type is required'),
+  name: z.string().min(1, 'Rule name is required').max(200),
+  conditions: z.record(z.unknown()),
+  actions: z.record(z.unknown()),
+});
+
+export const CreateTemplateSchema = z.object({
+  templateType: z.string().min(1, 'Template type is required'),
+  name: z.string().min(1, 'Template name is required').max(200),
+  contentJson: z.record(z.unknown()),
+});
+
+export const ApplyTemplateSchema = z.object({
+  templateId: z.string().uuid(),
+  transactionId: z.string().uuid(),
+});
+
+export type ApplyFieldCorrectionInput = z.infer<typeof ApplyFieldCorrectionSchema>;
+export type ResolveExceptionInput = z.infer<typeof ResolveExceptionSchema>;
+export type AssignTransactionInput = z.infer<typeof AssignTransactionSchema>;
+export type AddCommentInput = z.infer<typeof AddCommentSchema>;
+export type CreateRuleInput = z.infer<typeof CreateRuleSchema>;
+export type CreateTemplateInput = z.infer<typeof CreateTemplateSchema>;
+export type ApplyTemplateInput = z.infer<typeof ApplyTemplateSchema>;
+
 export type CreateTransactionInput = z.infer<typeof CreateTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionSchema>;
 export type UploadDocumentInput = z.infer<typeof UploadDocumentSchema>;

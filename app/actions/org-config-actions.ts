@@ -9,6 +9,8 @@ import {
   applyTemplate,
 } from '@/lib/services/org-config-service';
 import { supabase } from '@/lib/db/client';
+import { CreateRuleSchema, CreateTemplateSchema, ApplyTemplateSchema, UuidSchema } from '@/lib/validation/schemas';
+import { z } from 'zod';
 
 export async function createRuleAction(
   ruleType: string,
@@ -16,6 +18,7 @@ export async function createRuleAction(
   conditions: Record<string, unknown>,
   actions: Record<string, unknown>,
 ) {
+  const validated = CreateRuleSchema.parse({ ruleType, name, conditions, actions });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -34,10 +37,10 @@ export async function createRuleAction(
 
   const rule = await createRule({
     orgId,
-    ruleType,
-    name,
-    conditions,
-    actions,
+    ruleType: validated.ruleType,
+    name: validated.name,
+    conditions: validated.conditions,
+    actions: validated.actions,
     createdByUserId: profile.id,
   });
 
@@ -48,6 +51,8 @@ export async function createRuleAction(
 }
 
 export async function toggleRuleAction(ruleId: string, isActive: boolean) {
+  UuidSchema.parse(ruleId);
+  z.boolean().parse(isActive);
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -75,6 +80,7 @@ export async function createTemplateAction(
   name: string,
   contentJson: Record<string, unknown>,
 ) {
+  const validated = CreateTemplateSchema.parse({ templateType, name, contentJson });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -93,9 +99,9 @@ export async function createTemplateAction(
 
   const template = await createTemplate({
     orgId,
-    templateType,
-    name,
-    contentJson,
+    templateType: validated.templateType,
+    name: validated.name,
+    contentJson: validated.contentJson,
     createdByUserId: profile.id,
   });
 
@@ -106,6 +112,7 @@ export async function createTemplateAction(
 }
 
 export async function applyTemplateAction(templateId: string, transactionId: string) {
+  ApplyTemplateSchema.parse({ templateId, transactionId });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');

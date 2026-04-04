@@ -4,8 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { dismissRecommendation, completeRecommendation } from '@/lib/services/recommendation-service';
 import { supabase } from '@/lib/db/client';
+import { UuidSchema } from '@/lib/validation/schemas';
 
 export async function dismissRecommendationAction(recommendationId: string) {
+  UuidSchema.parse(recommendationId);
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -35,6 +37,7 @@ export async function dismissRecommendationAction(recommendationId: string) {
 }
 
 export async function getRecommendationsAction(transactionId: string) {
+  UuidSchema.parse(transactionId);
   await requireAuth();
 
   const { data: transaction } = await supabase
@@ -53,6 +56,7 @@ export async function getRecommendationsAction(transactionId: string) {
 }
 
 export async function completeRecommendationAction(recommendationId: string) {
+  UuidSchema.parse(recommendationId);
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');

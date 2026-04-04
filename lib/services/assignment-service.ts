@@ -8,7 +8,6 @@ import type {
   TransactionAssignment,
   ChecklistItem,
   Approval,
-  UserRole,
 } from '@/types';
 
 // ---------------------------------------------------------------------------

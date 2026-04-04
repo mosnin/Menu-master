@@ -9,12 +9,14 @@ import {
   assignApprovalReviewer,
 } from '@/lib/services/assignment-service';
 import { supabase } from '@/lib/db/client';
+import { AssignTransactionSchema, AssignChecklistItemSchema, AssignApprovalReviewerSchema, UuidSchema } from '@/lib/validation/schemas';
 
 export async function assignTransactionAction(
   transactionId: string,
   userId: string,
   role: string,
 ) {
+  const validated = AssignTransactionSchema.parse({ transactionId, userId, role });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -28,7 +30,7 @@ export async function assignTransactionAction(
 
   await requireOrgMembership(transaction.organization_id);
 
-  const assignment = await assignTransaction(transactionId, userId, role as 'primary_agent' | 'coordinator_owner' | 'broker_reviewer', profile.id);
+  const assignment = await assignTransaction(validated.transactionId, validated.userId, validated.role, profile.id);
 
   revalidatePath(`/transactions/${transactionId}`);
 
@@ -36,6 +38,7 @@ export async function assignTransactionAction(
 }
 
 export async function unassignTransactionAction(assignmentId: string) {
+  UuidSchema.parse(assignmentId);
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -65,6 +68,7 @@ export async function unassignTransactionAction(assignmentId: string) {
 }
 
 export async function getAssignmentsAction(transactionId: string) {
+  UuidSchema.parse(transactionId);
   await requireAuth();
 
   const { data: transaction } = await supabase
@@ -83,6 +87,7 @@ export async function getAssignmentsAction(transactionId: string) {
 }
 
 export async function assignChecklistItemAction(itemId: string, userId: string) {
+  AssignChecklistItemSchema.parse({ itemId, userId });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
@@ -113,6 +118,7 @@ export async function assignChecklistItemAction(itemId: string, userId: string) 
 }
 
 export async function assignApprovalReviewerAction(approvalId: string, reviewerId: string) {
+  AssignApprovalReviewerSchema.parse({ approvalId, reviewerId });
   await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
