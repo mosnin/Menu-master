@@ -17,6 +17,17 @@ interface CreateApprovalParams {
 export async function createApproval(
   params: CreateApprovalParams,
 ): Promise<Approval> {
+  // Don't allow approvals on closed/cancelled transactions
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('status')
+    .eq('id', params.transactionId)
+    .single();
+
+  if (transaction?.status === 'closed' || transaction?.status === 'cancelled') {
+    throw new Error('Cannot create approvals on closed or cancelled transactions');
+  }
+
   const approval = await approvalRepo.create({
     organization_id: params.orgId,
     transaction_id: params.transactionId,

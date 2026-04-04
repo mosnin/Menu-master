@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireRole, getCurrentUserProfile } from '@/lib/auth/session';
 import * as transactionService from '@/lib/services/transaction-service';
 import * as economicsService from '@/lib/services/economics-service';
+import { supabase } from '@/lib/db/client';
 
 async function getTransactionOrgId(transactionId: string): Promise<string> {
   const transaction = await transactionService.getTransactionWithDetails(transactionId);
@@ -49,6 +50,8 @@ export async function finalizeEconomicsAction(
 
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/transactions/${transactionId}/economics`);
+    revalidatePath('/broker');
+    revalidatePath('/broker/forecast');
 
     return { success: true, data: economics };
   } catch (error) {
@@ -83,7 +86,17 @@ export async function createSplitAction(
 
     const split = await economicsService.createSplit(economicsId, data, profile.id);
 
-    // Revalidate broadly since we don't have transactionId directly
+    // Look up the economics record to revalidate the specific transaction
+    const { data: economics } = await supabase
+      .from('transaction_economics')
+      .select('transaction_id')
+      .eq('id', economicsId)
+      .single();
+
+    if (economics?.transaction_id) {
+      revalidatePath(`/transactions/${economics.transaction_id}`);
+      revalidatePath(`/transactions/${economics.transaction_id}/economics`);
+    }
     revalidatePath('/transactions');
 
     return { success: true, data: split };

@@ -137,7 +137,7 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
                 {typeLabels[approval.approval_type] ?? approval.approval_type}
                 <Badge variant="secondary" className="text-xs gap-1.5 bg-violet-100/80 text-violet-700 border-violet-200/50">
                   <Bot className="h-3 w-3" />
-                  AI Generated
+                  AI-Assisted
                 </Badge>
                 {approval.status === 'approved' && (
                   <Badge variant="success" className="text-xs gap-1.5 bg-emerald-100/80 text-emerald-700 border-emerald-200/50">

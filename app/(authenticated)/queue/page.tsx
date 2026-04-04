@@ -162,7 +162,7 @@ export default async function QueuePage() {
             <EmptyState
               icon={Inbox}
               title="No assigned items"
-              description="When checklist items or tasks are assigned to you, they will appear here for easy tracking."
+              description="Checklist items and tasks assigned to you will appear here."
             />
           ) : (
             <div className="space-y-3">
@@ -189,7 +189,7 @@ export default async function QueuePage() {
             <EmptyState
               icon={Eye}
               title="Nothing to review"
-              description="Checklist items requiring review and pending approval requests will appear here."
+              description="Items flagged for review and pending approvals will appear here."
             />
           ) : (
             <div className="space-y-3">
@@ -213,8 +213,8 @@ export default async function QueuePage() {
           {overdueItems.length === 0 ? (
             <EmptyState
               icon={Clock}
-              title="Nothing overdue"
-              description="Great work! All items are on track. Overdue checklist items will appear here if deadlines are missed."
+              title="No overdue items"
+              description="No overdue items. Items that pass their due date will appear here."
             />
           ) : (
             <div className="space-y-3">

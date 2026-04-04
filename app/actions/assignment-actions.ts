@@ -33,6 +33,7 @@ export async function assignTransactionAction(
   const assignment = await assignTransaction(validated.transactionId, validated.userId, validated.role, profile.id);
 
   revalidatePath(`/transactions/${transactionId}`);
+  revalidatePath('/queue');
 
   return assignment;
 }
@@ -63,6 +64,7 @@ export async function unassignTransactionAction(assignmentId: string) {
   const result = await unassignTransaction(assignmentId, 'primary_agent', profile.id);
 
   revalidatePath(`/transactions/${assignment.transaction_id}`);
+  revalidatePath('/queue');
 
   return result;
 }
@@ -113,6 +115,7 @@ export async function assignChecklistItemAction(itemId: string, userId: string) 
 
   revalidatePath(`/transactions/${item.transaction_id}`);
   revalidatePath(`/transactions/${item.transaction_id}/checklist`);
+  revalidatePath('/queue');
 
   return result;
 }
@@ -137,6 +140,7 @@ export async function assignApprovalReviewerAction(approvalId: string, reviewerI
 
   revalidatePath(`/transactions/${approval.transaction_id}`);
   revalidatePath('/approvals');
+  revalidatePath('/queue');
 
   return result;
 }

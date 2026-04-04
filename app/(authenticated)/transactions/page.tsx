@@ -17,6 +17,7 @@ import {
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
+import { humanizeStatus } from '@/lib/format';
 
 const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
   draft: 'secondary',
@@ -31,12 +32,12 @@ function LocalEmptyState() {
     <SharedEmptyState
       icon={FileText}
       title="No transactions yet"
-      description="Transactions are the core of Deal Desk. Create one to start managing documents, tracking deadlines, and using AI-powered extraction."
+      description="Create your first transaction to start organizing documents and tracking deadlines."
       action={
         <Button asChild className="rounded-lg px-5 py-2.5">
           <Link href="/transactions/new" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Create Your First Transaction
+            New Transaction
           </Link>
         </Button>
       }
@@ -83,7 +84,7 @@ function TransactionCard({
             </div>
             <div className="flex items-center gap-4 ml-6 shrink-0">
               <Badge variant={statusColors[status] || 'secondary'} className="px-3 py-1 text-xs font-medium">
-                {status.replace('_', ' ')}
+                {humanizeStatus(status)}
               </Badge>
               <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
             </div>

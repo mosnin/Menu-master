@@ -56,7 +56,7 @@ export function TransactionForm() {
                 className="h-10 rounded-lg"
               />
               <p className="text-xs text-muted-foreground">
-                A descriptive name to identify this transaction.
+                Used as the primary label throughout Deal Desk.
               </p>
             </div>
           </CardContent>

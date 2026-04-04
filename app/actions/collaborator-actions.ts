@@ -17,7 +17,7 @@ export async function inviteCollaboratorAction(
   fullName: string,
   role: string,
   permissions?: string[],
-): Promise<{ success?: boolean; error?: string }> {
+): Promise<{ success?: boolean; error?: string; data?: { token: string } }> {
   try {
     await requireAuth();
     const profile = await getCurrentUserProfile();
@@ -38,7 +38,7 @@ export async function inviteCollaboratorAction(
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/transactions/${transactionId}/collaborators`);
 
-    return { success: true };
+    return { success: true, data: { token: invite.access_token } };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to invite collaborator' };
   }

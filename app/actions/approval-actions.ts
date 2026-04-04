@@ -34,6 +34,8 @@ export async function decideApprovalAction(
 
     revalidatePath(`/transactions/${approval.transaction_id}`);
     revalidatePath('/approvals');
+    revalidatePath('/dashboard');
+    revalidatePath('/queue');
 
     trackEvent({ orgId: existing.organization_id, userId: profile.id, event: (decision === 'approved' ? 'approval_approved' : 'approval_rejected') as any, category: 'approval', properties: { approvalId: approval.id, decision } });
     recordMilestone(existing.organization_id, profile.id, 'first_approval_completed');

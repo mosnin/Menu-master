@@ -76,7 +76,7 @@ export default async function SettingsPage() {
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Organization
               </span>
-              <p className="text-sm font-semibold">Deal Desk Inc.</p>
+              <p className="text-sm font-semibold">Your Organization</p>
             </div>
             <div className="space-y-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -91,7 +91,7 @@ export default async function SettingsPage() {
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Members
               </span>
-              <p className="text-sm font-semibold">1 user</p>
+              <p className="text-sm font-semibold">—</p>
             </div>
             <div className="space-y-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

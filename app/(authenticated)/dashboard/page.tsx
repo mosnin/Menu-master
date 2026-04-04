@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       {/* Hero Section */}
       <PageHeader
         title={`${greeting}, ${firstName}`}
-        description="Your portfolio overview for today."
+        description="Your portfolio overview."
       />
 
       {/* Quick Actions */}
@@ -86,22 +86,22 @@ export default async function DashboardPage() {
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/transactions" className="group">
-          <StatCard label="Active Transactions" value={12} subtext="3 updated today" icon={FileText} accent="blue" />
+          <StatCard label="Active Transactions" value="—" subtext="View all transactions" icon={FileText} accent="blue" />
         </Link>
         <Link href="/approvals" className="group">
-          <StatCard label="Pending Approvals" value={4} subtext="2 awaiting your review" icon={CheckSquare} accent="amber" />
+          <StatCard label="Pending Approvals" value="—" subtext="Review pending items" icon={CheckSquare} accent="amber" />
         </Link>
         <Link href="/transactions" className="group">
-          <StatCard label="Upcoming Deadlines" value={7} subtext="In the next 14 days" icon={Calendar} accent="orange" />
+          <StatCard label="Upcoming Deadlines" value="—" subtext="Check upcoming dates" icon={Calendar} accent="orange" />
         </Link>
         <Link href="/transactions" className="group">
-          <StatCard label="Issues" value={3} subtext="Missing docs or failed extractions" icon={AlertTriangle} accent="red" />
+          <StatCard label="Issues" value="—" subtext="Resolve open issues" icon={AlertTriangle} accent="red" />
         </Link>
       </div>
 
       {/* Pilot Readiness */}
       <PilotReadiness
-        orgName="Deal Desk Inc."
+        orgName="Your Organization"
         teamMemberCount={1}
         transactionCount={0}
         documentCount={0}
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
         {/* Needs Attention */}
         <Card className="rounded-xl">
           <CardHeader className="pb-4">
-            <SectionHeader icon={AlertTriangle} iconClassName="text-yellow-600 dark:text-yellow-400" title="Needs Attention" description="Transactions requiring your action" linkHref="/transactions" />
+            <SectionHeader icon={AlertTriangle} iconClassName="text-yellow-600 dark:text-yellow-400" title="Action Required" description="Items that need your action across all transactions" linkHref="/transactions" />
           </CardHeader>
           <CardContent>
             <EmptyState

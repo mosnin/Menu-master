@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { requireAuth, requireRole, getCurrentUserProfile } from '@/lib/auth/session';
 import * as forecastService from '@/lib/services/forecast-service';
 
@@ -23,6 +24,9 @@ export async function computeForecastAction(
     await requireRole(orgId, ['broker_admin']);
 
     const forecast = await forecastService.computeForecast(orgId, forecastMonth, profile.id);
+
+    revalidatePath('/broker');
+    revalidatePath('/broker/forecast');
 
     return { success: true, data: forecast };
   } catch (error) {

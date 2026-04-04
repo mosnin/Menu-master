@@ -115,6 +115,7 @@ export async function resolveComplianceIssueAction(
 
     revalidatePath('/compliance');
     revalidatePath(`/transactions/${issue.transaction_id}/compliance`);
+    revalidatePath('/broker');
 
     return { success: true, data: resolved };
   } catch (error) {
@@ -141,6 +142,7 @@ export async function overrideComplianceIssueAction(
 
     revalidatePath('/compliance');
     revalidatePath(`/transactions/${issue.transaction_id}/compliance`);
+    revalidatePath('/broker');
 
     return { success: true, data: overridden };
   } catch (error) {
