@@ -130,7 +130,7 @@ export async function getOrgQueue(
     }
 
     const { data: clData, error: clErr } = await clQuery;
-    if (clErr) throw clErr;
+    if (clErr) throw new Error(`Failed to fetch queue checklist items: ${clErr.message}`);
 
     for (const row of clData ?? []) {
       items.push({
@@ -166,7 +166,7 @@ export async function getOrgQueue(
     }
 
     const { data: apData, error: apErr } = await apQuery;
-    if (apErr) throw apErr;
+    if (apErr) throw new Error(`Failed to fetch queue approvals: ${apErr.message}`);
 
     for (const row of apData ?? []) {
       items.push({
@@ -196,7 +196,7 @@ export async function getOrgQueue(
     }
 
     const { data: txData, error: txErr } = await txQuery;
-    if (txErr) throw txErr;
+    if (txErr) throw new Error(`Failed to fetch queue transactions: ${txErr.message}`);
 
     for (const row of txData ?? []) {
       const assignment = Array.isArray(row.transaction_assignments)
