@@ -1,10 +1,17 @@
 import crypto from 'crypto';
 import { getTool } from './tool-registry';
 import type { ToolExecutionContext } from './tool-registry';
-import type { OrchestratorActionProposal, OrchestratorActionExecution, ActionRiskClass } from '@/types';
+import type {
+  OrchestratorActionProposal,
+  OrchestratorActionExecution,
+  PolicyContext,
+  PolicyDecision,
+  OrgPolicyOverrides,
+} from '@/types';
 import * as actionRepo from '@/lib/repositories/orchestrator-actions';
 import * as memoryRepo from '@/lib/repositories/orchestrator-memory';
 import { logAction } from '@/lib/audit/logger';
+import { evaluatePolicy } from './action-policy';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -22,41 +29,68 @@ function delay(ms: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Risk gating rules
+// Policy context builder
 // ---------------------------------------------------------------------------
 
-type GatingResult =
-  | { allowed: true }
-  | { allowed: false; reason: string; gated_as: 'gated' | 'rejected' };
+export interface ExecutionPolicyContext {
+  entityType: 'transaction' | 'listing';
+  actorRole: import('@/types').UserRole;
+  complianceFlags: string[];
+  orgPolicyOverrides?: OrgPolicyOverrides;
+  worldStage: string;
+}
 
-function checkRiskGating(riskClass: ActionRiskClass, criticApproved: boolean | null): GatingResult {
-  // Safe actions can always execute if critic didn't reject
-  if (riskClass === 'safe') {
-    if (criticApproved === false) {
-      return { allowed: false, reason: 'Critic rejected this safe action', gated_as: 'rejected' };
-    }
-    return { allowed: true };
+function buildPolicyContext(
+  proposal: OrchestratorActionProposal,
+  policyCtx: ExecutionPolicyContext,
+): PolicyContext {
+  return {
+    toolName: proposal.tool_name,
+    riskClass: proposal.risk_class,
+    confidence: proposal.confidence,
+    entityType: policyCtx.entityType,
+    actorRole: policyCtx.actorRole,
+    complianceFlags: policyCtx.complianceFlags,
+    orgPolicyOverrides: policyCtx.orgPolicyOverrides,
+    worldStage: policyCtx.worldStage,
+  };
+}
+
+/**
+ * Map a policy disposition to the proposal status used in the database.
+ */
+function dispositionToProposalStatus(disposition: import('@/types').ActionDisposition): string {
+  switch (disposition) {
+    case 'auto_execute':
+      return 'approved';
+    case 'create_draft':
+      return 'gated';
+    case 'create_approval':
+      return 'gated';
+    case 'block':
+      return 'rejected';
+    default:
+      return 'rejected';
   }
+}
 
-  // Medium-risk actions execute as drafts/suggestions (we still execute but log as gated)
-  if (riskClass === 'medium_risk') {
-    if (criticApproved === false) {
-      return { allowed: false, reason: 'Critic rejected this medium-risk action', gated_as: 'rejected' };
-    }
-    // Medium risk actions proceed but are recorded as gated for audit
-    return { allowed: true };
+/**
+ * Map a policy disposition to the appropriate audit action.
+ */
+function dispositionToAuditAction(
+  disposition: import('@/types').ActionDisposition,
+): 'orchestrator.action_executed' | 'orchestrator.action_gated' | 'orchestrator.action_rejected' {
+  switch (disposition) {
+    case 'auto_execute':
+      return 'orchestrator.action_executed';
+    case 'create_draft':
+    case 'create_approval':
+      return 'orchestrator.action_gated';
+    case 'block':
+      return 'orchestrator.action_rejected';
+    default:
+      return 'orchestrator.action_rejected';
   }
-
-  // High-risk actions are always blocked behind approval
-  if (riskClass === 'high_risk') {
-    return {
-      allowed: false,
-      reason: 'High-risk actions require explicit human approval before execution',
-      gated_as: 'gated',
-    };
-  }
-
-  return { allowed: false, reason: `Unknown risk class: ${riskClass}`, gated_as: 'rejected' };
 }
 
 // ---------------------------------------------------------------------------
@@ -66,8 +100,18 @@ function checkRiskGating(riskClass: ActionRiskClass, criticApproved: boolean | n
 export async function executeApprovedActions(
   proposals: OrchestratorActionProposal[],
   context: ToolExecutionContext,
+  policyCtx?: ExecutionPolicyContext,
 ): Promise<OrchestratorActionExecution[]> {
   const executions: OrchestratorActionExecution[] = [];
+
+  // Default policy context when not provided (backwards-compatible)
+  const effectivePolicyCtx: ExecutionPolicyContext = policyCtx ?? {
+    entityType: context.entityType,
+    actorRole: 'agent',
+    complianceFlags: [],
+    orgPolicyOverrides: undefined,
+    worldStage: 'active',
+  };
 
   for (let i = 0; i < proposals.length; i++) {
     const proposal = proposals[i];
@@ -94,64 +138,53 @@ export async function executeApprovedActions(
       continue;
     }
 
-    // 2. Check risk gating
-    const gating = checkRiskGating(proposal.risk_class, proposal.critic_approved);
+    // 3. Evaluate action policy
+    const policyContext = buildPolicyContext(proposal, effectivePolicyCtx);
+    const policyDecision = evaluatePolicy(policyContext);
 
-    if (gating.allowed === false) {
-      // Update proposal status
-      await actionRepo.updateProposal(proposal.id, {
-        status: gating.gated_as,
-        gated_reason: gating.reason,
-      });
-
-      const auditAction = gating.gated_as === 'gated'
-        ? 'orchestrator.action_gated' as const
-        : 'orchestrator.action_rejected' as const;
-
-      await logAction({
-        organizationId: context.organizationId,
-        transactionId: context.entityType === 'transaction' ? context.entityId : undefined,
-        actorType: 'ai',
-        action: auditAction,
-        targetType: 'orchestrator_action',
-        targetId: proposal.id,
-        metadata: {
-          tool_name: proposal.tool_name,
-          risk_class: proposal.risk_class,
-          gated_reason: gating.reason,
-          status: gating.gated_as,
-        },
-      });
-
-      // Record a non-executed entry
-      const execution = await actionRepo.createExecution({
-        proposal_id: proposal.id,
-        orchestrator_id: context.orchestratorId,
-        tool_name: proposal.tool_name,
-        tool_params: proposal.tool_params,
-        result: { gated: true, reason: gating.reason },
-        success: false,
-        error_message: gating.reason,
-        duration_ms: Date.now() - startTime,
-        side_effects: [],
-        idempotency_key: idempotencyKey,
+    // Also respect critic rejection — if the critic explicitly rejected, block regardless
+    if (proposal.critic_approved === false) {
+      const execution = await recordPolicyDecision(proposal, context, startTime, idempotencyKey, {
+        disposition: 'block',
+        reason: 'Critic rejected this action',
+        policy_rule: 'critic_rejection',
+        can_override: false,
       });
       executions.push(execution);
       continue;
     }
 
-    // 3. Execute the tool
+    // 4. Handle non-auto_execute dispositions
+    if (policyDecision.disposition !== 'auto_execute') {
+      const execution = await recordPolicyDecision(
+        proposal,
+        context,
+        startTime,
+        idempotencyKey,
+        policyDecision,
+      );
+      executions.push(execution);
+      continue;
+    }
+
+    // 5. auto_execute — run the tool
     try {
       const toolResult = await tool.execute(proposal.tool_params, context);
       const durationMs = Date.now() - startTime;
 
-      // 4. Store execution record
+      // Store execution record
       const execution = await actionRepo.createExecution({
         proposal_id: proposal.id,
         orchestrator_id: context.orchestratorId,
         tool_name: proposal.tool_name,
         tool_params: proposal.tool_params,
-        result: toolResult.result,
+        result: {
+          ...toolResult.result,
+          policy_decision: {
+            disposition: policyDecision.disposition,
+            policy_rule: policyDecision.policy_rule,
+          },
+        },
         success: toolResult.success,
         error_message: null,
         duration_ms: durationMs,
@@ -159,12 +192,12 @@ export async function executeApprovedActions(
         idempotency_key: idempotencyKey,
       });
 
-      // 5. Update proposal status
+      // Update proposal status
       await actionRepo.updateProposal(proposal.id, {
         status: toolResult.success ? 'executed' : 'failed',
       });
 
-      // 6. Store memory entry for action taken
+      // Store memory entry for action taken
       await memoryRepo.create({
         orchestrator_id: context.orchestratorId,
         memory_type: 'action_taken',
@@ -175,13 +208,17 @@ export async function executeApprovedActions(
           success: toolResult.success,
           result: toolResult.result,
           side_effects: toolResult.side_effects,
+          policy_decision: {
+            disposition: policyDecision.disposition,
+            policy_rule: policyDecision.policy_rule,
+          },
         },
         resolved: true,
         resolved_at: new Date().toISOString(),
         expires_at: null,
       });
 
-      // 7. Audit log
+      // Audit log
       await logAction({
         organizationId: context.organizationId,
         transactionId: context.entityType === 'transaction' ? context.entityId : undefined,
@@ -195,6 +232,8 @@ export async function executeApprovedActions(
           success: toolResult.success,
           duration_ms: durationMs,
           side_effects_count: toolResult.side_effects.length,
+          policy_disposition: policyDecision.disposition,
+          policy_rule: policyDecision.policy_rule,
         },
       });
 
@@ -212,6 +251,68 @@ export async function executeApprovedActions(
   }
 
   return executions;
+}
+
+/**
+ * Record a policy decision that prevents direct execution (draft, approval, or block).
+ */
+async function recordPolicyDecision(
+  proposal: OrchestratorActionProposal,
+  context: ToolExecutionContext,
+  startTime: number,
+  idempotencyKey: string,
+  policyDecision: PolicyDecision,
+): Promise<OrchestratorActionExecution> {
+  const status = dispositionToProposalStatus(policyDecision.disposition);
+  const auditAction = dispositionToAuditAction(policyDecision.disposition);
+
+  // Update proposal status
+  await actionRepo.updateProposal(proposal.id, {
+    status: status as import('@/types').ActionProposalStatus,
+    gated_reason: policyDecision.reason,
+  });
+
+  // Audit log
+  await logAction({
+    organizationId: context.organizationId,
+    transactionId: context.entityType === 'transaction' ? context.entityId : undefined,
+    actorType: 'ai',
+    action: auditAction,
+    targetType: 'orchestrator_action',
+    targetId: proposal.id,
+    metadata: {
+      tool_name: proposal.tool_name,
+      risk_class: proposal.risk_class,
+      policy_disposition: policyDecision.disposition,
+      policy_rule: policyDecision.policy_rule,
+      policy_reason: policyDecision.reason,
+      escalation_target: policyDecision.escalation_target,
+      can_override: policyDecision.can_override,
+      status,
+    },
+  });
+
+  // Record a non-executed entry with the policy decision
+  return actionRepo.createExecution({
+    proposal_id: proposal.id,
+    orchestrator_id: context.orchestratorId,
+    tool_name: proposal.tool_name,
+    tool_params: proposal.tool_params,
+    result: {
+      policy_decision: {
+        disposition: policyDecision.disposition,
+        reason: policyDecision.reason,
+        policy_rule: policyDecision.policy_rule,
+        escalation_target: policyDecision.escalation_target,
+        can_override: policyDecision.can_override,
+      },
+    },
+    success: false,
+    error_message: policyDecision.reason,
+    duration_ms: Date.now() - startTime,
+    side_effects: [],
+    idempotency_key: idempotencyKey,
+  });
 }
 
 async function recordFailedExecution(

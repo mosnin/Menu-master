@@ -1,11 +1,22 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Check, X, Clock, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Activity,
+  Check,
+  X,
+  Clock,
+  Shield,
+  Zap,
+  FileEdit,
+  Ban,
+  Filter,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { OrchestratorActionExecution, ActionRiskClass } from '@/types';
+import type { OrchestratorActionExecution, ActionRiskClass, ActionDisposition } from '@/types';
 
 interface AgentActivityFeedProps {
   executions: OrchestratorActionExecution[];
@@ -17,6 +28,26 @@ const riskClassConfig: Record<ActionRiskClass, { label: string; className: strin
   high_risk: { label: 'High', className: 'bg-red-100 text-red-700' },
 };
 
+const dispositionBadgeConfig: Record<
+  string,
+  { label: string; className: string; icon: React.ElementType }
+> = {
+  auto_execute: { label: 'Auto', className: 'bg-green-100 text-green-700', icon: Zap },
+  create_draft: { label: 'Draft', className: 'bg-amber-100 text-amber-700', icon: FileEdit },
+  create_approval: { label: 'Approval', className: 'bg-blue-100 text-blue-700', icon: Shield },
+  block: { label: 'Blocked', className: 'bg-red-100 text-red-700', icon: Ban },
+};
+
+type DispositionFilter = 'all' | ActionDisposition;
+
+const filterOptions: { value: DispositionFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'auto_execute', label: 'Auto' },
+  { value: 'create_draft', label: 'Drafts' },
+  { value: 'create_approval', label: 'Approvals' },
+  { value: 'block', label: 'Blocked' },
+];
+
 function formatToolName(name: string): string {
   return name
     .replace(/_/g, ' ')
@@ -26,6 +57,8 @@ function formatToolName(name: string): string {
 function ExecutionItem({ execution }: { execution: OrchestratorActionExecution }) {
   const riskClass = (execution.result?.risk_class as ActionRiskClass) ?? 'safe';
   const risk = riskClassConfig[riskClass] ?? riskClassConfig.safe;
+  const disposition = (execution.result?.disposition as string) ?? null;
+  const dispConfig = disposition ? dispositionBadgeConfig[disposition] : null;
 
   return (
     <div className="flex items-start gap-3 py-3">
@@ -50,6 +83,12 @@ function ExecutionItem({ execution }: { execution: OrchestratorActionExecution }
             <Shield className="h-2 w-2 mr-0.5" />
             {risk.label}
           </Badge>
+          {dispConfig && (
+            <Badge className={cn('text-[9px] font-medium', dispConfig.className)}>
+              <dispConfig.icon className="h-2 w-2 mr-0.5" />
+              {dispConfig.label}
+            </Badge>
+          )}
         </div>
         {execution.error_message && (
           <p className="text-[11px] text-red-600 mt-0.5">{execution.error_message}</p>
@@ -80,6 +119,13 @@ function ExecutionItem({ execution }: { execution: OrchestratorActionExecution }
 }
 
 export function AgentActivityFeed({ executions }: AgentActivityFeedProps) {
+  const [filter, setFilter] = useState<DispositionFilter>('all');
+
+  const filtered =
+    filter === 'all'
+      ? executions
+      : executions.filter((e) => (e.result?.disposition as string) === filter);
+
   if (executions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -96,13 +142,40 @@ export function AgentActivityFeed({ executions }: AgentActivityFeedProps) {
 
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-2">
-        Recent Executions
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+          Recent Executions
+        </p>
+        <div className="flex items-center gap-1">
+          <Filter className="h-3 w-3 text-muted-foreground" />
+          {filterOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-6 px-2 text-[10px] rounded-lg',
+                filter === opt.value
+                  ? 'bg-muted text-foreground font-medium'
+                  : 'text-muted-foreground',
+              )}
+              onClick={() => setFilter(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+      </div>
       <div className="divide-y">
-        {executions.map((execution) => (
-          <ExecutionItem key={execution.id} execution={execution} />
-        ))}
+        {filtered.length > 0 ? (
+          filtered.map((execution) => (
+            <ExecutionItem key={execution.id} execution={execution} />
+          ))
+        ) : (
+          <p className="text-xs text-muted-foreground py-6 text-center">
+            No executions match this filter.
+          </p>
+        )}
       </div>
     </div>
   );

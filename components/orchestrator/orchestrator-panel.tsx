@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Brain, RefreshCw, Target, Activity, Eye } from 'lucide-react';
+import { Brain, RefreshCw, Target, Activity, Eye, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OrchestratorStatusCard } from './orchestrator-status-card';
 import { NextActionsPanel } from './next-actions-panel';
 import { ReasoningSummary } from './reasoning-summary';
 import { AgentActivityFeed } from './agent-activity-feed';
+import { ExecutionMonitor } from './execution-monitor';
+import { FollowThroughPanel } from './follow-through-panel';
 import {
   getOrchestratorAction,
   getNextActionsAction,
@@ -244,13 +246,17 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
               <Target className="h-3 w-3 mr-1.5" />
               Actions
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex-1 text-xs">
-              <Activity className="h-3 w-3 mr-1.5" />
-              Activity
+            <TabsTrigger value="execution" className="flex-1 text-xs">
+              <Zap className="h-3 w-3 mr-1.5" />
+              Execution
             </TabsTrigger>
             <TabsTrigger value="reasoning" className="flex-1 text-xs">
               <Brain className="h-3 w-3 mr-1.5" />
               Reasoning
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1 text-xs">
+              <Activity className="h-3 w-3 mr-1.5" />
+              Activity
             </TabsTrigger>
           </TabsList>
 
@@ -269,12 +275,20 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
             />
           </TabsContent>
 
-          <TabsContent value="activity" className="mt-4">
-            <AgentActivityFeed executions={executions} />
+          <TabsContent value="execution" className="mt-4 space-y-6">
+            <ExecutionMonitor
+              orchestratorId={orchestrator.id}
+              organizationId={orchestrator.organization_id}
+            />
+            <FollowThroughPanel orchestratorId={orchestrator.id} />
           </TabsContent>
 
           <TabsContent value="reasoning" className="mt-4">
             <ReasoningSummary cycles={cycles} />
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-4">
+            <AgentActivityFeed executions={executions} />
           </TabsContent>
         </Tabs>
       </CardContent>

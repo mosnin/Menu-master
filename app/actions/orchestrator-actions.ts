@@ -384,7 +384,225 @@ export async function getOrchestratorMemoryAction(
 }
 
 // ---------------------------------------------------------------------------
-// 13. Get latest world state
+// 13. Get execution history with dispositions
+// ---------------------------------------------------------------------------
+
+export async function getExecutionHistoryAction(
+  orchestratorId: string,
+  limit: number = 50,
+): Promise<{ data?: unknown[]; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+
+    if (!isValidUUID(orchestratorId)) {
+      return { error: 'Invalid orchestrator ID format' };
+    }
+
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const { supabase } = await import('@/lib/db/client');
+    const { data, error: fetchError } = await supabase
+      .from('orchestrator_action_executions')
+      .select(`
+        id,
+        tool_name,
+        success,
+        error_message,
+        result,
+        created_at,
+        proposal_id,
+        orchestrator_action_proposals (
+          disposition,
+          risk_class,
+          reason,
+          gated_reason
+        )
+      `)
+      .eq('orchestrator_id', orchestratorId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (fetchError) throw fetchError;
+
+    // Normalize into the shape the UI expects
+    const entries = (data ?? []).map((row: Record<string, unknown>) => {
+      const proposal = row.orchestrator_action_proposals as Record<string, unknown> | null;
+      const disposition = (proposal?.disposition as string) ?? 'auto_execute';
+      const resultObj = row.result as Record<string, unknown> | null;
+
+      return {
+        id: row.id,
+        tool_name: row.tool_name,
+        disposition,
+        success: row.success,
+        result_summary: resultObj?.summary ?? null,
+        error_message: row.error_message,
+        draft_type: disposition === 'create_draft' ? (resultObj?.draft_type ?? 'Draft') : null,
+        blocked_reason: disposition === 'block' ? (proposal?.gated_reason ?? proposal?.reason ?? null) : null,
+        blocked_unlocker: disposition === 'block' ? (resultObj?.unblock_role ?? null) : null,
+        created_at: row.created_at,
+      };
+    });
+
+    return { data: entries };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get execution history';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 14. Get follow-through runs
+// ---------------------------------------------------------------------------
+
+export async function getFollowThroughRunsAction(
+  orchestratorId: string,
+): Promise<{ data?: unknown[]; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+
+    if (!isValidUUID(orchestratorId)) {
+      return { error: 'Invalid orchestrator ID format' };
+    }
+
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const { supabase } = await import('@/lib/db/client');
+    const { data, error: fetchError } = await supabase
+      .from('orchestrator_follow_through_runs')
+      .select('*')
+      .eq('orchestrator_id', orchestratorId)
+      .order('started_at', { ascending: false })
+      .limit(20);
+
+    if (fetchError) throw fetchError;
+
+    return { data: data ?? [] };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get follow-through runs';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 15. Cancel a follow-through run
+// ---------------------------------------------------------------------------
+
+export async function cancelFollowThroughAction(
+  runId: string,
+): Promise<{ error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+
+    if (!isValidUUID(runId)) {
+      return { error: 'Invalid run ID format' };
+    }
+
+    const { supabase } = await import('@/lib/db/client');
+
+    // Look up the run to find its orchestrator for authorization
+    const { data: run, error: fetchError } = await supabase
+      .from('orchestrator_follow_through_runs')
+      .select('orchestrator_id, sequence_name, status')
+      .eq('id', runId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!run) return { error: 'Follow-through run not found' };
+
+    // Check if sequence allows cancellation
+    const { getSequenceByName } = await import('@/lib/orchestrator/follow-through');
+    const sequence = getSequenceByName(run.sequence_name);
+    if (sequence && !sequence.allows_cancellation) {
+      return { error: 'This sequence cannot be cancelled' };
+    }
+
+    if (run.status !== 'active' && run.status !== 'waiting') {
+      return { error: 'Only active or waiting sequences can be cancelled' };
+    }
+
+    await fetchAndAuthorizeOrchestrator(run.orchestrator_id);
+
+    const { error: updateError } = await supabase
+      .from('orchestrator_follow_through_runs')
+      .update({
+        status: 'cancelled',
+        exit_reason: 'Manually cancelled',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', runId);
+
+    if (updateError) throw updateError;
+    return {};
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to cancel follow-through';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 16. Get policy trace for a proposal
+// ---------------------------------------------------------------------------
+
+export async function getPolicyTraceAction(
+  proposalId: string,
+): Promise<{ data?: unknown; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+
+    if (!isValidUUID(proposalId)) {
+      return { error: 'Invalid proposal ID format' };
+    }
+
+    const { supabase } = await import('@/lib/db/client');
+    const { data: proposal, error: fetchError } = await supabase
+      .from('orchestrator_action_proposals')
+      .select(`
+        id,
+        tool_name,
+        risk_class,
+        confidence,
+        reason,
+        disposition,
+        policy_rule,
+        escalation_target,
+        can_override,
+        gated_reason,
+        orchestrator_id
+      `)
+      .eq('id', proposalId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (!proposal) return { error: 'Proposal not found' };
+
+    await fetchAndAuthorizeOrchestrator(proposal.orchestrator_id);
+
+    return {
+      data: {
+        tool_name: proposal.tool_name,
+        risk_class: proposal.risk_class,
+        confidence: proposal.confidence,
+        disposition: proposal.disposition,
+        policy_rule: proposal.policy_rule ?? 'default',
+        reason: proposal.gated_reason ?? proposal.reason,
+        escalation_target: proposal.escalation_target,
+        can_override: proposal.can_override ?? false,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get policy trace';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 17. Get latest world state
 // ---------------------------------------------------------------------------
 
 export async function getWorldStateAction(
@@ -405,3 +623,4 @@ export async function getWorldStateAction(
     return { error: message, authError: isAuth };
   }
 }
+

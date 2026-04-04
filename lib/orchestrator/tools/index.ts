@@ -14,6 +14,11 @@ import { register as registerSuggestFollowUpDraft } from './suggest-follow-up-dr
 import { register as registerMarkCounterpartyWaiting } from './mark-counterparty-waiting';
 import { register as registerCreateNextActionCard } from './create-next-action-card';
 import { register as registerAssignTask } from './assign-task';
+import { register as registerRecomputeListingReadiness } from './recompute-listing-readiness';
+import { register as registerRecomputeClosingReadiness } from './recompute-closing-readiness';
+import { register as registerClearStaleOutputs } from './clear-stale-outputs';
+import { register as registerCreateInternalTask } from './create-internal-task';
+import { register as registerUpdateWaitingState } from './update-waiting-state';
 
 let registered = false;
 
@@ -36,6 +41,11 @@ export function registerAllTools(): void {
   registerMarkCounterpartyWaiting();
   registerCreateNextActionCard();
   registerAssignTask();
+  registerRecomputeListingReadiness();
+  registerRecomputeClosingReadiness();
+  registerClearStaleOutputs();
+  registerCreateInternalTask();
+  registerUpdateWaitingState();
 
   registered = true;
 }

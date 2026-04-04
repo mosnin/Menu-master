@@ -22,11 +22,57 @@ const execute: ToolExecutor = async (params, context) => {
   const recipientEmail = params.recipient_email as string;
   const recipientName = params.recipient_name as string;
   const documentType = params.document_type as string;
+  const documentTypes = params.document_types as string[] | undefined;
 
-  if (!recipientEmail || !recipientName || !documentType) {
+  if (!recipientEmail || !recipientName) {
     return {
       success: false,
-      result: { error: 'Missing required parameters: recipient_email, recipient_name, document_type' },
+      result: { error: 'Missing required parameters: recipient_email, recipient_name' },
+      side_effects: [],
+    };
+  }
+
+  // Batch mode: create multiple document requests
+  if (documentTypes && Array.isArray(documentTypes) && documentTypes.length > 0) {
+    const results: { document_request_id: string; document_type: string; status: string }[] = [];
+    const sideEffects: { type: string; description: string; target_id: string }[] = [];
+
+    for (const docType of documentTypes) {
+      const request = await createRequest({
+        orgId: context.organizationId,
+        transactionId: context.entityId,
+        requestedByUserId: context.actorUserId || context.orchestratorId,
+        recipientEmail,
+        recipientName,
+        documentType: docType,
+        description: params.description as string | undefined,
+      });
+
+      results.push({
+        document_request_id: request.id,
+        document_type: docType,
+        status: request.status,
+      });
+
+      sideEffects.push({
+        type: 'document_request_created',
+        description: `Document request sent for ${docType}`,
+        target_id: request.id,
+      });
+    }
+
+    return {
+      success: true,
+      result: { batch: true, count: results.length, requests: results },
+      side_effects: sideEffects,
+    };
+  }
+
+  // Single mode
+  if (!documentType) {
+    return {
+      success: false,
+      result: { error: 'Missing required parameter: document_type (or provide document_types for batch mode)' },
       side_effects: [],
     };
   }

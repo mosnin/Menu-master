@@ -33,6 +33,31 @@ const execute: ToolExecutor = async (params, context) => {
     ? rawRiskClass
     : 'safe';
 
+  // Auto-deduplication: check if an active action with the same title already exists
+  const activeActions = await nextActionRepo.findActive(context.orchestratorId);
+  const existing = activeActions.find(a => a.title === title);
+
+  if (existing) {
+    // Update the existing action instead of creating a duplicate
+    const updated = await nextActionRepo.update(existing.id, {
+      reason,
+      urgency,
+      risk_class: riskClass,
+      owner_user_id: (params.owner_user_id as string) ?? existing.owner_user_id,
+      owner_role: (params.owner_role as string) ?? existing.owner_role,
+      is_primary: isPrimary,
+      stale_after: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    });
+
+    return {
+      success: true,
+      result: { next_action_id: updated.id, title, urgency, deduplicated: true },
+      side_effects: [
+        { type: 'next_action_updated', description: `Next action updated (dedup): ${title}`, target_id: updated.id },
+      ],
+    };
+  }
+
   const nextAction = await nextActionRepo.create({
     orchestrator_id: context.orchestratorId,
     title,
@@ -55,7 +80,7 @@ const execute: ToolExecutor = async (params, context) => {
 
   return {
     success: true,
-    result: { next_action_id: nextAction.id, title, urgency },
+    result: { next_action_id: nextAction.id, title, urgency, deduplicated: false },
     side_effects: [
       { type: 'next_action_created', description: `Next action: ${title}`, target_id: nextAction.id },
     ],

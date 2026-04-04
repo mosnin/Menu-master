@@ -229,3 +229,93 @@ export const staleActionCleanup = inngest.createFunction(
     return { staleActions: count, overdueObligations: overdueCount };
   },
 );
+
+// 5. Follow-through sequence check — runs every 15 minutes
+//    Finds sequences in 'waiting' status where next_step_at has passed,
+//    and executes their next step.
+export const followThroughCheck = inngest.createFunction(
+  {
+    id: 'orchestrator-follow-through-check',
+    concurrency: { limit: 3 },
+  },
+  { cron: '*/15 * * * *' },
+  async ({ step }) => {
+    const { findWaitingPastDue } = await import(
+      '@/lib/repositories/orchestrator-follow-through'
+    );
+    const { executeNextStep } = await import('@/lib/orchestrator/follow-through');
+    const { findById: findOrchestrator } = await import(
+      '@/lib/repositories/deal-orchestrators'
+    );
+    const { registerAllTools } = await import('@/lib/orchestrator/tools');
+
+    // Ensure tools are registered
+    registerAllTools();
+
+    const waitingRuns = await step.run('find-waiting-runs', async () => {
+      return findWaitingPastDue();
+    });
+
+    let advanced = 0;
+    let failed = 0;
+    const errors: Array<{ runId: string; error: string }> = [];
+
+    for (const run of waitingRuns) {
+      await step.run(`advance-${run.id}`, async () => {
+        try {
+          const orchestrator = await findOrchestrator(run.orchestrator_id);
+          if (!orchestrator || orchestrator.status !== 'active') {
+            // Orchestrator no longer active — cancel the sequence
+            const { cancel } = await import(
+              '@/lib/repositories/orchestrator-follow-through'
+            );
+            await cancel(run.id);
+            return;
+          }
+
+          const context = {
+            orchestratorId: orchestrator.id,
+            organizationId: orchestrator.organization_id,
+            entityType: orchestrator.entity_type,
+            entityId: orchestrator.entity_id,
+          };
+
+          // Transition from waiting to active before executing
+          const { update } = await import(
+            '@/lib/repositories/orchestrator-follow-through'
+          );
+          await update(run.id, { status: 'active' as const });
+
+          const updatedRun = { ...run, status: 'active' as const };
+          const didExecute = await executeNextStep(updatedRun, context);
+          if (didExecute) {
+            advanced++;
+          }
+        } catch (error) {
+          console.error(`Follow-through step failed for run ${run.id}:`, error);
+          errors.push({
+            runId: run.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          failed++;
+
+          // Mark the run as failed
+          try {
+            const { update } = await import(
+              '@/lib/repositories/orchestrator-follow-through'
+            );
+            await update(run.id, {
+              status: 'failed' as const,
+              exit_reason: error instanceof Error ? error.message : 'Unknown error',
+              completed_at: new Date().toISOString(),
+            });
+          } catch (updateErr) {
+            console.error(`Failed to mark run ${run.id} as failed:`, updateErr);
+          }
+        }
+      });
+    }
+
+    return { total: waitingRuns.length, advanced, failed, errors: errors.length };
+  },
+);

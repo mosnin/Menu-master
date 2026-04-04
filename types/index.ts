@@ -1676,6 +1676,37 @@ export type OrchestratorCycleStatus = 'running' | 'completed' | 'completed_with_
 
 export type ActionRiskClass = 'safe' | 'medium_risk' | 'high_risk';
 
+// ---------------------------------------------------------------------------
+// Action Policy Engine types
+// ---------------------------------------------------------------------------
+
+export type ActionDisposition = 'auto_execute' | 'create_draft' | 'create_approval' | 'block';
+
+export interface PolicyContext {
+  toolName: string;
+  riskClass: ActionRiskClass;
+  confidence: number;
+  entityType: 'transaction' | 'listing';
+  actorRole: UserRole;
+  complianceFlags: string[];
+  orgPolicyOverrides?: OrgPolicyOverrides;
+  worldStage: string;
+}
+
+export interface PolicyDecision {
+  disposition: ActionDisposition;
+  reason: string;
+  policy_rule: string;
+  escalation_target?: string;
+  can_override: boolean;
+}
+
+export interface OrgPolicyOverrides {
+  promoted_to_safe?: string[];
+  demoted_to_blocked?: string[];
+  require_approval_for?: string[];
+}
+
 export type ActionProposalStatus =
   | 'proposed'
   | 'approved'
@@ -1901,6 +1932,48 @@ export interface OrchestratorObligation {
   status: OrchestratorObligationStatus;
   fulfilled_at: string | null;
   metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// Follow-Through Sequence Types
+// =============================================================================
+
+export type SequenceStatus = 'active' | 'completed' | 'cancelled' | 'failed' | 'waiting';
+
+export interface FollowThroughStep {
+  step_number: number;
+  tool_name: string;
+  params_template: Record<string, unknown>;
+  condition?: string;
+  wait_for?: string;
+  max_wait_hours?: number;
+}
+
+export interface FollowThroughSequence {
+  id: string;
+  name: string;
+  description: string;
+  trigger: string;
+  steps: FollowThroughStep[];
+  exit_conditions: string[];
+  max_duration_hours: number;
+  allows_cancellation: boolean;
+}
+
+export interface FollowThroughRun {
+  id: string;
+  orchestrator_id: string;
+  sequence_name: string;
+  status: SequenceStatus;
+  current_step: number;
+  trigger_data: Record<string, unknown>;
+  step_results: Record<string, unknown>[];
+  started_at: string;
+  next_step_at: string | null;
+  completed_at: string | null;
+  exit_reason: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -16,6 +16,7 @@ import { registerAllTools } from './tools';
 import { runPlanner } from './planner';
 import { runCritic } from './critic';
 import { executeApprovedActions } from './executor';
+import { processFollowThroughSequences } from './follow-through';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
 
@@ -288,6 +289,29 @@ export async function runOrchestrationCycle(
       cycle_count: orchestrator.cycle_count + 1,
     });
 
+    // 12. Process follow-through sequences
+    const followThroughTriggerData: Record<string, unknown> = {};
+    if (triggerType === 'document_uploaded' && triggerMetadata?.document_type) {
+      followThroughTriggerData.document_uploaded = {
+        document_type: triggerMetadata.document_type,
+      };
+    }
+
+    try {
+      await processFollowThroughSequences(
+        orchestratorId,
+        worldSnapshot,
+        executionContext,
+        followThroughTriggerData,
+      );
+    } catch (ftError) {
+      console.error(
+        `[orchestrator] Follow-through processing failed for ${orchestratorId}:`,
+        ftError,
+      );
+      // Non-fatal: don't fail the cycle for follow-through errors
+    }
+
     // Handle escalation if needed
     if (criticEvaluation.escalation_needed) {
       await orchestratorRepo.update(orchestratorId, {
@@ -309,7 +333,7 @@ export async function runOrchestrationCycle(
       });
     }
 
-    // 12. Audit log: cycle completed
+    // 13. Audit log: cycle completed
     await logAction({
       organizationId: orchestrator.organization_id,
       transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,

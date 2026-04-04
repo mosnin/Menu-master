@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Target, Zap, X, Check, Shield } from 'lucide-react';
+import { Target, Zap, X, Check, Shield, FileEdit, Ban, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PolicyTraceDialog, type PolicyTraceAction } from './policy-trace';
 import type { OrchestratorNextAction, ActionRiskClass, NextActionUrgency } from '@/types';
 
 interface NextActionsPanelProps {
@@ -26,6 +28,32 @@ const urgencyConfig: Record<NextActionUrgency, { label: string; className: strin
   critical: { label: 'Critical', className: 'bg-red-100 text-red-700' },
 };
 
+/**
+ * Derive the effective disposition for display purposes.
+ * The action may not carry an explicit disposition field, so we infer from
+ * risk_class + auto_executable as a heuristic when the server hasn't provided one.
+ */
+function inferDisposition(
+  action: OrchestratorNextAction,
+): 'auto_execute' | 'create_draft' | 'block' | null {
+  // Check if the result object or any extended field carries a disposition
+  const explicit = (action as unknown as Record<string, unknown>).disposition as string | undefined;
+  if (explicit === 'auto_execute' || explicit === 'create_draft' || explicit === 'create_approval' || explicit === 'block') {
+    return explicit as 'auto_execute' | 'create_draft' | 'block';
+  }
+  if (action.auto_executable && action.risk_class === 'safe') return 'auto_execute';
+  if (action.risk_class === 'high_risk') return 'block';
+  if (action.risk_class === 'medium_risk') return 'create_draft';
+  return null;
+}
+
+const dispositionBorder: Record<string, string> = {
+  auto_execute: 'border-green-200 bg-green-50/30',
+  create_draft: 'border-amber-200 bg-amber-50/30',
+  create_approval: 'border-blue-200 bg-blue-50/30',
+  block: 'border-red-200 bg-red-50/30',
+};
+
 function ActionCard({
   action,
   isPrimary,
@@ -39,12 +67,30 @@ function ActionCard({
 }) {
   const risk = riskClassConfig[action.risk_class] ?? riskClassConfig.safe;
   const urgency = urgencyConfig[action.urgency] ?? urgencyConfig.normal;
+  const disposition = inferDisposition(action);
+  const borderClass = disposition ? dispositionBorder[disposition] : '';
+
+  // Build a policy trace action for the "Why blocked?" dialog
+  const policyAction: PolicyTraceAction | null =
+    disposition === 'block'
+      ? {
+          tool_name: action.tool_name ?? action.title,
+          risk_class: action.risk_class,
+          confidence: 0,
+          disposition: 'block',
+          policy_rule: 'risk_class:high_risk',
+          reason: action.reason,
+          escalation_target: action.owner_role ?? undefined,
+          can_override: false,
+        }
+      : null;
 
   return (
     <Card
       className={cn(
         'rounded-2xl shadow-sm transition-colors duration-150',
-        isPrimary && 'border-primary/30 bg-primary/[0.02]',
+        isPrimary && !borderClass && 'border-primary/30 bg-primary/[0.02]',
+        borderClass,
       )}
     >
       <CardContent className={cn('px-5 py-4', isPrimary && 'px-6 py-5')}>
@@ -63,7 +109,25 @@ function ActionCard({
                 <Shield className="h-2.5 w-2.5 mr-1" />
                 {risk.label}
               </Badge>
-              {action.auto_executable && (
+              {disposition === 'auto_execute' && (
+                <Badge className="bg-green-100 text-green-700 text-[10px] font-medium">
+                  <Zap className="h-2.5 w-2.5 mr-1" />
+                  Auto
+                </Badge>
+              )}
+              {disposition === 'create_draft' && (
+                <Badge className="bg-amber-100 text-amber-700 text-[10px] font-medium">
+                  <FileEdit className="h-2.5 w-2.5 mr-1" />
+                  Draft
+                </Badge>
+              )}
+              {disposition === 'block' && (
+                <Badge className="bg-red-100 text-red-700 text-[10px] font-medium">
+                  <Ban className="h-2.5 w-2.5 mr-1" />
+                  Blocked
+                </Badge>
+              )}
+              {!disposition && action.auto_executable && (
                 <Badge className="bg-violet-100 text-violet-700 text-[10px] font-medium">
                   <Zap className="h-2.5 w-2.5 mr-1" />
                   Auto
@@ -79,6 +143,23 @@ function ActionCard({
               {action.title}
             </p>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{action.reason}</p>
+            {policyAction && (
+              <div className="mt-2">
+                <PolicyTraceDialog
+                  action={policyAction}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                    >
+                      <Info className="h-3 w-3 mr-1" />
+                      Why blocked?
+                    </Button>
+                  }
+                />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {onResolve && (
