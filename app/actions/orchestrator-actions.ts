@@ -677,3 +677,26 @@ export async function getPlanHistoryAction(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 20. Get specialist traces
+// ---------------------------------------------------------------------------
+
+export async function getSpecialistTracesAction(
+  orchestratorId: string,
+  limit: number = 10,
+): Promise<{ data?: unknown[]; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const specialistRepo = await import('@/lib/repositories/orchestrator-specialist-traces');
+    const traces = await specialistRepo.findByOrchestrator(orchestratorId, limit);
+    return { data: traces };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get specialist traces';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+

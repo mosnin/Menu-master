@@ -14,6 +14,7 @@ import { ReasoningSummary } from './reasoning-summary';
 import { AgentActivityFeed } from './agent-activity-feed';
 import { ExecutionMonitor } from './execution-monitor';
 import { FollowThroughPanel } from './follow-through-panel';
+import { SpecialistInsights } from './specialist-insights';
 import {
   getOrchestratorAction,
   getNextActionsAction,
@@ -318,8 +319,11 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
             <FollowThroughPanel orchestratorId={orchestrator.id} />
           </TabsContent>
 
-          <TabsContent value="reasoning" className="mt-4">
+          <TabsContent value="reasoning" className="mt-4 space-y-6">
             <ReasoningSummary cycles={cycles} />
+            {orchestrator && (
+              <SpecialistInsights orchestratorId={orchestrator.id} />
+            )}
           </TabsContent>
 
           <TabsContent value="activity" className="mt-4">

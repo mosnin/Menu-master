@@ -5,7 +5,14 @@ import { getAllTools } from './tool-registry';
 export async function runPlanner(
   worldState: WorldStateSnapshot,
   memory: OrchestratorMemoryEntry[],
-  _entityContext: { entityType: string; entityId: string; orgId: string },
+  _entityContext: {
+    entityType: string;
+    entityId: string;
+    orgId: string;
+    specialistRecommendations?: { tool_name: string; reason: string; urgency: string; confidence: number }[];
+    specialistEscalations?: string[];
+    specialistSummary?: string;
+  },
 ): Promise<PlannerOutput> {
   const client = getOpenAIClient();
 
@@ -39,6 +46,11 @@ RULES:
 AVAILABLE TOOLS:
 ${JSON.stringify(availableTools, null, 2)}`;
 
+  // Build specialist context if available
+  const specialistSection = _entityContext.specialistRecommendations?.length
+    ? `\nSPECIALIST RECOMMENDATIONS:\n${JSON.stringify(_entityContext.specialistRecommendations, null, 2)}\nSPECIALIST ESCALATIONS: ${_entityContext.specialistEscalations?.join('; ') || 'None'}\nSPECIALIST SUMMARY: ${_entityContext.specialistSummary || 'None'}`
+    : '';
+
   const userMessage = `WORLD STATE:
 ${JSON.stringify(worldState, null, 2)}
 
@@ -46,7 +58,7 @@ UNRESOLVED BLOCKERS: ${unresolvedBlockers.map(b => b.summary).join('; ') || 'Non
 RECENT ACTIONS: ${recentActions.map(a => a.summary).join('; ') || 'None'}
 FAILURE PATTERNS: ${failurePatterns.map(f => f.summary).join('; ') || 'None'}
 HUMAN CORRECTIONS: ${humanCorrections.map(c => c.summary).join('; ') || 'None'}
-PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}
+PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}${specialistSection}
 
 Analyze this state and produce a JSON plan with this exact structure:
 {

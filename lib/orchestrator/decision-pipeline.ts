@@ -29,6 +29,9 @@ import {
   type PlanRefreshContext,
   type PlanAction,
 } from './plan-lifecycle';
+import { routeToSpecialists, executeSpecialist } from './specialists/router';
+import { arbitrate } from './specialists/arbitrator';
+import * as specialistTraceRepo from '@/lib/repositories/orchestrator-specialist-traces';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
 
@@ -380,11 +383,87 @@ export async function runOrchestrationCycle(
         break;
     }
 
-    // 5. Run planner (with plan context)
+    // 4b. Route to specialists based on world state
+    const specialistRoutes = routeToSpecialists(
+      worldSnapshot,
+      orchestrator.entity_type as 'transaction' | 'listing',
+      orchestrator.entity_id,
+      orchestrator.organization_id,
+      memory.map(m => ({
+        memory_type: m.memory_type,
+        summary: m.summary,
+        resolved: m.resolved,
+      })),
+      memory
+        .filter(m => m.memory_type === 'action_taken')
+        .slice(0, 5)
+        .map(m => m.summary),
+    );
+
+    // Execute specialists in parallel with timeout
+    const specialistOutputs = await Promise.all(
+      specialistRoutes.map(route => executeSpecialist(route)),
+    );
+
+    // Audit each specialist invocation and store traces
+    for (const output of specialistOutputs) {
+      await logAction({
+        organizationId: orchestrator.organization_id,
+        transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
+        actorType: 'ai',
+        action: 'orchestrator.specialist_invoked',
+        targetType: 'orchestrator_specialist_trace',
+        targetId: cycle.id,
+        metadata: {
+          orchestrator_id: orchestratorId,
+          cycle_id: cycle.id,
+          specialist_role: output.role,
+          finding_count: output.findings.length,
+          duration_ms: output.duration_ms,
+        },
+      });
+
+      // Collect recommendations from all findings
+      const allRecommendations = output.findings.flatMap(f =>
+        f.recommended_actions.map(r => ({
+          tool_name: r.tool_name,
+          reason: r.reason,
+          urgency: r.urgency,
+          confidence: r.confidence,
+        })),
+      );
+
+      await specialistTraceRepo.create({
+        cycle_id: cycle.id,
+        orchestrator_id: orchestratorId,
+        organization_id: orchestrator.organization_id,
+        specialist_role: output.role,
+        findings: output.findings.map(f => ({
+          severity: f.severity,
+          confidence: f.confidence,
+          summary: f.summary,
+          details: f.details,
+          blocked_reasons: f.blocked_reasons,
+          needed_approvals: f.needed_approvals,
+          dependencies: f.dependencies,
+        })),
+        recommendations: allRecommendations,
+        operator_summary: output.operator_summary,
+        duration_ms: output.duration_ms,
+      });
+    }
+
+    // Run arbitrator on specialist outputs
+    const arbitrationResult = arbitrate(specialistOutputs);
+
+    // 5. Run planner (with plan context + specialist recommendations)
     const plannerOutput = await runPlanner(worldSnapshot, memory, {
       entityType: orchestrator.entity_type,
       entityId: orchestrator.entity_id,
       orgId: orchestrator.organization_id,
+      specialistRecommendations: arbitrationResult.merged_recommendations,
+      specialistEscalations: arbitrationResult.escalations,
+      specialistSummary: arbitrationResult.operator_summary,
     });
 
     await cycleRepo.update(cycle.id, {
@@ -397,6 +476,33 @@ export async function runOrchestrationCycle(
     await cycleRepo.update(cycle.id, {
       critic_evaluation: criticEvaluation,
     });
+
+    // 6a. If any compliance specialist finding is critical, force human review
+    const hasComplianceCritical = specialistOutputs.some(
+      o =>
+        o.role === 'compliance' &&
+        o.findings.some(f => f.severity === 'critical'),
+    );
+
+    if (hasComplianceCritical) {
+      // Override critic: mark escalation needed and flag all non-safe actions
+      criticEvaluation.escalation_needed = true;
+      criticEvaluation.escalation_reason = [
+        criticEvaluation.escalation_reason,
+        'Compliance specialist flagged critical finding — human review required',
+      ]
+        .filter(Boolean)
+        .join('; ');
+
+      for (const review of criticEvaluation.action_reviews) {
+        if (review.suggested_risk_class !== 'safe') {
+          review.requires_human_review = true;
+          review.compliance_flags.push(
+            'Forced human review due to critical compliance specialist finding',
+          );
+        }
+      }
+    }
 
     // 7. Filter to approved actions and create proposals
     const approvedProposals: OrchestratorActionProposal[] = [];

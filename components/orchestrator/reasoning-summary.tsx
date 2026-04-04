@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Users } from 'lucide-react';
 import type { OrchestratorCycle, OrchestratorCycleTrigger } from '@/types';
 
 interface ReasoningSummaryProps {
@@ -42,6 +43,9 @@ function CycleItem({ cycle }: { cycle: OrchestratorCycle }) {
   const plannerOutput = cycle.planner_output;
   const criticEval = cycle.critic_evaluation;
   const triggerLabel = triggerLabels[cycle.trigger_type] ?? cycle.trigger_type;
+  const hasSpecialistTraces =
+    Array.isArray((plannerOutput as unknown as Record<string, unknown>)?.specialist_traces) &&
+    ((plannerOutput as unknown as Record<string, unknown>).specialist_traces as unknown[]).length > 0;
 
   const proposedCount = plannerOutput?.proposed_actions?.length ?? 0;
   const executedCount = cycle.selected_actions?.length ?? 0;
@@ -66,6 +70,12 @@ function CycleItem({ cycle }: { cycle: OrchestratorCycle }) {
               <Badge className="bg-green-100 text-green-700 text-[10px] font-medium">
                 {executedCount} executed
               </Badge>
+              {hasSpecialistTraces && (
+                <Badge className="bg-cyan-100 text-cyan-700 text-[10px] font-medium flex items-center gap-0.5">
+                  <Users className="h-2.5 w-2.5" />
+                  Specialist inputs
+                </Badge>
+              )}
               {criticApproved !== null && (
                 <Badge
                   className={cn(

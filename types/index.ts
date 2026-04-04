@@ -2040,6 +2040,19 @@ export interface PlanRevision {
   created_at: string;
 }
 
+export interface OrchestratorSpecialistTrace {
+  id: string;
+  cycle_id: string;
+  orchestrator_id: string;
+  organization_id: string;
+  specialist_role: string;
+  findings: Record<string, unknown>[];
+  recommendations: Record<string, unknown>[];
+  operator_summary: string;
+  duration_ms: number;
+  created_at: string;
+}
+
 export interface PlanProgress {
   total_subgoals: number;
   pending: number;
