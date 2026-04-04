@@ -29,7 +29,9 @@ import {
   type PlanRefreshContext,
   type PlanAction,
 } from './plan-lifecycle';
-import { routeToSpecialists, executeSpecialist } from './specialists/router';
+import { routeToSpecialists } from './specialists/router';
+import { getSpecialist } from './specialists/registry';
+import type { SpecialistInput, SpecialistOutput } from './specialists/types';
 import { arbitrate } from './specialists/arbitrator';
 import * as specialistTraceRepo from '@/lib/repositories/orchestrator-specialist-traces';
 import type { ToolExecutionContext } from './tool-registry';
@@ -384,25 +386,78 @@ export async function runOrchestrationCycle(
     }
 
     // 4b. Route to specialists based on world state
-    const specialistRoutes = routeToSpecialists(
-      worldSnapshot,
+    const recentActionSummaries = memory
+      .filter(m => m.memory_type === 'action_taken')
+      .slice(0, 5)
+      .map(m => m.summary);
+
+    const specialistRoles = routeToSpecialists(
       orchestrator.entity_type as 'transaction' | 'listing',
-      orchestrator.entity_id,
-      orchestrator.organization_id,
-      memory.map(m => ({
-        memory_type: m.memory_type,
-        summary: m.summary,
-        resolved: m.resolved,
-      })),
-      memory
-        .filter(m => m.memory_type === 'action_taken')
-        .slice(0, 5)
-        .map(m => m.summary),
+      worldSnapshot,
+      triggerType,
     );
 
+    // Import all specialists to ensure registration has happened
+    await import('./specialists/index');
+
     // Execute specialists in parallel with timeout
-    const specialistOutputs = await Promise.all(
-      specialistRoutes.map(route => executeSpecialist(route)),
+    const specialistOutputs: SpecialistOutput[] = await Promise.all(
+      specialistRoles.map(async (role) => {
+        const specialist = getSpecialist(role);
+        if (!specialist) {
+          return {
+            role,
+            invoked_at: new Date().toISOString(),
+            duration_ms: 0,
+            findings: [],
+            operator_summary: `Specialist ${role} not registered.`,
+          } satisfies SpecialistOutput;
+        }
+
+        const input: SpecialistInput = {
+          role,
+          entityType: orchestrator.entity_type as 'transaction' | 'listing',
+          entityId: orchestrator.entity_id,
+          organizationId: orchestrator.organization_id,
+          worldState: worldSnapshot as unknown as Record<string, unknown>,
+          memory: memory.map(m => ({
+            memory_type: m.memory_type,
+            summary: m.summary,
+            resolved: m.resolved,
+            details: m.details,
+          })),
+          recentActions: recentActionSummaries,
+        };
+
+        try {
+          return await Promise.race([
+            specialist.execute(input),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`Specialist ${role} timed out after ${specialist.contract.timeout_ms}ms`)),
+                specialist.contract.timeout_ms,
+              ),
+            ),
+          ]);
+        } catch (err) {
+          return {
+            role,
+            invoked_at: new Date().toISOString(),
+            duration_ms: specialist.contract.timeout_ms,
+            findings: [{
+              severity: 'warning' as const,
+              confidence: 1,
+              summary: `Specialist ${role} failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+              details: '',
+              recommended_actions: [],
+              blocked_reasons: [],
+              needed_approvals: [],
+              dependencies: [],
+            }],
+            operator_summary: `Specialist ${role} encountered an error and returned no actionable findings.`,
+          } satisfies SpecialistOutput;
+        }
+      }),
     );
 
     // Audit each specialist invocation and store traces
