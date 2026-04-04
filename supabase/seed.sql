@@ -1717,3 +1717,427 @@ INSERT INTO team_invites (id, organization_id, invited_by_user_id, email, role, 
 -- Expired invite (for testing)
 INSERT INTO team_invites (id, organization_id, invited_by_user_id, email, role, status, invite_token, expires_at) VALUES
   ('f0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'expired@example.com', 'agent', 'pending', 'demo-invite-expired', '2024-01-01T00:00:00Z');
+
+-- ============================================================
+-- Orchestrator Seed Data
+-- ============================================================
+
+-- ---------------------------------------------------------------------------
+-- Deal Orchestrators — one per active transaction/listing
+-- ---------------------------------------------------------------------------
+
+-- TX1 (742 Evergreen): Active orchestrator with recent cycle, watch health
+INSERT INTO deal_orchestrators (
+  id, organization_id, entity_type, entity_id,
+  status, priority, risk_summary, priority_summary,
+  last_observed_at, last_planned_at, last_executed_at,
+  cycle_count, config
+) VALUES (
+  'f1000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  'transaction', 'e0000000-0000-4000-8000-000000000001',
+  'active', 'high',
+  '{"overdue_items": 1, "failed_extraction": 1, "health_rating": "watch"}'::jsonb,
+  '{"top_concern": "Overdue inspection report", "urgency": "high"}'::jsonb,
+  '2026-04-04 08:15:00-06', '2026-04-04 08:15:00-06', '2026-04-04 08:16:00-06',
+  12, '{"cooldown_minutes": 30, "auto_execute_safe": true}'::jsonb
+);
+
+-- TX2 (Canyon Blvd): Active orchestrator, low completeness, at_risk
+INSERT INTO deal_orchestrators (
+  id, organization_id, entity_type, entity_id,
+  status, priority, risk_summary, priority_summary,
+  last_observed_at, last_planned_at, last_executed_at,
+  cycle_count, config
+) VALUES (
+  'f1000000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  'transaction', 'e0000000-0000-4000-8000-000000000002',
+  'active', 'normal',
+  '{"health_rating": "at_risk", "completeness_score": 10}'::jsonb,
+  '{"top_concern": "Very low completeness", "urgency": "critical"}'::jsonb,
+  '2026-04-04 08:00:00-06', '2026-04-04 08:00:00-06', NULL,
+  3, '{"cooldown_minutes": 60}'::jsonb
+);
+
+-- TX3 (Pearl St - Closed): Completed orchestrator
+INSERT INTO deal_orchestrators (
+  id, organization_id, entity_type, entity_id,
+  status, priority, risk_summary, priority_summary,
+  last_observed_at, last_planned_at, last_executed_at,
+  cycle_count, config
+) VALUES (
+  'f1000000-0000-4000-8000-000000000003',
+  'a0000000-0000-4000-8000-000000000001',
+  'transaction', 'e0000000-0000-4000-8000-000000000003',
+  'completed', 'low',
+  '{"health_rating": "healthy"}'::jsonb,
+  '{"top_concern": null, "urgency": "low"}'::jsonb,
+  '2026-03-15 12:00:00-06', '2026-03-15 12:00:00-06', '2026-03-15 12:01:00-06',
+  45, '{}'::jsonb
+);
+
+-- TX4 (900 Baseline - Near Closing): Active, urgent priority
+INSERT INTO deal_orchestrators (
+  id, organization_id, entity_type, entity_id,
+  status, priority, risk_summary, priority_summary,
+  last_observed_at, last_planned_at, last_executed_at,
+  last_human_escalation_at, last_human_escalation_status,
+  cycle_count, config
+) VALUES (
+  'f1000000-0000-4000-8000-000000000004',
+  'a0000000-0000-4000-8000-000000000001',
+  'transaction', 'e0000000-0000-4000-8000-000000000004',
+  'active', 'urgent',
+  '{"health_rating": "watch", "missing_closing_disclosure": true, "days_until_closing": 6}'::jsonb,
+  '{"top_concern": "Missing closing disclosure with 6 days to close", "urgency": "critical"}'::jsonb,
+  '2026-04-04 09:00:00-06', '2026-04-04 09:00:00-06', '2026-04-04 09:02:00-06',
+  '2026-04-03 14:00:00-06', 'pending',
+  28, '{"cooldown_minutes": 15, "auto_execute_safe": true}'::jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- World State Snapshots
+-- ---------------------------------------------------------------------------
+
+-- Latest snapshot for TX1 orchestrator
+INSERT INTO orchestrator_world_states (
+  id, orchestrator_id, snapshot, state_hash, changed_since_last
+) VALUES (
+  'f2000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  '{"entity_type": "transaction", "entity_id": "e0000000-0000-4000-8000-000000000001", "stage": "due_diligence", "completeness_score": 55, "unresolved_exceptions": 1, "missing_docs": ["seller_disclosures", "preliminary_title_report"], "pending_approvals": 1, "overdue_obligations": 1, "compliance_flags": [], "health_score": 68}'::jsonb,
+  'sha256_tx1_snapshot_v12',
+  true
+);
+
+-- Latest snapshot for TX4 orchestrator
+INSERT INTO orchestrator_world_states (
+  id, orchestrator_id, snapshot, state_hash, changed_since_last
+) VALUES (
+  'f2000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000004',
+  '{"entity_type": "transaction", "entity_id": "e0000000-0000-4000-8000-000000000004", "stage": "closing_prep", "completeness_score": 74, "unresolved_exceptions": 0, "missing_docs": ["closing_disclosure"], "pending_approvals": 0, "overdue_obligations": 1, "compliance_flags": [], "health_score": 65}'::jsonb,
+  'sha256_tx4_snapshot_v28',
+  true
+);
+
+-- ---------------------------------------------------------------------------
+-- Memory Entries
+-- ---------------------------------------------------------------------------
+
+-- TX1: Unresolved blocker for missing inspection
+INSERT INTO orchestrator_memory_entries (
+  id, orchestrator_id, memory_type, summary, details, resolved
+) VALUES (
+  'f3000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  'blocker', 'Home inspection report overdue by 3 days',
+  '{"contact_name": "Robert Tanaka", "days_overdue": 3, "checklist_item_id": "40000000-0000-4000-8000-000000000004"}'::jsonb,
+  false
+);
+
+-- TX1: Resolved action taken
+INSERT INTO orchestrator_memory_entries (
+  id, orchestrator_id, memory_type, summary, details, resolved, resolved_at
+) VALUES (
+  'f3000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000001',
+  'action_taken', 'Sent notification about overdue inspection to coordinator',
+  '{"tool_name": "create_notification", "recipient_user_id": "b0000000-0000-4000-8000-000000000003"}'::jsonb,
+  true, '2026-04-03 10:00:00-06'
+);
+
+-- TX4: Escalation memory
+INSERT INTO orchestrator_memory_entries (
+  id, orchestrator_id, memory_type, summary, details, resolved
+) VALUES (
+  'f3000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000004',
+  'escalation', 'Escalated missing closing disclosure to broker admin',
+  '{"escalated_to": "b0000000-0000-4000-8000-000000000001", "reason": "6 days until closing, disclosure still missing"}'::jsonb,
+  false
+);
+
+-- TX4: Obligation memory
+INSERT INTO orchestrator_memory_entries (
+  id, orchestrator_id, memory_type, summary, details, resolved
+) VALUES (
+  'f3000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000004',
+  'obligation', 'Waiting on seller disclosures from Patricia Hernandez',
+  '{"party_name": "Patricia Hernandez", "obligation_type": "disclosure", "days_overdue": 3}'::jsonb,
+  false
+);
+
+-- ---------------------------------------------------------------------------
+-- Orchestrator Cycles — recent cycles showing observe-plan-execute
+-- ---------------------------------------------------------------------------
+
+-- TX1: Most recent completed cycle (auto-executed safe actions)
+INSERT INTO orchestrator_cycles (
+  id, orchestrator_id, cycle_number, trigger_type, trigger_metadata,
+  world_state_id, planner_output, critic_evaluation, selected_actions,
+  execution_summary, duration_ms, status, completed_at
+) VALUES (
+  'f4000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  12, 'scheduled', '{}'::jsonb,
+  'f2000000-0000-4000-8000-000000000001',
+  '{"reasoning_summary": "Deal has overdue inspection and missing docs. Recompute scores and notify coordinator.", "proposed_actions": [{"tool_name": "recompute_completeness", "risk_class": "safe", "confidence": 0.95}, {"tool_name": "recompute_health_score", "risk_class": "safe", "confidence": 0.95}, {"tool_name": "create_notification", "risk_class": "safe", "confidence": 0.90}], "urgency_assessment": "high"}'::jsonb,
+  '{"all_approved": true, "concerns": []}'::jsonb,
+  '[{"tool_name": "recompute_completeness", "disposition": "auto_execute"}, {"tool_name": "recompute_health_score", "disposition": "auto_execute"}, {"tool_name": "create_notification", "disposition": "auto_execute"}]'::jsonb,
+  '{"actions_executed": 3, "actions_succeeded": 3, "actions_failed": 0}'::jsonb,
+  1250, 'completed', '2026-04-04 08:16:00-06'
+);
+
+-- TX4: Recent cycle with blocked high-risk action
+INSERT INTO orchestrator_cycles (
+  id, orchestrator_id, cycle_number, trigger_type, trigger_metadata,
+  world_state_id, planner_output, critic_evaluation, selected_actions,
+  execution_summary, duration_ms, status, completed_at
+) VALUES (
+  'f4000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000004',
+  28, 'deadline_approaching',
+  '{"deadline": "closing_date", "days_remaining": 6}'::jsonb,
+  'f2000000-0000-4000-8000-000000000002',
+  '{"reasoning_summary": "Closing in 6 days, missing closing disclosure. Considered stage transition but blocked. Recomputing scores and creating reminder draft.", "proposed_actions": [{"tool_name": "recompute_completeness", "risk_class": "safe", "confidence": 0.95}, {"tool_name": "suggest_stage_transition", "risk_class": "high_risk", "confidence": 0.6}, {"tool_name": "create_reminder_draft", "risk_class": "medium_risk", "confidence": 0.85}], "urgency_assessment": "critical"}'::jsonb,
+  '{"all_approved": false, "concerns": ["Stage transition blocked — high risk", "Reminder draft created for review"]}'::jsonb,
+  '[{"tool_name": "recompute_completeness", "disposition": "auto_execute"}, {"tool_name": "suggest_stage_transition", "disposition": "block", "reason": "high_risk_block"}, {"tool_name": "create_reminder_draft", "disposition": "create_draft"}]'::jsonb,
+  '{"actions_executed": 1, "actions_drafted": 1, "actions_blocked": 1}'::jsonb,
+  2100, 'completed', '2026-04-04 09:02:00-06'
+);
+
+-- TX2: Skipped cycle (within cooldown)
+INSERT INTO orchestrator_cycles (
+  id, orchestrator_id, cycle_number, trigger_type,
+  status, skip_reason, completed_at
+) VALUES (
+  'f4000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000002',
+  3, 'scheduled',
+  'skipped', 'Within cooldown period (last observed 15 minutes ago)', '2026-04-04 08:15:00-06'
+);
+
+-- ---------------------------------------------------------------------------
+-- Action Proposals
+-- ---------------------------------------------------------------------------
+
+-- TX1 cycle: safe proposals (all approved and executed)
+INSERT INTO orchestrator_action_proposals (
+  id, cycle_id, orchestrator_id,
+  tool_name, tool_params, risk_class, confidence, reason,
+  critic_approved, status
+) VALUES
+  ('f5000000-0000-4000-8000-000000000001',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000001',
+   'recompute_completeness', '{"transaction_id": "e0000000-0000-4000-8000-000000000001"}'::jsonb,
+   'safe', 0.95, 'Completeness score may be stale after overdue item detection',
+   true, 'executed'),
+  ('f5000000-0000-4000-8000-000000000002',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000001',
+   'recompute_health_score', '{"transaction_id": "e0000000-0000-4000-8000-000000000001"}'::jsonb,
+   'safe', 0.95, 'Health score refresh after state change',
+   true, 'executed'),
+  ('f5000000-0000-4000-8000-000000000003',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000001',
+   'create_notification', '{"user_id": "b0000000-0000-4000-8000-000000000003", "title": "Inspection report still overdue", "priority": "high"}'::jsonb,
+   'safe', 0.90, 'Coordinator should be alerted about continued overdue inspection',
+   true, 'executed');
+
+-- TX4 cycle: mixed proposals (safe executed, high_risk blocked, medium_risk drafted)
+INSERT INTO orchestrator_action_proposals (
+  id, cycle_id, orchestrator_id,
+  tool_name, tool_params, risk_class, confidence, reason,
+  critic_approved, critic_notes, status, gated_reason
+) VALUES
+  ('f5000000-0000-4000-8000-000000000004',
+   'f4000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000004',
+   'recompute_completeness', '{"transaction_id": "e0000000-0000-4000-8000-000000000004"}'::jsonb,
+   'safe', 0.95, 'Refresh completeness before closing assessment',
+   true, NULL, 'executed', NULL),
+  ('f5000000-0000-4000-8000-000000000005',
+   'f4000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000004',
+   'suggest_stage_transition', '{"transaction_id": "e0000000-0000-4000-8000-000000000004", "to_stage": "closing"}'::jsonb,
+   'high_risk', 0.60, 'Deal may be ready for closing stage',
+   false, 'Blocked: high-risk action, missing closing disclosure',
+   'rejected', 'high_risk_block'),
+  ('f5000000-0000-4000-8000-000000000006',
+   'f4000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000004',
+   'create_reminder_draft', '{"recipient_email": "patricia.h@email.com", "subject": "Seller disclosures needed urgently"}'::jsonb,
+   'medium_risk', 0.85, 'Seller disclosures overdue, 6 days to closing',
+   true, 'Draft created for human review', 'gated', 'create_draft');
+
+-- ---------------------------------------------------------------------------
+-- Action Executions (for safe auto-executed actions)
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_action_executions (
+  id, proposal_id, orchestrator_id,
+  tool_name, tool_params, result, success, duration_ms, idempotency_key
+) VALUES
+  ('f6000000-0000-4000-8000-000000000001',
+   'f5000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000001',
+   'recompute_completeness',
+   '{"transaction_id": "e0000000-0000-4000-8000-000000000001"}'::jsonb,
+   '{"new_score": 55, "previous_score": 52}'::jsonb,
+   true, 320,
+   'tx1_recompute_completeness_20260404_0815'),
+  ('f6000000-0000-4000-8000-000000000002',
+   'f5000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000001',
+   'recompute_health_score',
+   '{"transaction_id": "e0000000-0000-4000-8000-000000000001"}'::jsonb,
+   '{"new_score": 68, "previous_score": 72, "trend": "declining"}'::jsonb,
+   true, 280,
+   'tx1_recompute_health_20260404_0815'),
+  ('f6000000-0000-4000-8000-000000000003',
+   'f5000000-0000-4000-8000-000000000003', 'f1000000-0000-4000-8000-000000000001',
+   'create_notification',
+   '{"user_id": "b0000000-0000-4000-8000-000000000003", "title": "Inspection report still overdue"}'::jsonb,
+   '{"notification_id": "c7000000-0000-4000-8000-000000000001"}'::jsonb,
+   true, 150,
+   'tx1_notify_overdue_inspection_20260404_0815'),
+  ('f6000000-0000-4000-8000-000000000004',
+   'f5000000-0000-4000-8000-000000000004', 'f1000000-0000-4000-8000-000000000004',
+   'recompute_completeness',
+   '{"transaction_id": "e0000000-0000-4000-8000-000000000004"}'::jsonb,
+   '{"new_score": 74, "previous_score": 72}'::jsonb,
+   true, 310,
+   'tx4_recompute_completeness_20260404_0900');
+
+-- ---------------------------------------------------------------------------
+-- Next Actions (orchestrator output for UI)
+-- ---------------------------------------------------------------------------
+
+-- TX1: Primary next action — follow up on inspection
+INSERT INTO orchestrator_next_actions (
+  id, orchestrator_id, title, reason, urgency, risk_class,
+  owner_user_id, owner_role, source_signals,
+  auto_executable, tool_name, tool_params,
+  is_primary, status, cycle_id
+) VALUES (
+  'f7000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  'Follow up on overdue home inspection',
+  'Robert Tanaka has not delivered the inspection report (3 days overdue). Closing timeline at risk.',
+  'high', 'medium_risk',
+  'b0000000-0000-4000-8000-000000000002', 'agent',
+  '[{"type": "overdue_checklist_item", "item": "Home inspection"}, {"type": "health_declining", "trend": "declining"}]'::jsonb,
+  false, 'create_reminder_draft',
+  '{"recipient": "rtanaka.inspections@email.com", "subject": "Inspection Report Status"}'::jsonb,
+  true, 'active',
+  'f4000000-0000-4000-8000-000000000001'
+);
+
+-- TX4: Primary next action — obtain closing disclosure
+INSERT INTO orchestrator_next_actions (
+  id, orchestrator_id, title, reason, urgency, risk_class,
+  owner_user_id, owner_role, source_signals,
+  auto_executable, tool_name,
+  is_primary, status, cycle_id
+) VALUES (
+  'f7000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000004',
+  'Obtain closing disclosure from title company',
+  'Closing in 6 days. Closing disclosure is the only missing document blocking readiness.',
+  'critical', 'medium_risk',
+  'b0000000-0000-4000-8000-000000000003', 'coordinator',
+  '[{"type": "missing_document", "document": "closing_disclosure"}, {"type": "deadline_approaching", "days": 6}]'::jsonb,
+  false, 'create_document_request',
+  true, 'active',
+  'f4000000-0000-4000-8000-000000000002'
+);
+
+-- ---------------------------------------------------------------------------
+-- Orchestrator Obligations
+-- ---------------------------------------------------------------------------
+
+-- TX1: Waiting on inspector
+INSERT INTO orchestrator_obligations (
+  id, orchestrator_id, obligation_type, description,
+  owner_type, due_at, priority, status, metadata
+) VALUES (
+  'f8000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  'counterparty_action', 'Waiting on home inspection report from Robert Tanaka',
+  'counterparty', '2026-04-01 17:00:00-06', 'high', 'overdue',
+  '{"contact_name": "Robert Tanaka", "contact_email": "rtanaka.inspections@email.com"}'::jsonb
+);
+
+-- TX4: Waiting on closing disclosure
+INSERT INTO orchestrator_obligations (
+  id, orchestrator_id, obligation_type, description,
+  owner_type, owner_user_id, due_at, priority, status, metadata
+) VALUES (
+  'f8000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000004',
+  'document_needed', 'Closing disclosure needed from title company before closing',
+  'counterparty', NULL, '2026-04-08 17:00:00-06', 'critical', 'open',
+  '{"document_type": "closing_disclosure", "closing_date": "2026-04-10"}'::jsonb
+);
+
+-- TX4: Seller disclosures overdue
+INSERT INTO orchestrator_obligations (
+  id, orchestrator_id, obligation_type, description,
+  owner_type, due_at, priority, status, metadata
+) VALUES (
+  'f8000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000004',
+  'counterparty_action', 'Seller Patricia Hernandez has not provided signed disclosures',
+  'counterparty', '2026-04-01 17:00:00-06', 'high', 'overdue',
+  '{"party_name": "Patricia Hernandez", "party_email": "patricia.h@email.com"}'::jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- Action Policy (org-level overrides)
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_action_policies (
+  id, organization_id, policy_name,
+  promoted_to_safe, demoted_to_blocked, require_approval_for,
+  custom_rules, is_active
+) VALUES (
+  'f9000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  'realty_partners_default',
+  '{}', '{}',
+  '{suggest_follow_up_draft}',
+  '{"notes": "Follow-up drafts always require broker approval per office policy"}'::jsonb,
+  true
+);
+
+-- ---------------------------------------------------------------------------
+-- Follow-Through Sequence Runs
+-- ---------------------------------------------------------------------------
+
+-- TX4: Active follow-through for missing closing disclosure
+INSERT INTO orchestrator_follow_through_runs (
+  id, orchestrator_id, sequence_name, status,
+  current_step, trigger_data, step_results,
+  started_at, next_step_at
+) VALUES (
+  'fa000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000004',
+  'missing_document_recovery', 'waiting',
+  3,
+  '{"missing_doc": "closing_disclosure", "closing_date": "2026-04-10"}'::jsonb,
+  '[{"step_name": "create_checklist_item", "success": true, "timestamp": "2026-04-03T14:00:00Z"}, {"step_name": "send_notification", "success": true, "timestamp": "2026-04-03T14:01:00Z"}]'::jsonb,
+  '2026-04-03 14:00:00-06',
+  '2026-04-04 14:00:00-06'
+);
+
+-- TX1: Completed follow-through for post-document upload
+INSERT INTO orchestrator_follow_through_runs (
+  id, orchestrator_id, sequence_name, status,
+  current_step, trigger_data, step_results,
+  started_at, completed_at, exit_reason
+) VALUES (
+  'fa000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000001',
+  'post_document_upload', 'completed',
+  4,
+  '{"document_id": "20000000-0000-4000-8000-000000000002", "document_type": "pre_approval_letter"}'::jsonb,
+  '[{"step_name": "recompute_completeness", "success": true, "timestamp": "2026-04-03T09:00:00Z"}, {"step_name": "recompute_exceptions", "success": true, "timestamp": "2026-04-03T09:00:05Z"}, {"step_name": "recompute_health", "success": true, "timestamp": "2026-04-03T09:00:10Z"}, {"step_name": "notify_if_needed", "success": true, "timestamp": "2026-04-03T09:00:15Z"}]'::jsonb,
+  '2026-04-03 09:00:00-06',
+  '2026-04-03 09:00:15-06',
+  'all_steps_completed'
+);

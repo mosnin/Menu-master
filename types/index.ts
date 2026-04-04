@@ -1977,3 +1977,76 @@ export interface FollowThroughRun {
   created_at: string;
   updated_at: string;
 }
+
+// =============================================================================
+// Orchestrator Plan Types
+// =============================================================================
+
+export type PlanStatus = 'draft' | 'active' | 'waiting' | 'blocked' | 'completed' | 'cancelled' | 'superseded';
+
+export type SubgoalStatus = 'pending' | 'in_progress' | 'waiting' | 'blocked' | 'completed' | 'skipped';
+
+export interface OrchestratorPlan {
+  id: string;
+  orchestrator_id: string;
+  organization_id: string;
+  title: string;
+  objective: string;
+  entity_type: OrchestratorEntityType;
+  entity_id: string;
+  status: PlanStatus;
+  priority: OrchestratorPriority;
+  priority_rationale: string | null;
+  review_cadence_hours: number;
+  refresh_conditions: string[];
+  version: number;
+  superseded_by: string | null;
+  blocked_reason: string | null;
+  blocked_since: string | null;
+  completed_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorSubgoal {
+  id: string;
+  plan_id: string;
+  title: string;
+  intent: string;
+  status: SubgoalStatus;
+  urgency: NextActionUrgency;
+  owner_user_id: string | null;
+  owner_role: string | null;
+  sort_order: number;
+  prerequisites: string[];
+  completion_condition: string;
+  blocked_reason: string | null;
+  blocked_since: string | null;
+  linked_action_ids: string[];
+  linked_tool_names: string[];
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanRevision {
+  id: string;
+  plan_id: string;
+  revision_number: number;
+  reason: string;
+  changes_summary: string;
+  previous_snapshot: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PlanProgress {
+  total_subgoals: number;
+  pending: number;
+  in_progress: number;
+  waiting: number;
+  blocked: number;
+  completed: number;
+  skipped: number;
+  completion_percentage: number;
+}
