@@ -1,6 +1,6 @@
 'use server';
 
-import { getServerSession } from '@/lib/auth/session';
+import { getServerSession, getCurrentUserProfile } from '@/lib/auth/session';
 import * as userProfileRepo from '@/lib/repositories/user-profiles';
 import type { UserProfile } from '@/types';
 
@@ -19,4 +19,27 @@ export async function syncUserProfile(): Promise<UserProfile> {
   });
 
   return profile;
+}
+
+export async function getPostAuthRoute(): Promise<string> {
+  const session = await getServerSession();
+  if (!session) return '/signin';
+
+  const profile = await getCurrentUserProfile();
+  if (!profile) return '/signin';
+
+  // Check onboarding status
+  if (
+    profile.onboarding_status === 'pending' ||
+    profile.onboarding_status === 'in_progress'
+  ) {
+    return '/onboarding';
+  }
+
+  // Check membership
+  if (!profile.memberships || profile.memberships.length === 0) {
+    return '/onboarding';
+  }
+
+  return '/dashboard';
 }

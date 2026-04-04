@@ -129,6 +129,12 @@ export interface UserProfile {
   auth0_user_id: string;
   email: string;
   full_name: string;
+  onboarding_status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  onboarding_step: number;
+  onboarding_completed_at: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  preferences: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +144,20 @@ export interface Membership {
   organization_id: string;
   user_profile_id: string;
   role: UserRole;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamInvite {
+  id: string;
+  organization_id: string;
+  invited_by_user_id: string;
+  email: string;
+  role: UserRole;
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
+  invite_token: string;
+  expires_at: string;
+  accepted_at: string | null;
   created_at: string;
   updated_at: string;
 }

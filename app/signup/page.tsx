@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 
-export default function SignInPage() {
+export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white relative overflow-hidden px-6">
       {/* Subtle background dot pattern */}
@@ -28,10 +28,10 @@ export default function SignInPage() {
             {/* Heading */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Welcome back
+                Start your free workspace
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Sign in to your Deal Desk workspace
+                Create your Deal Desk account to get started
               </p>
             </div>
 
@@ -41,23 +41,23 @@ export default function SignInPage() {
               className="w-full h-12 rounded-xl text-base font-medium"
               size="lg"
             >
-              <a href="/auth/login">Continue with Auth0</a>
+              <a href="/auth/login?screen_hint=signup">Create account</a>
             </Button>
 
-            {/* Create account link */}
+            {/* Sign in link */}
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{' '}
+              Already have an account?{' '}
               <a
-                href="/signup"
+                href="/signin"
                 className="font-medium text-primary hover:underline underline-offset-4"
               >
-                Create one
+                Sign in
               </a>
             </p>
 
             {/* Help text */}
             <p className="mt-4 text-center text-xs text-muted-foreground/60">
-              Forgot something? Contact your workspace administrator
+              Joining an existing team? Ask your admin for an invite
             </p>
           </CardContent>
         </Card>
