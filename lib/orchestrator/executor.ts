@@ -18,6 +18,9 @@ import { evaluatePolicy } from './action-policy';
 // ---------------------------------------------------------------------------
 
 const INTER_TOOL_DELAY_MS = 100;
+const MAX_SAFE_RETRIES = 2;
+const RETRY_DELAY_MS = 500;
+const ACTION_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between duplicate tool+params executions
 
 function generateIdempotencyKey(cycleId: string, toolName: string, params: unknown): string {
   const raw = `${cycleId}-${toolName}-${JSON.stringify(params)}`;
@@ -26,6 +29,27 @@ function generateIdempotencyKey(cycleId: string, toolName: string, params: unkno
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if the same tool+params was executed recently (within cooldown window).
+ * Prevents action churn when repeated cycles propose the same action.
+ */
+async function isInCooldown(
+  orchestratorId: string,
+  toolName: string,
+  toolParams: unknown,
+): Promise<boolean> {
+  const recentExecutions = await actionRepo.findRecentExecutions(orchestratorId, 20);
+  const cooldownThreshold = new Date(Date.now() - ACTION_COOLDOWN_MS).toISOString();
+
+  return recentExecutions.some(
+    e =>
+      e.tool_name === toolName &&
+      e.success &&
+      e.created_at > cooldownThreshold &&
+      JSON.stringify(e.tool_params) === JSON.stringify(toolParams),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -38,6 +62,10 @@ export interface ExecutionPolicyContext {
   complianceFlags: string[];
   orgPolicyOverrides?: OrgPolicyOverrides;
   worldStage: string;
+  /** Active plan ID for linking executions to plan context */
+  activePlanId?: string;
+  /** Map of tool_name -> subgoal_id for linking executions to subgoals */
+  toolToSubgoalMap?: Map<string, string>;
 }
 
 function buildPolicyContext(
@@ -138,6 +166,19 @@ export async function executeApprovedActions(
       continue;
     }
 
+    // 2a. Check cooldown — skip if same tool+params executed recently
+    const inCooldown = await isInCooldown(context.orchestratorId, proposal.tool_name, proposal.tool_params);
+    if (inCooldown) {
+      const execution = await recordPolicyDecision(proposal, context, startTime, idempotencyKey, {
+        disposition: 'block',
+        reason: `Action "${proposal.tool_name}" was already executed recently (cooldown)`,
+        policy_rule: 'action_cooldown',
+        can_override: false,
+      });
+      executions.push(execution);
+      continue;
+    }
+
     // 3. Evaluate action policy
     const policyContext = buildPolicyContext(proposal, effectivePolicyCtx);
     const policyDecision = evaluatePolicy(policyContext);
@@ -167,9 +208,29 @@ export async function executeApprovedActions(
       continue;
     }
 
-    // 5. auto_execute — run the tool
+    // 5. auto_execute — run the tool (with retry for safe actions)
+    let toolResult: Awaited<ReturnType<typeof tool.execute>> | null = null;
+    let lastError: string | null = null;
+    const maxAttempts = proposal.risk_class === 'safe' ? MAX_SAFE_RETRIES + 1 : 1;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        toolResult = await tool.execute(proposal.tool_params, context);
+        if (toolResult.success) break;
+        lastError = JSON.stringify(toolResult.result);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : 'Unknown error';
+        toolResult = null;
+      }
+      if (attempt < maxAttempts) {
+        await delay(RETRY_DELAY_MS * attempt); // exponential-ish backoff
+      }
+    }
+
     try {
-      const toolResult = await tool.execute(proposal.tool_params, context);
+      if (!toolResult || !toolResult.success) {
+        throw new Error(lastError ?? 'All retry attempts failed');
+      }
       const durationMs = Date.now() - startTime;
 
       // Store execution record
@@ -184,6 +245,12 @@ export async function executeApprovedActions(
             disposition: policyDecision.disposition,
             policy_rule: policyDecision.policy_rule,
           },
+          plan_context: effectivePolicyCtx.activePlanId
+            ? {
+                plan_id: effectivePolicyCtx.activePlanId,
+                subgoal_id: effectivePolicyCtx.toolToSubgoalMap?.get(proposal.tool_name) ?? null,
+              }
+            : undefined,
         },
         success: toolResult.success,
         error_message: null,

@@ -219,6 +219,109 @@ const POST_DOCUMENT_UPLOAD_PROCESSING: FollowThroughSequence = {
   allows_cancellation: false,
 };
 
+const DEADLINE_APPROACHING_FOLLOW_THROUGH: FollowThroughSequence = {
+  id: 'deadline-approaching-follow-through',
+  name: 'Deadline Approaching Follow-Through',
+  description:
+    'Triggered when an urgent deadline is within 7 days. Recomputes readiness, creates action cards, and escalates if blockers remain.',
+  trigger: 'deadline_within_7_days',
+  steps: [
+    {
+      step_number: 1,
+      tool_name: 'recompute_completeness',
+      params_template: {},
+    },
+    {
+      step_number: 2,
+      tool_name: 'recompute_health_score',
+      params_template: {},
+    },
+    {
+      step_number: 3,
+      tool_name: 'create_next_action_card',
+      params_template: {
+        title: 'Deadline approaching: {{deadline_description}}',
+        reason:
+          'Deadline "{{deadline_description}}" is within 7 days. {{missing_items}} items still outstanding.',
+        urgency: 'critical',
+        risk_class: 'safe',
+      },
+    },
+    {
+      step_number: 4,
+      tool_name: 'create_notification',
+      params_template: {
+        message:
+          'Urgent: Deadline "{{deadline_description}}" is approaching. Please review outstanding items.',
+        notification_type: 'deadline_approaching',
+        target_user_id: '{{deal_owner_id}}',
+      },
+    },
+    {
+      step_number: 5,
+      tool_name: 'request_manual_review',
+      params_template: {
+        reason:
+          'Deadline "{{deadline_description}}" is within 3 days with outstanding blockers. Human intervention required.',
+        context: {
+          deadline: '{{deadline_description}}',
+          blockers: '{{blocker_summary}}',
+        },
+      },
+      wait_for: 'deadline_within_3_days',
+      max_wait_hours: 96,
+      condition: 'Deadline is within 3 days and blockers remain',
+    },
+  ],
+  exit_conditions: ['All blockers resolved', 'Deadline passed', 'Manually dismissed'],
+  max_duration_hours: 168,
+  allows_cancellation: true,
+};
+
+const CLOSING_PREP_FOLLOW_THROUGH: FollowThroughSequence = {
+  id: 'closing-prep-follow-through',
+  name: 'Closing Prep Follow-Through',
+  description:
+    'Triggered when a transaction enters closing stage. Recomputes closing readiness, creates closing checklist items, and monitors dependencies.',
+  trigger: 'stage_entered_closing',
+  steps: [
+    {
+      step_number: 1,
+      tool_name: 'recompute_closing_readiness',
+      params_template: {},
+    },
+    {
+      step_number: 2,
+      tool_name: 'recompute_completeness',
+      params_template: {},
+    },
+    {
+      step_number: 3,
+      tool_name: 'create_next_action_card',
+      params_template: {
+        title: 'Closing prep: Review closing readiness',
+        reason:
+          'Transaction entered closing stage. Review closing readiness and resolve outstanding items.',
+        urgency: 'high',
+        risk_class: 'safe',
+      },
+    },
+    {
+      step_number: 4,
+      tool_name: 'create_notification',
+      params_template: {
+        message:
+          'Transaction has entered closing stage. Please review closing readiness and outstanding requirements.',
+        notification_type: 'closing_prep',
+        target_user_id: '{{deal_owner_id}}',
+      },
+    },
+  ],
+  exit_conditions: ['Closing readiness is 100%', 'Transaction closed', 'Manually dismissed'],
+  max_duration_hours: 240,
+  allows_cancellation: true,
+};
+
 // ---------------------------------------------------------------------------
 // Sequence Registry
 // ---------------------------------------------------------------------------
@@ -228,6 +331,8 @@ const BUILT_IN_SEQUENCES: FollowThroughSequence[] = [
   STALE_APPROVAL_FOLLOW_THROUGH,
   COMPLETENESS_RECOVERY,
   POST_DOCUMENT_UPLOAD_PROCESSING,
+  DEADLINE_APPROACHING_FOLLOW_THROUGH,
+  CLOSING_PREP_FOLLOW_THROUGH,
 ];
 
 export function getSequenceById(id: string): FollowThroughSequence | undefined {
@@ -512,6 +617,44 @@ export function detectTriggers(
     });
   }
 
+  // Deadline approaching detection
+  if (worldState.urgent_deadlines && worldState.urgent_deadlines.length > 0) {
+    for (const deadline of worldState.urgent_deadlines) {
+      const deadlineDate = typeof deadline === 'string' ? deadline : (deadline as { date?: string }).date;
+      const deadlineDesc = typeof deadline === 'string' ? deadline : (deadline as { description?: string }).description ?? deadline;
+      if (deadlineDate) {
+        const daysUntil = (new Date(deadlineDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+        if (daysUntil <= 7 && daysUntil > 0) {
+          triggers.push({
+            sequenceId: 'deadline-approaching-follow-through',
+            triggerData: {
+              deadline_description: String(deadlineDesc),
+              deal_owner_id: worldState.ownership?.owner_id ?? '',
+              missing_items: worldState.missing_docs.length + worldState.pending_approvals,
+              blocker_summary: worldState.unresolved_exceptions > 0
+                ? `${worldState.unresolved_exceptions} unresolved exceptions`
+                : 'None',
+            },
+          });
+          break; // Only trigger once for the nearest deadline
+        }
+      }
+    }
+  }
+
+  // Closing stage entry detection
+  if (
+    worldState.stage === 'closing' &&
+    activeTriggerData?.stage_transition?.toString().includes('closing')
+  ) {
+    triggers.push({
+      sequenceId: 'closing-prep-follow-through',
+      triggerData: {
+        deal_owner_id: worldState.ownership?.owner_id ?? '',
+      },
+    });
+  }
+
   // Document upload is event-driven — triggered via activeTriggerData
   if (activeTriggerData?.document_uploaded) {
     const uploadData = activeTriggerData.document_uploaded as {
@@ -566,6 +709,27 @@ export function shouldExitEarly(
     }
     case 'Post-Document Upload Processing': {
       // This sequence is immediate; no early exit needed
+      break;
+    }
+    case 'Deadline Approaching Follow-Through': {
+      // Exit if all blockers are resolved
+      if (
+        worldState.missing_docs.length === 0 &&
+        worldState.pending_approvals === 0 &&
+        worldState.unresolved_exceptions === 0
+      ) {
+        return 'All blockers resolved';
+      }
+      break;
+    }
+    case 'Closing Prep Follow-Through': {
+      // Exit if transaction closed or closing readiness is 100%
+      if (worldState.stage === 'closed') {
+        return 'Transaction closed';
+      }
+      if (worldState.completeness_score >= 100) {
+        return 'Closing readiness is 100%';
+      }
       break;
     }
   }

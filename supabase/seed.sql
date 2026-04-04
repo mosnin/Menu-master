@@ -2141,3 +2141,89 @@ INSERT INTO orchestrator_follow_through_runs (
   '2026-04-03 09:00:15-06',
   'all_steps_completed'
 );
+
+-- ---------------------------------------------------------------------------
+-- Execution Hardening Scenarios
+-- ---------------------------------------------------------------------------
+
+-- TX4: Deadline approaching follow-through (closing in 5 days)
+INSERT INTO orchestrator_follow_through_runs (
+  id, orchestrator_id, sequence_name, status,
+  current_step, trigger_data, step_results,
+  started_at, next_step_at
+) VALUES (
+  'fa000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000004',
+  'deadline_approaching', 'in_progress',
+  2,
+  '{"deadline_type": "closing_date", "deadline_date": "2026-04-09", "days_remaining": 5}'::jsonb,
+  '[{"step_name": "recompute_completeness", "success": true, "timestamp": "2026-04-04T08:00:00Z"}, {"step_name": "recompute_health", "success": true, "timestamp": "2026-04-04T08:00:05Z"}]'::jsonb,
+  '2026-04-04 08:00:00-06',
+  '2026-04-04 12:00:00-06'
+);
+
+-- TX3: Closing prep follow-through (stage just entered closing)
+INSERT INTO orchestrator_follow_through_runs (
+  id, orchestrator_id, sequence_name, status,
+  current_step, trigger_data, step_results,
+  started_at, next_step_at
+) VALUES (
+  'fa000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000003',
+  'closing_prep', 'in_progress',
+  1,
+  '{"stage": "closing", "entered_at": "2026-04-04T10:00:00Z"}'::jsonb,
+  '[{"step_name": "recompute_closing_readiness", "success": true, "timestamp": "2026-04-04T10:00:00Z"}]'::jsonb,
+  '2026-04-04 10:00:00-06',
+  '2026-04-04 10:05:00-06'
+);
+
+-- TX1: Execution with plan context (linked to active plan and subgoal)
+INSERT INTO orchestrator_action_executions (
+  id, proposal_id, orchestrator_id, tool_name, tool_params,
+  result, success, error_message, duration_ms, side_effects,
+  idempotency_key, created_at
+) VALUES (
+  'ae000000-0000-4000-8000-000000000010',
+  'ab000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  'recompute_deal_health', '{}',
+  '{"health_score": 0.82, "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}, "plan_context": {"plan_id": "p0000000-0000-4000-8000-000000000001", "subgoal_id": "sg000000-0000-4000-8000-000000000001"}}'::jsonb,
+  true, NULL, 45, '[]'::jsonb,
+  'plan_linked_exec_001',
+  '2026-04-04 09:00:00-06'
+);
+
+-- TX2: Cooldown-blocked execution (duplicate action within 5-minute window)
+INSERT INTO orchestrator_action_executions (
+  id, proposal_id, orchestrator_id, tool_name, tool_params,
+  result, success, error_message, duration_ms, side_effects,
+  idempotency_key, created_at
+) VALUES (
+  'ae000000-0000-4000-8000-000000000011',
+  'ab000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000002',
+  'recompute_deal_health', '{}',
+  '{"policy_decision": {"disposition": "block", "reason": "Action \"recompute_deal_health\" was already executed recently (cooldown)", "policy_rule": "action_cooldown", "can_override": false}}'::jsonb,
+  false,
+  'Action "recompute_deal_health" was already executed recently (cooldown)',
+  2, '[]'::jsonb,
+  'cooldown_blocked_001',
+  '2026-04-04 09:02:00-06'
+);
+
+-- TX3: Retried safe execution (succeeded on second attempt)
+INSERT INTO orchestrator_action_executions (
+  id, proposal_id, orchestrator_id, tool_name, tool_params,
+  result, success, error_message, duration_ms, side_effects,
+  idempotency_key, created_at
+) VALUES (
+  'ae000000-0000-4000-8000-000000000012',
+  'ab000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000003',
+  'flag_missing_documents', '{"transaction_id": "10000000-0000-4000-8000-000000000003"}',
+  '{"flagged": ["closing_disclosure", "title_commitment"], "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}}'::jsonb,
+  true, NULL, 1050, '["checklist_item_created", "checklist_item_created"]'::jsonb,
+  'retry_success_001',
+  '2026-04-04 10:30:00-06'
+);

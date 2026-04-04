@@ -22,7 +22,7 @@ import { logAction } from '@/lib/audit/logger';
 import { registerAllTools } from './tools';
 import { runPlanner } from './planner';
 import { runCritic } from './critic';
-import { executeApprovedActions } from './executor';
+import { executeApprovedActions, type ExecutionPolicyContext } from './executor';
 import { processFollowThroughSequences } from './follow-through';
 import {
   evaluatePlanAction,
@@ -36,6 +36,7 @@ import { getSpecialist } from './specialists/registry';
 import type { SpecialistInput, SpecialistOutput } from './specialists/types';
 import { arbitrate } from './specialists/arbitrator';
 import * as specialistTraceRepo from '@/lib/repositories/orchestrator-specialist-traces';
+import * as policyRepo from '@/lib/repositories/orchestrator-policies';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
 
@@ -597,6 +598,20 @@ export async function runOrchestrationCycle(
       }
     }
 
+    // 6b. Build tool-to-subgoal map for plan-linked execution
+    const toolToSubgoalMap = new Map<string, string>();
+    if (activePlan && activeSubgoals.length > 0) {
+      for (const sg of activeSubgoals) {
+        if (sg.status !== 'completed' && sg.status !== 'skipped') {
+          for (const tn of sg.linked_tool_names) {
+            if (!toolToSubgoalMap.has(tn)) {
+              toolToSubgoalMap.set(tn, sg.id);
+            }
+          }
+        }
+      }
+    }
+
     // 7. Filter to approved actions and create proposals
     const approvedProposals: OrchestratorActionProposal[] = [];
 
@@ -632,6 +647,12 @@ export async function runOrchestrationCycle(
           risk_class: action.risk_class,
           confidence: action.confidence,
           critic_approved: criticApproved,
+          plan_id: activePlan?.id ?? null,
+          subgoal_id: toolToSubgoalMap.get(action.tool_name) ?? null,
+          source_signals: action.prerequisites?.length > 0 ? action.prerequisites : undefined,
+          required_approver: review?.requires_human_review
+            ? (worldSnapshot.ownership?.owner_role === 'agent' ? 'coordinator' : 'broker_admin')
+            : undefined,
         },
       });
 
@@ -646,7 +667,7 @@ export async function runOrchestrationCycle(
       selected_actions: selectedActionIds,
     });
 
-    // 8. Execute approved actions
+    // 8. Execute approved actions with full policy context
     const executionContext: ToolExecutionContext = {
       orchestratorId,
       organizationId: orchestrator.organization_id,
@@ -655,7 +676,28 @@ export async function runOrchestrationCycle(
       actorUserId: undefined,
     };
 
-    const executions = await executeApprovedActions(approvedProposals, executionContext);
+    // Build policy context from world state and org policy overrides
+    let orgOverrides: import('@/types').OrgPolicyOverrides | undefined;
+    try {
+      const policyRow = await policyRepo.findByOrg(orchestrator.organization_id);
+      if (policyRow) {
+        orgOverrides = policyRepo.toOrgPolicyOverrides(policyRow);
+      }
+    } catch {
+      // Non-fatal — proceed without org overrides
+    }
+
+    const executionPolicyCtx: ExecutionPolicyContext = {
+      entityType: orchestrator.entity_type as 'transaction' | 'listing',
+      actorRole: (worldSnapshot.ownership?.owner_role as import('@/types').UserRole) ?? 'agent',
+      complianceFlags: worldSnapshot.compliance_flags ?? [],
+      orgPolicyOverrides: orgOverrides,
+      worldStage: worldSnapshot.stage,
+      activePlanId: activePlan?.id,
+      toolToSubgoalMap: toolToSubgoalMap.size > 0 ? toolToSubgoalMap : undefined,
+    };
+
+    const executions = await executeApprovedActions(approvedProposals, executionContext, executionPolicyCtx);
 
     // Count gated actions by checking proposal status rather than string-matching error messages
     const allProposals = await actionRepo.findProposalsByCycle(cycle.id);

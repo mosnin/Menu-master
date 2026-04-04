@@ -329,6 +329,46 @@ The orchestrator learns from outcomes, corrections, ignored actions, counterpart
 - `orchestrator_memory_summaries` — Compacted memory patterns
 - `orchestrator_learning_events` — Audit trail for all learning updates
 
+## Execution Hardening
+
+### Action Cooldowns
+- 5-minute cooldown window prevents duplicate tool+params execution across cycles
+- If the same tool with identical parameters was successfully executed within the window, subsequent proposals are blocked with `action_cooldown` policy rule
+- Prevents action churn when repeated observation cycles propose the same action
+
+### Execution Retry
+- Safe actions (`risk_class: 'safe'`) get up to 3 attempts (1 initial + 2 retries)
+- Exponential-ish backoff: 500ms after first failure, 1000ms after second
+- Medium and high-risk actions are not retried (single attempt only)
+- Failures after all retries are recorded as `failure_pattern` memory entries
+
+### Full Policy Context
+- Pipeline loads org policy overrides from DB before execution
+- ExecutionPolicyContext includes: entityType, actorRole, complianceFlags, orgPolicyOverrides, worldStage, activePlanId, toolToSubgoalMap
+- Actor role derived from world state metadata
+- Compliance flags passed through from world state
+
+### Plan-Linked Execution
+- Execution results include `plan_context` with plan_id and subgoal_id
+- Tool-to-subgoal map built from active plan before proposal creation
+- Audit log metadata enriched with plan_id, subgoal_id, source_signals, required_approver
+- Enables tracing from execution back to planning intent
+
+### Follow-Through Sequences
+
+| Sequence | Steps | Trigger | Exit |
+|----------|-------|---------|------|
+| Document upload | 3 | New document uploaded | Extraction complete, checklist updated |
+| Approval granted | 2 | Approval decision made | Message sent or failed |
+| Deadline approaching | 5 | Deadline within 7 days | All blockers resolved |
+| Closing prep | 4 | Stage entered closing | Closed or 100% readiness |
+
+All sequences bounded to max 5 steps with inter-step delays (100ms between tool executions).
+
+### Inter-Tool Delays
+- 100ms delay between consecutive tool executions within a cycle
+- Prevents overwhelming downstream services during multi-action execution
+
 ## Deferred Items
 
 1. **Listing-specific world state** — Currently simplified; needs listing completeness service

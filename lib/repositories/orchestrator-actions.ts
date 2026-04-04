@@ -73,6 +73,21 @@ export async function findExecutionsByOrchestrator(
   return data ?? [];
 }
 
+export async function findRecentExecutions(
+  orchestratorId: string,
+  limit = 20,
+): Promise<OrchestratorActionExecution[]> {
+  const { data, error } = await supabase
+    .from(EXECUTIONS_TABLE)
+    .select('*')
+    .eq('orchestrator_id', orchestratorId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as OrchestratorActionExecution[];
+}
+
 export async function findByIdempotencyKey(
   key: string,
 ): Promise<OrchestratorActionExecution | null> {
