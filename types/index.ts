@@ -1448,3 +1448,174 @@ export interface BulkActionJob {
   completed_at: string | null;
   created_at: string;
 }
+
+// -----------------------------------------------------------------------------
+// Phase 9: Workflow Engine types
+// -----------------------------------------------------------------------------
+
+export type WorkflowStatus =
+  | 'draft'
+  | 'validating'
+  | 'validated'
+  | 'published'
+  | 'archived';
+
+export type WorkflowRunStatus =
+  | 'pending'
+  | 'running'
+  | 'waiting'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'timed_out';
+
+export type WorkflowStepStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'waiting';
+
+export type WorkflowTriggerEventType =
+  | 'transaction_created'
+  | 'document_uploaded'
+  | 'approval_decided'
+  | 'stage_changed'
+  | 'exception_created'
+  | 'listing_created'
+  | 'offer_accepted'
+  | 'scheduled_trigger'
+  | 'manual_trigger';
+
+export type WorkflowNodeType =
+  | 'start'
+  | 'stop'
+  | 'condition'
+  | 'branch'
+  | 'wait'
+  | 'loop'
+  | 'join'
+  | 'human_checkpoint'
+  | 'evaluate_transaction_completeness'
+  | 'evaluate_listing_readiness'
+  | 'evaluate_closing_readiness'
+  | 'create_notification'
+  | 'create_approval'
+  | 'create_checklist_item'
+  | 'create_timeline_event'
+  | 'request_missing_document'
+  | 'recompute_health_score'
+  | 'recompute_exceptions'
+  | 'transition_transaction_stage'
+  | 'transition_listing_stage'
+  | 'handoff_accepted_offer'
+  | 'emit_webhook'
+  | 'send_digest';
+
+export interface Workflow {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  created_by_user_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowVersion {
+  id: string;
+  workflow_id: string;
+  version_number: number;
+  status: WorkflowStatus;
+  graph_data: WorkflowGraphData;
+  validation_errors: unknown[];
+  published_by_user_id: string | null;
+  published_at: string | null;
+  created_by_user_id: string;
+  created_at: string;
+}
+
+export interface WorkflowGraphData {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  triggers: WorkflowTriggerConfig[];
+}
+
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  label: string;
+  config: Record<string, unknown>;
+  position: { x: number; y: number };
+  input_mapping: Record<string, string>;
+  output_contract: Record<string, string>;
+  retry_policy: { max_retries: number; delay_ms: number } | null;
+  timeout_ms: number | null;
+}
+
+export interface WorkflowEdge {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  condition: string | null;
+  label: string | null;
+  order: number;
+}
+
+export interface WorkflowTriggerConfig {
+  event_type: WorkflowTriggerEventType;
+  event_filter: Record<string, unknown>;
+}
+
+export interface WorkflowTrigger {
+  id: string;
+  workflow_id: string;
+  workflow_version_id: string;
+  event_type: WorkflowTriggerEventType;
+  event_filter: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  workflow_version_id: string;
+  organization_id: string;
+  status: WorkflowRunStatus;
+  trigger_event_type: string | null;
+  trigger_payload: Record<string, unknown>;
+  context_data: Record<string, unknown>;
+  current_node_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  initiated_by_user_id: string | null;
+  total_steps: number;
+  completed_steps: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowRunStep {
+  id: string;
+  run_id: string;
+  node_id: string;
+  node_type: string;
+  node_label: string | null;
+  step_number: number;
+  status: WorkflowStepStatus;
+  input_data: Record<string, unknown>;
+  output_data: Record<string, unknown>;
+  error_message: string | null;
+  retry_count: number;
+  max_retries: number;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_ms: number | null;
+  created_at: string;
+}
