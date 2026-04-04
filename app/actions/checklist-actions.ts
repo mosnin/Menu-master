@@ -5,6 +5,7 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { updateChecklistItem, getChecklistSummary } from '@/lib/services/checklist-service';
 import * as checklistItemRepo from '@/lib/repositories/checklist-items';
 import { supabase } from '@/lib/db/client';
+import { logAction } from '@/lib/audit/logger';
 import type { ChecklistItemStatus } from '@/types';
 
 export async function updateChecklistItemAction(
@@ -72,6 +73,17 @@ export async function addChecklistItemAction(data: {
     source: data.source ?? 'manual',
     requires_review: data.requiresReview ?? false,
     completed_at: null,
+  });
+
+  await logAction({
+    organizationId: transaction.organization_id,
+    transactionId: data.transactionId,
+    actorType: 'user',
+    actorUserId: profile.id,
+    action: 'checklist_item.created',
+    targetType: 'checklist_item',
+    targetId: item.id,
+    metadata: { title: data.title, source: data.source ?? 'manual' },
   });
 
   revalidatePath(`/transactions/${data.transactionId}`);

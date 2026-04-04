@@ -72,26 +72,121 @@ export async function processDocument(documentId: string) {
     return { status: 'manual_review', text, document };
   }
 
-  // Classify document
-  const classification = await classifyDocument(text);
+  // Classify document — wrap in try/catch to handle AI failures gracefully
+  let classification;
+  try {
+    classification = await classifyDocument(text);
+  } catch (classifyError) {
+    await documentRepo.updateProcessingStatus(documentId, 'failed');
+    await logAction({
+      organizationId: document.organization_id,
+      transactionId: document.transaction_id,
+      actorType: 'system',
+      action: 'document.processing_failed',
+      targetType: 'document',
+      targetId: documentId,
+      metadata: {
+        file_name: document.file_name,
+        stage: 'classification',
+        reason: classifyError instanceof Error ? classifyError.message : 'Classification failed',
+      },
+    });
+    throw classifyError;
+  }
 
-  // Extract fields based on type
+  // Extract fields based on type — wrap in try/catch to handle AI/Zod failures
   let extractionResult: Record<string, unknown>;
+  let rawModelOutput: Record<string, unknown>;
   const documentType = classification.document_type;
 
-  if (documentType === 'purchase_agreement') {
-    extractionResult = await extractPurchaseAgreement(text) as unknown as Record<string, unknown>;
-  } else if (documentType === 'disclosure') {
-    extractionResult = await extractDisclosure(text) as unknown as Record<string, unknown>;
-  } else {
-    extractionResult = { classification, text_length: text.length };
+  try {
+    if (documentType === 'purchase_agreement') {
+      extractionResult = await extractPurchaseAgreement(text) as unknown as Record<string, unknown>;
+    } else if (documentType === 'disclosure') {
+      extractionResult = await extractDisclosure(text) as unknown as Record<string, unknown>;
+    } else {
+      extractionResult = { classification, text_length: text.length };
+    }
+    rawModelOutput = extractionResult;
+  } catch (extractError) {
+    // Store raw failure for debugging but mark for manual review
+    rawModelOutput = {
+      error: extractError instanceof Error ? extractError.message : 'Extraction failed',
+      classification,
+      text_length: text.length,
+    };
+
+    await documentExtractionRepo.create({
+      document_id: documentId,
+      extraction_version: 1,
+      raw_model_output_json: rawModelOutput,
+      normalized_data_json: null,
+      confidence_score: classification.confidence,
+      extracted_at: new Date().toISOString(),
+    });
+
+    await documentRepo.updateProcessingStatus(documentId, 'manual_review');
+    await logAction({
+      organizationId: document.organization_id,
+      transactionId: document.transaction_id,
+      actorType: 'system',
+      action: 'document.processing_failed',
+      targetType: 'document',
+      targetId: documentId,
+      metadata: {
+        file_name: document.file_name,
+        stage: 'extraction',
+        document_type: documentType,
+        reason: extractError instanceof Error ? extractError.message : 'Extraction failed',
+      },
+    });
+
+    return {
+      status: 'manual_review',
+      documentType,
+      reason: 'Extraction failed — raw output preserved for debugging',
+    };
+  }
+
+  // Low confidence check — flag for manual review instead of completing
+  if (classification.confidence < 0.7) {
+    await documentExtractionRepo.create({
+      document_id: documentId,
+      extraction_version: 1,
+      raw_model_output_json: rawModelOutput,
+      normalized_data_json: extractionResult,
+      confidence_score: classification.confidence,
+      extracted_at: new Date().toISOString(),
+    });
+
+    await documentRepo.updateProcessingStatus(documentId, 'manual_review');
+    await logAction({
+      organizationId: document.organization_id,
+      transactionId: document.transaction_id,
+      actorType: 'ai',
+      action: 'extraction.low_confidence',
+      targetType: 'document',
+      targetId: documentId,
+      metadata: {
+        document_type: documentType,
+        confidence: classification.confidence,
+        reason: 'Confidence below 0.7 threshold — flagged for manual review',
+      },
+    });
+
+    return {
+      status: 'manual_review',
+      documentType,
+      confidence: classification.confidence,
+      reason: 'Low confidence extraction — requires manual review',
+    };
   }
 
   // Store extraction
   const extraction = await documentExtractionRepo.create({
     document_id: documentId,
     extraction_version: 1,
-    raw_model_output_json: extractionResult,
+    raw_model_output_json: rawModelOutput,
     normalized_data_json: extractionResult,
     confidence_score: classification.confidence,
     extracted_at: new Date().toISOString(),

@@ -204,6 +204,110 @@ INSERT INTO outbound_messages (id, organization_id, transaction_id, recipient_na
    'draft', NULL, NULL);
 
 -- ---------------------------------------------------------------------------
+-- Third transaction: closed deal with complete history
+-- ---------------------------------------------------------------------------
+INSERT INTO properties (id, organization_id, address_line_1, address_line_2, city, state, postal_code) VALUES
+  ('d0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   '2200 Pearl St', NULL, 'Boulder', 'CO', '80302');
+
+INSERT INTO transactions (id, organization_id, title, status, property_id, created_by_user_id) VALUES
+  ('e0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   'Purchase - 2200 Pearl St (Closed)', 'closed',
+   'd0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000002');
+
+INSERT INTO contacts (id, organization_id, full_name, email, phone, contact_type) VALUES
+  ('f0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000001',
+   'Emily Torres', 'emily.torres@email.com', '(303) 555-7890', 'buyer');
+
+INSERT INTO transaction_parties (id, transaction_id, contact_id, role) VALUES
+  ('10000000-0000-4000-8000-000000000005', 'e0000000-0000-4000-8000-000000000003',
+   'f0000000-0000-4000-8000-000000000005', 'buyer'),
+  ('10000000-0000-4000-8000-000000000006', 'e0000000-0000-4000-8000-000000000003',
+   'f0000000-0000-4000-8000-000000000002', 'seller');
+
+-- Document with completed extraction
+INSERT INTO documents (id, organization_id, transaction_id, file_name, storage_path, mime_type, file_size, uploaded_by_user_id, processing_status, document_type) VALUES
+  ('20000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003',
+   'purchase_agreement_2200_pearl.pdf',
+   'orgs/a0000000-0000-4000-8000-000000000001/txns/e0000000-0000-4000-8000-000000000003/purchase_agreement_2200_pearl.pdf',
+   'application/pdf', 312000,
+   'b0000000-0000-4000-8000-000000000002', 'completed', 'purchase_agreement');
+
+-- Document with failed extraction (edge case)
+INSERT INTO documents (id, organization_id, transaction_id, file_name, storage_path, mime_type, file_size, uploaded_by_user_id, processing_status, document_type) VALUES
+  ('20000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   'scanned_disclosure_form.pdf',
+   'orgs/a0000000-0000-4000-8000-000000000001/txns/e0000000-0000-4000-8000-000000000001/scanned_disclosure_form.pdf',
+   'application/pdf', 1540000,
+   'b0000000-0000-4000-8000-000000000002', 'manual_review', NULL);
+
+-- Extraction for completed document (high confidence)
+INSERT INTO document_extractions (id, document_id, extraction_version, raw_model_output_json, normalized_data_json, confidence_score, extracted_at) VALUES
+  ('25000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 1,
+   '{"buyer_name": "Emily Torres", "seller_name": "Patricia Hernandez", "property_address": "2200 Pearl St, Boulder, CO 80302", "purchase_price": 475000, "earnest_money": 12000, "closing_date": "2026-03-15", "confidence": 0.96}'::jsonb,
+   '{"buyer_name": "Emily Torres", "seller_name": "Patricia Hernandez", "property_address": "2200 Pearl St, Boulder, CO 80302", "purchase_price": 475000, "earnest_money": 12000, "closing_date": "2026-03-15", "confidence": 0.96}'::jsonb,
+   0.96, '2026-03-02 14:30:00-07');
+
+-- Extraction for failed document (low confidence, edge case)
+INSERT INTO document_extractions (id, document_id, extraction_version, raw_model_output_json, normalized_data_json, confidence_score, extracted_at) VALUES
+  ('25000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000004', 1,
+   '{"error": "Text extraction yielded mostly garbled output from scanned image", "text_length": 47}'::jsonb,
+   NULL,
+   0.12, '2026-04-04 11:15:00-06');
+
+-- Overdue checklist item (edge case)
+INSERT INTO checklist_items (id, transaction_id, title, description, due_date, status, source, requires_review) VALUES
+  ('40000000-0000-4000-8000-000000000009', 'e0000000-0000-4000-8000-000000000001',
+   'Submit seller disclosures',
+   'Seller must provide all required property disclosures. OVERDUE.',
+   '2026-03-28', 'pending', 'template', false);
+
+-- Completed checklist items for closed transaction
+INSERT INTO checklist_items (id, transaction_id, title, description, due_date, status, source, requires_review, completed_at) VALUES
+  ('40000000-0000-4000-8000-000000000010', 'e0000000-0000-4000-8000-000000000003',
+   'Earnest money deposited', 'Deposited $12,000 to escrow.',
+   '2026-02-20', 'completed', 'template', false, '2026-02-19 10:00:00-07'),
+  ('40000000-0000-4000-8000-000000000011', 'e0000000-0000-4000-8000-000000000003',
+   'Home inspection completed', 'Inspection passed with minor findings.',
+   '2026-02-28', 'completed', 'template', false, '2026-02-27 14:30:00-07'),
+  ('40000000-0000-4000-8000-000000000012', 'e0000000-0000-4000-8000-000000000003',
+   'Closing completed', 'All documents signed and funds transferred.',
+   '2026-03-15', 'completed', 'template', false, '2026-03-15 11:00:00-07');
+
+-- Timeline events for closed transaction
+INSERT INTO timeline_events (id, transaction_id, event_type, title, description, event_date, status, source) VALUES
+  ('50000000-0000-4000-8000-000000000007', 'e0000000-0000-4000-8000-000000000003',
+   'offer_submitted', 'Offer submitted', 'Buyer offer of $480,000 submitted.',
+   '2026-02-10 09:00:00-07', 'completed', 'system'),
+  ('50000000-0000-4000-8000-000000000008', 'e0000000-0000-4000-8000-000000000003',
+   'offer_accepted', 'Offer accepted', 'Seller accepted at $475,000.',
+   '2026-02-12 16:00:00-07', 'completed', 'system'),
+  ('50000000-0000-4000-8000-000000000009', 'e0000000-0000-4000-8000-000000000003',
+   'closing_date', 'Closing completed', 'Transaction closed successfully.',
+   '2026-03-15 11:00:00-07', 'completed', 'system');
+
+-- Sent outbound message (for closed transaction — shows completed workflow)
+INSERT INTO approvals (id, organization_id, transaction_id, approval_type, status, requested_by_user_id, decided_by_user_id, payload_json, decision_notes, decided_at) VALUES
+  ('60000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003', 'outbound_email', 'approved',
+   'b0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001',
+   '{"message_id": "70000000-0000-4000-8000-000000000003", "recipient_email": "emily.torres@email.com", "subject": "Closing Confirmation"}',
+   'Confirmed and approved for sending.',
+   '2026-03-16 09:00:00-07');
+
+INSERT INTO outbound_messages (id, organization_id, transaction_id, recipient_name, recipient_email, subject, body, status, approval_id, send_after, sent_at) VALUES
+  ('70000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003',
+   'Emily Torres', 'emily.torres@email.com',
+   'Closing Confirmation - 2200 Pearl St',
+   E'Hi Emily,\n\nCongratulations! Your purchase of 2200 Pearl St, Boulder, CO 80302 has closed successfully. All documents have been recorded and keys will be available for pickup tomorrow.\n\nWelcome to your new home!\n\nBest regards,\nRealty Partners Group',
+   'sent',
+   '60000000-0000-4000-8000-000000000003',
+   NULL, '2026-03-16 09:05:00-07');
+
+-- ---------------------------------------------------------------------------
 -- Reminders
 -- ---------------------------------------------------------------------------
 INSERT INTO reminders (id, organization_id, transaction_id, checklist_item_id, timeline_event_id, reminder_type, scheduled_for, status, outbound_message_id) VALUES
@@ -236,4 +340,24 @@ INSERT INTO audit_logs (id, organization_id, transaction_id, actor_type, actor_u
   ('90000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
    'e0000000-0000-4000-8000-000000000001', 'user', 'b0000000-0000-4000-8000-000000000001',
    'approve', 'approval', '60000000-0000-4000-8000-000000000002',
-   '{"approval_type": "extraction_review", "decision": "approved"}');
+   '{"approval_type": "extraction_review", "decision": "approved"}'),
+  ('90000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001', 'system', NULL,
+   'document.processing_failed', 'document', '20000000-0000-4000-8000-000000000004',
+   '{"file_name": "scanned_disclosure_form.pdf", "stage": "extraction", "reason": "Text extraction yielded mostly garbled output from scanned image"}'),
+  ('90000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001', 'ai', NULL,
+   'extraction.low_confidence', 'document', '20000000-0000-4000-8000-000000000004',
+   '{"document_type": null, "confidence": 0.12, "reason": "Confidence below 0.7 threshold"}'),
+  ('90000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003', 'user', 'b0000000-0000-4000-8000-000000000002',
+   'create', 'transaction', 'e0000000-0000-4000-8000-000000000003',
+   '{"title": "Purchase - 2200 Pearl St (Closed)"}'),
+  ('90000000-0000-4000-8000-000000000008', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003', 'system', NULL,
+   'message.sent', 'outbound_message', '70000000-0000-4000-8000-000000000003',
+   '{"recipient_email": "emily.torres@email.com", "subject": "Closing Confirmation - 2200 Pearl St"}'),
+  ('90000000-0000-4000-8000-000000000009', 'a0000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000003', 'user', 'b0000000-0000-4000-8000-000000000001',
+   'transaction.status_changed', 'transaction', 'e0000000-0000-4000-8000-000000000003',
+   '{"new_status": "closed"}');

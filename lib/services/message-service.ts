@@ -13,6 +13,7 @@ interface CreateMessageDraftParams {
   recipientEmail: string;
   subject: string;
   body: string;
+  requestedByUserId?: string;
 }
 
 export async function createMessageDraft(
@@ -48,7 +49,7 @@ export async function createMessageDraft(
       transaction_id: params.transactionId,
       approval_type: 'outbound_email',
       status: 'pending',
-      requested_by_user_id: message.id,
+      requested_by_user_id: params.requestedByUserId ?? message.id,
       decided_by_user_id: null,
       payload_json: {
         message_id: message.id,
