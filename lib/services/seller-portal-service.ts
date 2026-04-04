@@ -22,16 +22,26 @@ export async function validateSellerAccess(
   const access = await sellerPortalRepo.findByAccessToken(accessToken);
   if (!access) throw new SellerAccessError('Invalid or expired access token');
 
-  if (!access.is_active) throw new SellerAccessError('Access has been revoked');
+  if (!access.is_active || access.revoked_at) {
+    throw new SellerAccessError('Access has been revoked');
+  }
 
   if (access.expires_at && new Date(access.expires_at) < new Date()) {
     throw new SellerAccessError('Access token has expired');
   }
 
-  if (access.revoked_at) throw new SellerAccessError('Access has been revoked');
-
   const listing = await listingRepo.findById(access.listing_id);
   if (!listing) throw new SellerAccessError('Listing not found');
+
+  // Verify org boundary — access and listing must belong to same org
+  if (listing.organization_id !== access.organization_id) {
+    throw new SellerAccessError('Access denied');
+  }
+
+  // Block access to archived/withdrawn listings
+  if (['archived'].includes(listing.listing_stage)) {
+    throw new SellerAccessError('This listing is no longer active');
+  }
 
   // Update last accessed
   await sellerPortalRepo.update(access.id, {

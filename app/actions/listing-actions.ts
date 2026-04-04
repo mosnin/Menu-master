@@ -145,6 +145,11 @@ export async function updateChecklistItemAction(
     const item = await checklistRepo.findById(itemId);
     if (!item) return { error: 'Checklist item not found' };
 
+    // Verify org membership via the listing
+    const listing = await listingService.getListing(item.listing_id);
+    if (!listing) return { error: 'Listing not found' };
+    await requireOrgMembership(listing.organization_id);
+
     const updateData: Record<string, unknown> = { status };
     if (status === 'completed') {
       updateData.completed_at = new Date().toISOString();

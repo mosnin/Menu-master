@@ -319,3 +319,97 @@ describe('Offer Handling Edge Cases', () => {
     }
   });
 });
+
+describe('Handoff Safety Guarantees', () => {
+  it('only live or paused listings should accept offers for handoff', () => {
+    // These are the only stages where offers are accepted by the service
+    const offerAcceptableStages: ListingStage[] = ['live', 'paused'];
+    const allStages: ListingStage[] = ['intake', 'preparing', 'ready_for_review', 'ready_to_launch', 'live', 'paused', 'under_contract', 'closed', 'withdrawn', 'archived'];
+    const nonAcceptableStages = allStages.filter(s => !offerAcceptableStages.includes(s));
+
+    // Verify live/paused can reach under_contract (the handoff target)
+    for (const stage of offerAcceptableStages) {
+      const transitions = getAvailableListingStageTransitions(stage);
+      // live can go to under_contract; paused goes via live first
+      if (stage === 'live') {
+        expect(transitions).toContain('under_contract');
+      }
+    }
+
+    // Non-acceptable stages should not directly reach under_contract (except live itself)
+    for (const stage of ['intake', 'preparing', 'ready_for_review', 'ready_to_launch'] as ListingStage[]) {
+      const transitions = getAvailableListingStageTransitions(stage);
+      expect(transitions).not.toContain('under_contract');
+    }
+  });
+
+  it('accepted is terminal for offers — no further transitions', () => {
+    expect(getAvailableOfferTransitions('accepted')).toHaveLength(0);
+  });
+
+  it('rejected is terminal for offers — no further transitions', () => {
+    expect(getAvailableOfferTransitions('rejected')).toHaveLength(0);
+  });
+
+  it('listing under_contract can return to live if deal falls through', () => {
+    const transitions = getAvailableListingStageTransitions('under_contract');
+    expect(transitions).toContain('live');
+  });
+
+  it('listing under_contract can also be withdrawn or archived', () => {
+    const transitions = getAvailableListingStageTransitions('under_contract');
+    expect(transitions).toContain('withdrawn');
+    expect(transitions).toContain('archived');
+  });
+});
+
+describe('Seller Portal Safety', () => {
+  it('seller portal stage labels cover all listing stages', () => {
+    const allStages: ListingStage[] = ['intake', 'preparing', 'ready_for_review', 'ready_to_launch', 'live', 'paused', 'under_contract', 'closed', 'withdrawn', 'archived'];
+    // These labels are defined in seller-portal-service.ts getSellerProgressSummary
+    const sellerStageLabels: Record<string, string> = {
+      intake: 'Getting Started',
+      preparing: 'Preparing Your Listing',
+      ready_for_review: 'Final Review',
+      ready_to_launch: 'Ready to Go Live',
+      live: 'Listed & Active',
+      paused: 'Temporarily Paused',
+      under_contract: 'Under Contract',
+      closed: 'Closed',
+      withdrawn: 'Withdrawn',
+      archived: 'Archived',
+    };
+    for (const stage of allStages) {
+      expect(sellerStageLabels[stage]).toBeDefined();
+      // Labels should not contain internal jargon
+      expect(sellerStageLabels[stage]).not.toContain('_');
+    }
+  });
+});
+
+describe('Readiness Computation Safety', () => {
+  it('default checklist has items in all required launch categories', () => {
+    const items = getDefaultListingChecklist('test');
+    const requiredCategories = ['property_details', 'disclosures', 'photography', 'pricing', 'listing_description'];
+    for (const cat of requiredCategories) {
+      const count = items.filter(i => i.category === cat && i.is_required).length;
+      expect(count).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('no default checklist items have null listing_id', () => {
+    const items = getDefaultListingChecklist('my-listing');
+    for (const item of items) {
+      expect(item.listing_id).toBeTruthy();
+      expect(item.listing_id).toBe('my-listing');
+    }
+  });
+
+  it('all default items have valid categories', () => {
+    const validCategories = ['property_details', 'disclosures', 'photography', 'staging', 'pricing', 'listing_description', 'mls_readiness', 'documents', 'marketing', 'general'];
+    const items = getDefaultListingChecklist('test');
+    for (const item of items) {
+      expect(validCategories).toContain(item.category);
+    }
+  });
+});

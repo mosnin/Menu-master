@@ -56,13 +56,19 @@ export async function acceptOfferAndHandoff(
     throw new HandoffError('Listing has already been converted to a transaction');
   }
 
-  // 1. Accept the offer
+  // 1. Accept the offer — re-read listing after to catch concurrent handoffs
   await offerRepo.update(offerId, {
     status: 'accepted',
     decided_by_user_id: userId,
     decided_at: new Date().toISOString(),
     decision_notes: options?.decisionNotes ?? null,
   });
+
+  // Re-read listing to catch concurrent handoff (narrow the race window)
+  const freshListing = await listingRepo.findById(listing.id);
+  if (freshListing?.converted_transaction_id) {
+    throw new HandoffError('Listing was converted by another request — aborting');
+  }
 
   // 2. Create the under_contract transaction
   const transaction = await transactionRepo.create({
