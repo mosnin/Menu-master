@@ -1,4 +1,5 @@
 import { inngest } from './client';
+import { logger } from '@/lib/logger';
 import * as reminderService from '@/lib/services/reminder-service';
 
 export const reminderProcessingFunction = inngest.createFunction(
@@ -13,7 +14,7 @@ export const reminderProcessingFunction = inngest.createFunction(
     });
 
     if (result.errors.length > 0) {
-      console.error('Reminder processing errors:', result.errors);
+      logger.error('Reminder processing errors', { errors: result.errors });
     }
 
     return {

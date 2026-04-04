@@ -13,6 +13,7 @@ import * as timelineEventRepo from '@/lib/repositories/timeline-events';
 import * as approvalService from '@/lib/services/approval-service';
 import * as messageService from '@/lib/services/message-service';
 import { logAction } from '@/lib/audit/logger';
+import { logger } from '@/lib/logger';
 import { deadlineReminderTemplate } from '@/lib/email/templates';
 
 export const documentProcessingFunction = inngest.createFunction(
@@ -38,7 +39,7 @@ export const documentProcessingFunction = inngest.createFunction(
         .download(document.storage_path);
 
       if (downloadError || !fileData) {
-        console.error('Failed to download document:', downloadError);
+        logger.error('Failed to download document', { documentId, error: downloadError });
         await documentRepo.updateProcessingStatus(documentId, 'failed');
         return null;
       }
@@ -52,7 +53,7 @@ export const documentProcessingFunction = inngest.createFunction(
         const parsed = await pdfParse(fileBuffer);
         text = parsed.text;
       } catch (err) {
-        console.error('PDF parsing failed:', err);
+        logger.error('PDF parsing failed', { documentId, error: err instanceof Error ? err.message : err });
         await documentRepo.updateProcessingStatus(documentId, 'manual_review');
         return null;
       }

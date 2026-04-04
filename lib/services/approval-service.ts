@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/db/client';
 import * as approvalRepo from '@/lib/repositories/approvals';
 import { logAction } from '@/lib/audit/logger';
+import { logger } from '@/lib/logger';
 import { validateApprovalTransition } from '@/lib/services/status-transitions';
 import { sendApprovedMessage } from './message-service';
 import type { Approval, ApprovalType, ApprovalStatus } from '@/types';
@@ -85,10 +86,10 @@ export async function decideApproval(
       try {
         await sendApprovedMessage(messageId);
       } catch (sendError) {
-        console.error(
-          'Failed to send approved message:',
-          sendError instanceof Error ? sendError.message : sendError,
-        );
+        logger.error('Failed to send approved message', {
+          error: sendError instanceof Error ? sendError.message : sendError,
+          messageId,
+        });
       }
     }
   }

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/db/client';
 import { sendEmail } from '@/lib/email/send';
 import { logAction } from '@/lib/audit/logger';
+import { logger } from '@/lib/logger';
 import { validateMessageTransition } from '@/lib/services/status-transitions';
 import type { OutboundMessage, MessageStatus } from '@/types';
 
@@ -64,7 +65,7 @@ export async function createMessageDraft(
     .single();
 
   if (approvalError) {
-    console.error('Failed to create approval for message:', approvalError);
+    logger.error('Failed to create approval for message', { error: approvalError });
   }
 
   // Link approval to message and update status to pending_approval

@@ -25,16 +25,14 @@ async function checkDatabase(): Promise<CheckResult> {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { error } = await client.rpc('', undefined).maybeSingle();
-    // rpc('') may fail — fall back to a simple query
+    // Use a lightweight query to verify database connectivity
+    const { error } = await client
+      .from('organizations')
+      .select('id')
+      .limit(1);
+
     if (error) {
-      const { error: queryError } = await client
-        .from('organizations')
-        .select('id')
-        .limit(1);
-      if (queryError) {
-        return { status: 'fail', latencyMs: Date.now() - start, error: queryError.message };
-      }
+      return { status: 'fail', latencyMs: Date.now() - start, error: error.message };
     }
     return { status: 'ok', latencyMs: Date.now() - start };
   } catch (err) {

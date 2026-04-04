@@ -1,4 +1,5 @@
 import { getResendClient } from './client';
+import { logger } from '@/lib/logger';
 
 interface SendEmailParams {
   to: string;
@@ -12,8 +13,8 @@ export async function sendEmail(params: SendEmailParams): Promise<{ id: string; 
   const from = params.from ?? process.env.RESEND_FROM_EMAIL ?? 'Deal Desk <noreply@dealdesk.dev>';
 
   if (!client) {
-    console.log('[EMAIL MOCK] Sending email:', { to: params.to, subject: params.subject, from });
-    console.log('[EMAIL MOCK] Body:', params.html.substring(0, 200));
+    logger.info('Email mock: sending email', { to: params.to, subject: params.subject, from });
+    logger.info('Email mock: body preview', { body: params.html.substring(0, 200) });
     return { id: `mock_${Date.now()}`, success: true };
   }
 
@@ -25,7 +26,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ id: string; 
   });
 
   if (error) {
-    console.error('Failed to send email:', error);
+    logger.error('Failed to send email', { error, to: params.to, subject: params.subject });
     throw new Error(`Email send failed: ${error.message}`);
   }
 

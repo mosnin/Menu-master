@@ -3,6 +3,7 @@
  *
  * - JSON output in production (for Vercel log drains / structured search).
  * - Human-readable output in development.
+ * - `child()` creates a scoped logger with persistent context fields.
  */
 
 type LogLevel = 'info' | 'warn' | 'error';
@@ -14,6 +15,14 @@ interface LogEntry {
   [key: string]: unknown;
 }
 
+export interface Logger {
+  info(message: string, context?: Record<string, unknown>): void;
+  warn(message: string, context?: Record<string, unknown>): void;
+  error(message: string, context?: Record<string, unknown>): void;
+  /** Create a child logger with persistent context fields. */
+  child(context: Record<string, unknown>): Logger;
+}
+
 const isProduction = process.env.NODE_ENV === 'production';
 
 function formatDev(entry: LogEntry): string {
@@ -22,12 +31,18 @@ function formatDev(entry: LogEntry): string {
   return `${timestamp} [${level.toUpperCase()}] ${message}${ctx}`;
 }
 
-function emit(level: LogLevel, message: string, context?: Record<string, unknown>) {
+function emit(
+  level: LogLevel,
+  message: string,
+  baseContext: Record<string, unknown>,
+  extra?: Record<string, unknown>,
+) {
   const entry: LogEntry = {
     level,
     message,
     timestamp: new Date().toISOString(),
-    ...context,
+    ...baseContext,
+    ...extra,
   };
 
   const output = isProduction ? JSON.stringify(entry) : formatDev(entry);
@@ -44,14 +59,21 @@ function emit(level: LogLevel, message: string, context?: Record<string, unknown
   }
 }
 
-export const logger = {
-  info(message: string, context?: Record<string, unknown>) {
-    emit('info', message, context);
-  },
-  warn(message: string, context?: Record<string, unknown>) {
-    emit('warn', message, context);
-  },
-  error(message: string, context?: Record<string, unknown>) {
-    emit('error', message, context);
-  },
-};
+function createLogger(baseContext: Record<string, unknown> = {}): Logger {
+  return {
+    info(message: string, context?: Record<string, unknown>) {
+      emit('info', message, baseContext, context);
+    },
+    warn(message: string, context?: Record<string, unknown>) {
+      emit('warn', message, baseContext, context);
+    },
+    error(message: string, context?: Record<string, unknown>) {
+      emit('error', message, baseContext, context);
+    },
+    child(context: Record<string, unknown>): Logger {
+      return createLogger({ ...baseContext, ...context });
+    },
+  };
+}
+
+export const logger = createLogger();

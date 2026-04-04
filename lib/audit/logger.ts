@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/db/client';
+import { logger } from '@/lib/logger';
 
 export type AuditAction =
   | 'transaction.created'
@@ -50,6 +51,6 @@ export async function logAction(params: LogActionParams) {
   });
 
   if (error) {
-    console.error('Failed to write audit log:', error);
+    logger.error('Failed to write audit log', { error, action: params.action, targetType: params.targetType });
   }
 }

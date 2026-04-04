@@ -15,7 +15,8 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
     const result = await pdfParse(buffer);
     return result.text || '';
   } catch (error) {
-    console.error('PDF text extraction failed:', error);
+    const { logger } = await import('@/lib/logger');
+    logger.error('PDF text extraction failed', { error: error instanceof Error ? error.message : error });
     return '';
   }
 }
