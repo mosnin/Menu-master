@@ -35,6 +35,8 @@ export async function createTransaction(
     status: 'draft' as TransactionStatus,
     property_id: propertyId,
     created_by_user_id: userId,
+    office_id: null,
+    team_id: null,
   });
 
   // 3. Create contacts and transaction parties

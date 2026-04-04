@@ -149,6 +149,8 @@ export interface Transaction {
   status: TransactionStatus;
   property_id: string | null;
   created_by_user_id: string;
+  office_id: string | null;
+  team_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -727,6 +729,181 @@ export interface AuditExportJob {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 5: Brokerage Economics & Compliance types
+// -----------------------------------------------------------------------------
+
+export type OfficeMembershipRole = 'agent' | 'team_lead' | 'office_manager' | 'managing_broker';
+
+export type CommissionType = 'percentage' | 'flat';
+
+export type RepresentationSide = 'buyer' | 'seller' | 'dual';
+
+export type CommissionRecipientType = 'agent' | 'co_agent' | 'team_lead' | 'brokerage' | 'referral' | 'other';
+
+export type ComplianceIssueCategory =
+  | 'missing_document' | 'missing_approval' | 'risky_communication'
+  | 'stage_block' | 'unresolved_exception' | 'missing_economics'
+  | 'readiness_inconsistency' | 'policy_violation' | 'other';
+
+export type ComplianceIssueStatus = 'open' | 'under_review' | 'blocked' | 'resolved' | 'overridden';
+
+export type PolicyCategory =
+  | 'required_document' | 'required_approval' | 'required_economics'
+  | 'stage_gate' | 'compliance_signoff' | 'correction_review';
+
+export type EnforcementMode = 'warn' | 'block' | 'require_override';
+
+export type PolicyOverrideStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export interface Office {
+  id: string;
+  organization_id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  is_active: boolean;
+  managing_broker_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  organization_id: string;
+  office_id: string | null;
+  name: string;
+  team_lead_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OfficeMembership {
+  id: string;
+  user_id: string;
+  office_id: string;
+  team_id: string | null;
+  role: OfficeMembershipRole;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionEconomics {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  purchase_price: number | null;
+  commission_type: CommissionType;
+  commission_rate: number | null;
+  commission_amount: number | null;
+  gross_commission: number | null;
+  representation_side: RepresentationSide;
+  brokerage_split_pct: number;
+  brokerage_share: number | null;
+  agent_share: number | null;
+  has_referral: boolean;
+  referral_fee_pct: number | null;
+  referral_fee_amount: number | null;
+  referral_party_name: string | null;
+  net_brokerage_revenue: number | null;
+  is_projected: boolean;
+  is_finalized: boolean;
+  finalized_at: string | null;
+  finalized_by_user_id: string | null;
+  close_probability: number | null;
+  expected_close_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommissionSplit {
+  id: string;
+  economics_id: string;
+  recipient_type: CommissionRecipientType;
+  recipient_user_id: string | null;
+  recipient_name: string;
+  split_pct: number | null;
+  split_amount: number | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ComplianceIssue {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  category: ComplianceIssueCategory;
+  severity: string;
+  title: string;
+  description: string | null;
+  status: ComplianceIssueStatus;
+  assigned_to_user_id: string | null;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+  policy_rule_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComplianceIssueComment {
+  id: string;
+  issue_id: string;
+  author_user_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface PolicyRule {
+  id: string;
+  organization_id: string;
+  office_id: string | null;
+  name: string;
+  description: string | null;
+  category: PolicyCategory;
+  enforcement_mode: EnforcementMode;
+  rule_config: Record<string, unknown>;
+  applies_to_transaction_types: string[];
+  is_active: boolean;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PolicyOverride {
+  id: string;
+  policy_rule_id: string;
+  transaction_id: string;
+  organization_id: string;
+  override_reason: string;
+  overridden_by_user_id: string;
+  approved_by_user_id: string | null;
+  status: PolicyOverrideStatus;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CloseForecastSnapshot {
+  id: string;
+  organization_id: string;
+  snapshot_date: string;
+  forecast_month: string;
+  total_projected: number;
+  total_weighted: number;
+  total_closed: number;
+  transaction_count: number;
+  at_risk_count: number;
+  details: Record<string, unknown>[];
+  computed_at: string;
 }
 
 // -----------------------------------------------------------------------------

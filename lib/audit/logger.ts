@@ -64,7 +64,28 @@ export type AuditAction =
   | 'digest.sent'
   | 'audit_export.requested'
   | 'audit_export.completed'
-  | 'audit_export.failed';
+  | 'audit_export.failed'
+  | 'economics.created'
+  | 'economics.updated'
+  | 'economics.finalized'
+  | 'commission_split.created'
+  | 'commission_split.updated'
+  | 'compliance_issue.created'
+  | 'compliance_issue.assigned'
+  | 'compliance_issue.resolved'
+  | 'compliance_issue.overridden'
+  | 'compliance_issue.commented'
+  | 'policy_rule.created'
+  | 'policy_rule.updated'
+  | 'policy_rule.toggled'
+  | 'policy_override.requested'
+  | 'policy_override.approved'
+  | 'policy_override.rejected'
+  | 'forecast.computed'
+  | 'office.created'
+  | 'office.updated'
+  | 'team.created'
+  | 'team.updated';
 
 interface LogActionParams {
   organizationId?: string;
