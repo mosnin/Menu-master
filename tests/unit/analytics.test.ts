@@ -146,7 +146,7 @@ describe('trackEvents (batch)', () => {
     ]);
 
     expect(insertMock).toHaveBeenCalledTimes(1);
-    const rows = insertMock.mock.calls[0][0];
+    const rows = (insertMock.mock.calls as any[][])[0][0];
     expect(rows).toHaveLength(2);
   });
 });

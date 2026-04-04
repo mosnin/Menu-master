@@ -44,7 +44,27 @@ export type AuditAction =
   | 'rule.created'
   | 'rule.updated'
   | 'template.created'
-  | 'template.applied';
+  | 'template.applied'
+  | 'collaborator.invited'
+  | 'collaborator.accepted'
+  | 'collaborator.revoked'
+  | 'document_request.created'
+  | 'document_request.viewed'
+  | 'document_request.uploaded'
+  | 'document_request.cancelled'
+  | 'document_request.reminder_sent'
+  | 'lender_status.updated'
+  | 'title_status.updated'
+  | 'closing_readiness.computed'
+  | 'deal_health.computed'
+  | 'response_obligation.created'
+  | 'response_obligation.responded'
+  | 'response_obligation.escalated'
+  | 'digest.generated'
+  | 'digest.sent'
+  | 'audit_export.requested'
+  | 'audit_export.completed'
+  | 'audit_export.failed';
 
 interface LogActionParams {
   organizationId?: string;

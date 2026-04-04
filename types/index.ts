@@ -519,6 +519,217 @@ export interface PacketIngestion {
 }
 
 // -----------------------------------------------------------------------------
+// Phase 4: External Collaboration & Closing types
+// -----------------------------------------------------------------------------
+
+export type CollaboratorRole = 'lender' | 'title_agent' | 'escrow_officer' | 'attorney' | 'inspector' | 'appraiser' | 'other';
+
+export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
+
+export type DocumentRequestStatus = 'sent' | 'viewed' | 'uploaded' | 'expired' | 'cancelled';
+
+export type LenderMilestone =
+  | 'pre_approval_received' | 'underwriting_started' | 'appraisal_ordered'
+  | 'appraisal_received' | 'conditional_approval' | 'clear_to_close' | 'funding_confirmed';
+
+export type TitleMilestone =
+  | 'title_search_started' | 'title_search_completed' | 'title_commitment_issued'
+  | 'title_issues_found' | 'title_issues_cleared' | 'escrow_opened'
+  | 'earnest_money_received' | 'closing_disclosure_sent' | 'closing_scheduled'
+  | 'closing_completed' | 'recording_completed' | 'disbursement_completed';
+
+export type ClosingReadinessState = 'not_ready' | 'at_risk' | 'nearly_ready' | 'ready_for_closing';
+
+export type HealthRating = 'healthy' | 'watch' | 'at_risk' | 'critical' | 'unknown';
+
+export type ScoreTrend = 'improving' | 'stable' | 'declining';
+
+export type ObligationStatus = 'waiting' | 'responded' | 'overdue' | 'escalated' | 'cancelled';
+
+export type ExportFormat = 'json' | 'pdf';
+
+export type ExportJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface CollaboratorInvite {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  invited_by_user_id: string;
+  email: string;
+  full_name: string;
+  role: CollaboratorRole;
+  status: InviteStatus;
+  access_token: string;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  linked_user_id: string | null;
+  permissions: Record<string, boolean>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentRequest {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  requested_by_user_id: string;
+  recipient_email: string;
+  recipient_name: string;
+  document_type: string;
+  description: string | null;
+  status: DocumentRequestStatus;
+  access_token: string;
+  expires_at: string;
+  viewed_at: string | null;
+  uploaded_at: string | null;
+  cancelled_at: string | null;
+  reminder_count: number;
+  last_reminder_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentRequestUpload {
+  id: string;
+  document_request_id: string;
+  document_id: string;
+  uploader_email: string;
+  uploader_name: string | null;
+  file_name: string;
+  file_size: number | null;
+  created_at: string;
+}
+
+export interface LenderStatusUpdate {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  submitted_by_user_id: string | null;
+  submitted_by_email: string | null;
+  milestone: LenderMilestone;
+  status: string;
+  notes: string | null;
+  evidence_document_id: string | null;
+  created_at: string;
+}
+
+export interface TitleStatusUpdate {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  submitted_by_user_id: string | null;
+  submitted_by_email: string | null;
+  milestone: TitleMilestone;
+  status: string;
+  notes: string | null;
+  evidence_document_id: string | null;
+  created_at: string;
+}
+
+export interface ClosingReadiness {
+  id: string;
+  transaction_id: string;
+  readiness_state: ClosingReadinessState;
+  overall_score: number;
+  document_score: number;
+  financing_score: number;
+  title_score: number;
+  checklist_score: number;
+  approval_score: number;
+  unresolved_blockers: Record<string, unknown>[];
+  missing_documents: Record<string, unknown>[];
+  pending_items: Record<string, unknown>[];
+  target_closing_date: string | null;
+  days_until_closing: number | null;
+  computed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DealHealthScore {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  overall_score: number;
+  rating: HealthRating;
+  completeness_factor: number;
+  timeliness_factor: number;
+  responsiveness_factor: number;
+  compliance_factor: number;
+  financing_factor: number;
+  risk_factors: Record<string, unknown>[];
+  positive_signals: Record<string, unknown>[];
+  previous_score: number | null;
+  score_trend: ScoreTrend | null;
+  computed_at: string;
+  created_at: string;
+}
+
+export interface ResponseObligation {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  party_type: string;
+  party_email: string | null;
+  party_name: string;
+  obligation_type: string;
+  description: string;
+  requested_at: string;
+  expected_by: string | null;
+  responded_at: string | null;
+  status: ObligationStatus;
+  source_type: string | null;
+  source_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyDigestPreference {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  is_enabled: boolean;
+  delivery_hour: number;
+  timezone: string;
+  include_health_risks: boolean;
+  include_deadlines: boolean;
+  include_pending_approvals: boolean;
+  include_stale_responses: boolean;
+  include_closing_soon: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyDigest {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  digest_date: string;
+  content_json: Record<string, unknown>;
+  email_sent: boolean;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface AuditExportJob {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  requested_by_user_id: string;
+  status: ExportJobStatus;
+  include_sections: string[];
+  export_format: ExportFormat;
+  result_storage_path: string | null;
+  result_metadata: Record<string, unknown> | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// -----------------------------------------------------------------------------
 // Analytics types
 // -----------------------------------------------------------------------------
 
