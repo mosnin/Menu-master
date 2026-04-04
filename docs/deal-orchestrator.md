@@ -163,6 +163,80 @@ Recent tool executions with success/failure, risk class, and side effects.
 | `orchestrator-deadline-check` | Daily 8 AM | Find approaching deadlines |
 | `orchestrator-stale-action-cleanup` | Hourly | Mark stale actions and overdue obligations |
 
+## Action Policy Engine
+
+The executor uses a deterministic policy engine to evaluate every proposed action before execution.
+
+### Policy Dispositions
+
+| Disposition | Behavior | When |
+|------------|----------|------|
+| **auto_execute** | Execute immediately | Safe tools on active deals |
+| **create_draft** | Prepare for review | Medium-risk + confidence >= 0.7 |
+| **create_approval** | Route to approval queue | Medium-risk + low confidence, compliance flags |
+| **block** | Blocked, escalation created | High-risk, closed deals, org policy |
+
+### Policy Rules (Precedence Order)
+
+1. Closed/cancelled entities → block
+2. Org `demoted_to_blocked` → block
+3. High risk → block (escalate to broker_admin)
+4. Compliance flags + non-safe → create_approval
+5. Org `require_approval_for` → create_approval
+6. Medium risk + confidence < 0.7 → create_approval
+7. Medium risk + confidence >= 0.7 → create_draft
+8. Org `promoted_to_safe` → auto_execute
+9. Safe → auto_execute
+10. Unknown tool → block
+
+### Org Policy Overrides
+
+Organizations can customize policy via `orchestrator_action_policies`:
+- `promoted_to_safe[]` — promote medium-risk tools to auto-execute
+- `demoted_to_blocked[]` — block specific tools
+- `require_approval_for[]` — force approval for any tool
+
+## Follow-Through Sequences
+
+Bounded multi-step autonomous patterns that execute across multiple cycles.
+
+### Built-in Sequences
+
+| Sequence | Trigger | Steps | Max Duration |
+|----------|---------|-------|-------------|
+| Missing Document | Missing doc in world state | Flag → Checklist → Notify → Wait 24h → Reminder draft | 72h |
+| Stale Approval | Approval pending > 48h | Notify → Wait 24h → Escalation card → Manual review | 96h |
+| Completeness Recovery | Score < 50% | Recompute → Exceptions → Action card → Notify | 48h |
+| Post-Document Upload | Document uploaded event | Recompute completeness → Exceptions → Health → Clear stale | 1h |
+
+### Sequence Rules
+- Maximum 5 steps per sequence
+- Explicit exit conditions required
+- Cancellable (except immediate sequences)
+- Step results tracked in DB
+- Duplicate sequences suppressed per orchestrator
+
+## Expanded Safe Tools
+
+| Tool | Purpose |
+|------|---------|
+| `recompute_listing_readiness` | Listing completeness evaluation |
+| `recompute_closing_readiness` | Closing readiness assessment |
+| `clear_stale_outputs` | Clear superseded next actions |
+| `create_internal_task` | Auto-assigned checklist items |
+| `update_waiting_state` | Detailed counterparty waiting info |
+
+Total tools: **21** (14 safe, 6 medium-risk, 1 high-risk)
+
+## Execution Monitoring
+
+### Inspection Surfaces
+
+- **Execution Monitor** — Chronological feed of auto/draft/blocked actions
+- **Policy Trace** — Inspectable policy evaluation for each action
+- **Follow-Through Panel** — Sequence progress with step tracking
+- **Disposition Badges** — Green (auto), amber (draft), red (blocked) on all surfaces
+
 ## Deferred Items
 
 1. **Listing-specific world state** — Currently simplified; needs listing completeness service
