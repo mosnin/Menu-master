@@ -18,6 +18,7 @@ import {
   Shield,
   Bell,
   InboxIcon,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ const secondaryNavigation = [
   { name: 'Templates', href: '/settings/templates', icon: LayoutTemplate, indent: true },
   { name: 'Digest Settings', href: '/settings/digests', icon: Newspaper, indent: true },
   { name: 'Policies', href: '/settings/policies', icon: Shield, indent: true, adminOnly: true },
+  { name: 'Admin Tools', href: '/admin', icon: Wrench, adminOnly: true },
 ];
 
 function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; userRole?: string }) {

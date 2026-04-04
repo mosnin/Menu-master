@@ -94,7 +94,21 @@ export type AuditAction =
   | 'search.executed'
   | 'bulk_action.started'
   | 'bulk_action.completed'
-  | 'bulk_action.failed';
+  | 'bulk_action.failed'
+  | 'import.created'
+  | 'import.started'
+  | 'import.completed'
+  | 'import.failed'
+  | 'import.cancelled'
+  | 'duplicate.detected'
+  | 'duplicate.resolved'
+  | 'document_batch.created'
+  | 'document_batch.completed'
+  | 'document_batch.failed'
+  | 'recompute.started'
+  | 'recompute.completed'
+  | 'recompute.failed'
+  | 'diagnostics.checked';
 
 interface LogActionParams {
   organizationId?: string;

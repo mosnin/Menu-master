@@ -1075,6 +1075,135 @@ export interface RecentSearch {
   created_at: string;
 }
 
+// -----------------------------------------------------------------------------
+// Phase 7: Import/Migration/Diagnostics types
+// -----------------------------------------------------------------------------
+
+export type ImportType = 'contacts' | 'transactions' | 'properties';
+
+export type ImportJobStatus =
+  | 'pending' | 'validating' | 'validated' | 'importing'
+  | 'completed' | 'completed_with_errors' | 'failed' | 'cancelled';
+
+export type ImportRowStatus =
+  | 'pending' | 'valid' | 'invalid' | 'imported' | 'skipped' | 'duplicate' | 'error';
+
+export type DuplicateResolution = 'pending' | 'merged' | 'not_duplicate' | 'ignored';
+
+export type DocumentImportBatchStatus =
+  | 'pending' | 'uploading' | 'classifying' | 'processing'
+  | 'completed' | 'completed_with_errors' | 'failed';
+
+export type RecomputeJobType =
+  | 'reextract_document' | 'recompute_completeness' | 'recompute_health_score'
+  | 'recompute_closing_readiness' | 'recompute_forecast' | 'rerun_classification'
+  | 'recompute_compliance' | 'rebuild_search_index';
+
+export type RecomputeJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export type DiagnosticCheckType =
+  | 'processing_backlog' | 'extraction_health' | 'search_index_status'
+  | 'notification_delivery' | 'storage_usage' | 'data_integrity';
+
+export type DiagnosticStatus = 'healthy' | 'degraded' | 'unhealthy';
+
+export interface ImportJob {
+  id: string;
+  organization_id: string;
+  created_by_user_id: string;
+  import_type: ImportType;
+  file_name: string;
+  file_size: number | null;
+  storage_path: string | null;
+  field_mapping: Record<string, string>;
+  status: ImportJobStatus;
+  total_rows: number;
+  valid_rows: number;
+  imported_rows: number;
+  skipped_rows: number;
+  error_rows: number;
+  duplicate_rows: number;
+  skip_duplicates: boolean;
+  update_existing: boolean;
+  dry_run: boolean;
+  validation_errors: Record<string, unknown>[];
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportRow {
+  id: string;
+  import_job_id: string;
+  row_number: number;
+  raw_data: Record<string, unknown>;
+  mapped_data: Record<string, unknown> | null;
+  status: ImportRowStatus;
+  error_message: string | null;
+  duplicate_of_id: string | null;
+  created_entity_type: string | null;
+  created_entity_id: string | null;
+  created_at: string;
+}
+
+export interface DuplicateCandidate {
+  id: string;
+  organization_id: string;
+  entity_type: string;
+  entity_a_id: string;
+  entity_b_id: string;
+  similarity_score: number;
+  match_fields: Record<string, unknown>[];
+  resolution: DuplicateResolution | null;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface DocumentImportBatch {
+  id: string;
+  organization_id: string;
+  transaction_id: string | null;
+  created_by_user_id: string;
+  status: DocumentImportBatchStatus;
+  total_files: number;
+  uploaded_files: number;
+  classified_files: number;
+  processed_files: number;
+  failed_files: number;
+  results: Record<string, unknown>[];
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecomputeJob {
+  id: string;
+  organization_id: string;
+  initiated_by_user_id: string;
+  job_type: RecomputeJobType;
+  target_entity_type: string | null;
+  target_entity_id: string | null;
+  status: RecomputeJobStatus;
+  result_summary: Record<string, unknown>;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface SystemDiagnostic {
+  id: string;
+  organization_id: string;
+  check_type: DiagnosticCheckType;
+  status: DiagnosticStatus;
+  details: Record<string, unknown>;
+  checked_at: string;
+}
+
 export interface BulkActionJob {
   id: string;
   organization_id: string;

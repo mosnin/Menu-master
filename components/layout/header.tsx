@@ -57,6 +57,10 @@ const breadcrumbLabels: Record<string, string> = {
   inbox: 'Inbox',
   notifications: 'Notifications',
   compliance: 'Compliance',
+  admin: 'Admin',
+  imports: 'Imports',
+  duplicates: 'Duplicates',
+  diagnostics: 'Diagnostics',
 };
 
 function Breadcrumbs() {
