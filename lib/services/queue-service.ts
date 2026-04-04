@@ -1,6 +1,3 @@
-// Audit actions needed (to be merged into lib/audit/logger.ts AuditAction type):
-//   - 'queue_view.saved'
-
 import { supabase } from '@/lib/db/client';
 import * as queueViewRepo from '@/lib/repositories/queue-views';
 import { logAction } from '@/lib/audit/logger';
@@ -69,7 +66,7 @@ export async function getMyQueue(
     .not('status', 'in', '("completed","skipped")')
     .order('due_date', { ascending: true, nullsFirst: false });
 
-  if (clErr) throw clErr;
+  if (clErr) throw new Error(`Failed to fetch checklist items: ${clErr.message}`);
 
   // Approvals assigned to user as reviewer, still pending
   const { data: approvals, error: apErr } = await supabase
@@ -80,7 +77,7 @@ export async function getMyQueue(
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
-  if (apErr) throw apErr;
+  if (apErr) throw new Error(`Failed to fetch approvals: ${apErr.message}`);
 
   // Transactions assigned to user in any role
   const { data: assignments, error: asErr } = await supabase
@@ -92,7 +89,7 @@ export async function getMyQueue(
     )
     .order('updated_at', { ascending: false });
 
-  if (asErr) throw asErr;
+  if (asErr) throw new Error(`Failed to fetch user assignments: ${asErr.message}`);
 
   return {
     assignedChecklistItems: (checklistItems ?? []) as ChecklistItem[],
@@ -330,7 +327,7 @@ export async function saveQueueView(
     organizationId: orgId,
     actorType: 'user',
     actorUserId: userId,
-    action: 'queue_view.saved' as any,
+    action: 'queue_view.saved',
     targetType: 'queue_view',
     targetId: view.id,
     metadata: { name, filters },

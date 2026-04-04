@@ -82,7 +82,7 @@ export async function createThread(
     organizationId: params.orgId,
     transactionId: params.transactionId,
     actorType: 'system',
-    action: 'communication_thread.created' as any,
+    action: 'communication_thread.created',
     targetType: 'communication_thread',
     targetId: thread.id,
     metadata: {
@@ -141,7 +141,7 @@ export async function addMessage(
       organizationId: thread.organization_id,
       transactionId: thread.transaction_id ?? undefined,
       actorType: 'system',
-      action: 'communication_message.added' as any,
+      action: 'communication_message.added',
       targetType: 'communication_message',
       targetId: message.id,
       metadata: {
@@ -219,7 +219,7 @@ export async function connectEmailAccount(
     organizationId: params.orgId,
     actorType: 'user',
     actorUserId: params.userId,
-    action: 'email_account.connected' as any,
+    action: 'email_account.connected',
     targetType: 'email_account_connection',
     targetId: connection.id,
     metadata: {

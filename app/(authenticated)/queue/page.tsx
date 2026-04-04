@@ -89,7 +89,7 @@ function mapApprovalToQueueItem(item: Record<string, unknown>): QueueItem {
   return {
     id: item.id as string,
     type: 'approval',
-    title: (item.approval_type as string).replace(/_/g, ' '),
+    title: ((item.approval_type as string) ?? 'approval').replace(/_/g, ' '),
     transactionId: tx?.id as string ?? item.transaction_id as string,
     transactionTitle: tx?.title as string ?? 'Unknown Transaction',
     dueDate: null,

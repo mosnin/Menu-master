@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Info,
   CheckCircle2,
-  X,
 } from 'lucide-react';
 import type { TransactionException } from '@/types';
 

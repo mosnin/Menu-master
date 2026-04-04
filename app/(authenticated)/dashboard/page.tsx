@@ -15,6 +15,8 @@ import {
   Inbox,
 } from 'lucide-react';
 import Link from 'next/link';
+import { WelcomeBanner } from '@/components/onboarding/welcome-banner';
+import { PilotReadiness } from '@/components/dashboard/pilot-readiness';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -32,6 +34,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10">
+      {/* Welcome Banner for new users */}
+      <WelcomeBanner />
+
       {/* Hero Section */}
       <div className="pt-2 pb-2">
         <h1 className="text-3xl font-semibold tracking-tight">
@@ -128,6 +133,15 @@ export default async function DashboardPage() {
           </Card>
         </Link>
       </div>
+
+      {/* Pilot Readiness */}
+      <PilotReadiness
+        orgName="Deal Desk Inc."
+        teamMemberCount={1}
+        transactionCount={0}
+        documentCount={0}
+        checklistCount={0}
+      />
 
       {/* Content Sections */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">

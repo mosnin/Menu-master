@@ -1,7 +1,3 @@
-// Audit actions needed (to be merged into lib/audit/logger.ts AuditAction type):
-//   - 'assignment.created'
-//   - 'assignment.removed'
-
 import { supabase } from '@/lib/db/client';
 import * as assignmentRepo from '@/lib/repositories/transaction-assignments';
 import * as checklistItemRepo from '@/lib/repositories/checklist-items';
@@ -57,7 +53,7 @@ export async function assignTransaction(
     transactionId,
     actorType: 'user',
     actorUserId: assignedByUserId,
-    action: 'assignment.created' as any,
+    action: 'assignment.created',
     targetType: 'transaction_assignment',
     targetId: assignment.id,
     metadata: { role, assigned_user_id: userId },
@@ -84,7 +80,7 @@ export async function unassignTransaction(
     .select('*')
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(`Failed to unassign transaction: ${error.message}`);
   const assignment = data as TransactionAssignment;
 
   const orgId = await resolveTransactionOrgId(assignment.transaction_id);
@@ -94,7 +90,7 @@ export async function unassignTransaction(
     transactionId: assignment.transaction_id,
     actorType: 'user',
     actorUserId: unassignedByUserId,
-    action: 'assignment.removed' as any,
+    action: 'assignment.removed',
     targetType: 'transaction_assignment',
     targetId: assignmentId,
     metadata: { role },
@@ -120,7 +116,7 @@ export async function getAssignmentsForTransaction(
     .eq('transaction_id', transactionId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throw new Error(`Failed to fetch assignments: ${error.message}`);
   return data as TransactionAssignment | null;
 }
 
@@ -138,7 +134,7 @@ export async function getTransactionsForUser(
     )
     .order('updated_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(`Failed to fetch user assignments: ${error.message}`);
   return (data ?? []) as TransactionAssignment[];
 }
 
@@ -163,7 +159,7 @@ export async function assignChecklistItem(
     transactionId: item.transaction_id,
     actorType: 'user',
     actorUserId: assignedByUserId,
-    action: 'assignment.created' as any,
+    action: 'assignment.created',
     targetType: 'checklist_item',
     targetId: itemId,
     metadata: { assigned_user_id: userId },
@@ -190,7 +186,7 @@ export async function assignApprovalReviewer(
     transactionId: approval.transaction_id,
     actorType: 'user',
     actorUserId: assignedByUserId,
-    action: 'assignment.created' as any,
+    action: 'assignment.created',
     targetType: 'approval',
     targetId: approvalId,
     metadata: { assigned_reviewer_id: reviewerId },

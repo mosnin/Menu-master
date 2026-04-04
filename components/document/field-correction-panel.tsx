@@ -64,14 +64,18 @@ function InlineEditForm({
   function handleSubmit() {
     if (!newValue.trim()) return;
     startTransition(async () => {
-      await applyFieldCorrectionAction(
-        documentId,
-        field.field_name,
-        field.extracted_value,
-        newValue.trim(),
-        reason.trim() || undefined,
-      );
-      onDone();
+      try {
+        await applyFieldCorrectionAction(
+          documentId,
+          field.field_name,
+          field.extracted_value,
+          newValue.trim(),
+          reason.trim() || undefined,
+        );
+        onDone();
+      } catch {
+        // Correction failed — user can retry
+      }
     });
   }
 

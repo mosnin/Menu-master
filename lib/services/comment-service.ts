@@ -81,7 +81,7 @@ export async function addComment(params: AddCommentParams): Promise<Comment> {
     transactionId: comment.transaction_id,
     actorType: 'user',
     actorUserId: params.authorUserId,
-    action: 'comment.created' as any,
+    action: 'comment.created',
     targetType: 'comment',
     targetId: comment.id,
     metadata: {
@@ -108,7 +108,7 @@ export async function addComment(params: AddCommentParams): Promise<Comment> {
         transactionId: comment.transaction_id,
         actorType: 'user',
         actorUserId: params.authorUserId,
-        action: 'mention.created' as any,
+        action: 'mention.created',
         targetType: 'mention',
         targetId: mention.id,
         metadata: {

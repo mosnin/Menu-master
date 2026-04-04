@@ -14,12 +14,6 @@ import type {
   TimelineEventSource,
 } from '@/types';
 
-// Audit actions used by this service (not yet in logger.ts AuditAction union):
-// - 'rule.created'
-// - 'rule.updated'
-// - 'template.created'
-// - 'template.applied'
-
 // ---------------------------------------------------------------------------
 // Organization Rules
 // ---------------------------------------------------------------------------
@@ -47,7 +41,7 @@ export async function createRule(params: {
     organizationId: params.orgId,
     actorType: 'user',
     actorUserId: params.createdByUserId,
-    action: 'rule.created' as any,
+    action: 'rule.created',
     targetType: 'organization_rule',
     targetId: rule.id,
     metadata: { rule_type: params.ruleType, name: params.name },
@@ -99,7 +93,7 @@ export async function updateRule(
   await logAction({
     organizationId: rule.organization_id,
     actorType: 'system',
-    action: 'rule.updated' as any,
+    action: 'rule.updated',
     targetType: 'organization_rule',
     targetId: ruleId,
     metadata: { updates },
@@ -121,7 +115,7 @@ export async function toggleRule(
   await logAction({
     organizationId: rule.organization_id,
     actorType: 'system',
-    action: 'rule.updated' as any,
+    action: 'rule.updated',
     targetType: 'organization_rule',
     targetId: ruleId,
     metadata: { is_active: isActive },
@@ -155,7 +149,7 @@ export async function createTemplate(params: {
     organizationId: params.orgId,
     actorType: 'user',
     actorUserId: params.createdByUserId,
-    action: 'template.created' as any,
+    action: 'template.created',
     targetType: 'organization_template',
     targetId: template.id,
     metadata: { template_type: params.templateType, name: params.name },
@@ -248,7 +242,7 @@ export async function applyTemplate(
     organizationId: tpl.organization_id,
     transactionId,
     actorType: 'system',
-    action: 'template.applied' as any,
+    action: 'template.applied',
     targetType: 'organization_template',
     targetId: templateId,
     metadata: {

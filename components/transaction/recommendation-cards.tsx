@@ -14,7 +14,6 @@ import {
   Lightbulb,
   CheckCircle2,
   X,
-  ArrowRight,
   Sparkles,
   ShieldAlert,
   TrendingUp,

@@ -96,7 +96,7 @@ export type ExceptionResolutionStatus = 'open' | 'acknowledged' | 'resolved';
 
 export type RecommendationStatus = 'pending' | 'executed' | 'dismissed';
 
-export type CommentEntityType = 'transaction' | 'document' | 'approval';
+export type CommentEntityType = 'transaction' | 'document' | 'approval' | 'checklist_item';
 
 export type CommunicationProvider = 'google' | 'microsoft';
 

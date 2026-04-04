@@ -210,16 +210,24 @@ export function CommentThread({
   const [isPending, startTransition] = useTransition();
 
   async function refreshComments() {
-    const fresh = (await getCommentsAction(entityType, entityId)) as CommentWithAuthor[];
-    setComments(fresh);
+    try {
+      const fresh = (await getCommentsAction(entityType, entityId)) as CommentWithAuthor[];
+      setComments(fresh);
+    } catch {
+      // Silently handle refresh failure — stale comments are acceptable
+    }
   }
 
   function handleAddComment(body: string, parentCommentId?: string) {
     startTransition(async () => {
-      await addCommentAction(entityType, entityId, body, parentCommentId);
-      await refreshComments();
-      setReplyingTo(null);
-      setNewBody('');
+      try {
+        await addCommentAction(entityType, entityId, body, parentCommentId);
+        await refreshComments();
+        setReplyingTo(null);
+        setNewBody('');
+      } catch {
+        // Comment submission failed — user can retry
+      }
     });
   }
 
