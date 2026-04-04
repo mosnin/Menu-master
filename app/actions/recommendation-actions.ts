@@ -34,6 +34,24 @@ export async function dismissRecommendationAction(recommendationId: string) {
   return result;
 }
 
+export async function getRecommendationsAction(transactionId: string) {
+  await requireAuth();
+
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('organization_id')
+    .eq('id', transactionId)
+    .single();
+  if (!transaction) throw new Error('Transaction not found');
+
+  await requireOrgMembership(transaction.organization_id);
+
+  const { getActiveRecommendations } = await import('@/lib/services/recommendation-service');
+  const recommendations = await getActiveRecommendations(transactionId);
+
+  return recommendations;
+}
+
 export async function completeRecommendationAction(recommendationId: string) {
   await requireAuth();
   const profile = await getCurrentUserProfile();

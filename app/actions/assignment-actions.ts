@@ -64,6 +64,24 @@ export async function unassignTransactionAction(assignmentId: string) {
   return result;
 }
 
+export async function getAssignmentsAction(transactionId: string) {
+  await requireAuth();
+
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('organization_id')
+    .eq('id', transactionId)
+    .single();
+  if (!transaction) throw new Error('Transaction not found');
+
+  await requireOrgMembership(transaction.organization_id);
+
+  const { getAssignmentsForTransaction } = await import('@/lib/services/assignment-service');
+  const assignments = await getAssignmentsForTransaction(transactionId);
+
+  return assignments;
+}
+
 export async function assignChecklistItemAction(itemId: string, userId: string) {
   await requireAuth();
   const profile = await getCurrentUserProfile();
