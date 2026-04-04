@@ -5,15 +5,14 @@ import { getRules } from '@/lib/services/org-config-service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Scale,
   Plus,
   Zap,
   ShieldCheck,
-  ArrowLeft,
-  Inbox,
 } from 'lucide-react';
-import Link from 'next/link';
 import { RuleToggle } from './rule-toggle';
 import type { OrganizationRule } from '@/types';
 
@@ -51,44 +50,32 @@ export default async function RulesPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-2">
       {/* Page header */}
-      <div>
-        <Link
-          href="/settings"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-1.5 mb-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Settings
-        </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Rules</h1>
-            <p className="mt-1 text-muted-foreground">
-              Automate workflows with organization-wide rules.
-            </p>
-          </div>
+      <PageHeader
+        title="Rules"
+        description="Automate workflows with organization-wide rules."
+        backHref="/settings"
+        backLabel="Settings"
+        actions={
           <Button className="rounded-xl px-5 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
             <Plus className="h-4 w-4 mr-1.5" />
             Add Rule
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Rules list */}
       {rules.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 mb-5">
-            <Scale className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold tracking-tight">No rules configured</h3>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-            Rules automate common workflows like auto-assigning tasks, requiring approvals, and
-            triggering notifications. Add your first rule to get started.
-          </p>
-          <Button variant="outline" size="sm" className="mt-6 rounded-lg px-5">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Create Your First Rule
-          </Button>
-        </div>
+        <EmptyState
+          icon={Scale}
+          title="No rules configured"
+          description="Rules automate common workflows like auto-assigning tasks, requiring approvals, and triggering notifications. Add your first rule to get started."
+          action={
+            <Button variant="outline" size="sm" className="rounded-lg px-5">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Create Your First Rule
+            </Button>
+          }
+        />
       ) : (
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-4">

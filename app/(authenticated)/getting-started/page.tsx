@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface SetupStep {
   title: string;
@@ -96,15 +97,10 @@ export default async function GettingStartedPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-10 py-2">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Getting Started
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Complete these steps to get the most out of Deal Desk.
-        </p>
-      </div>
+      <PageHeader
+        title="Getting Started"
+        description="Complete these steps to get the most out of Deal Desk."
+      />
 
       {/* Progress bar */}
       <div className="space-y-3">

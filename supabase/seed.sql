@@ -656,3 +656,267 @@ INSERT INTO audit_export_jobs (
   '2026-04-04 07:00:00-06',
   '2026-04-04 07:02:00-06'
 );
+
+-- ===========================================================================
+-- Phase 5: Brokerage Economics, Compliance, and Management Reporting seed data
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- Office: Main Office for demo org
+-- ---------------------------------------------------------------------------
+INSERT INTO offices (id, organization_id, name, address, city, state, postal_code, is_active, managing_broker_id) VALUES
+  ('ab000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'Main Office', '100 Main St', 'Boulder', 'CO', '80302',
+   true, 'b0000000-0000-4000-8000-000000000001');
+
+-- ---------------------------------------------------------------------------
+-- Team: Alpha Team under Main Office
+-- ---------------------------------------------------------------------------
+INSERT INTO teams (id, organization_id, office_id, name, team_lead_id, is_active) VALUES
+  ('ac000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'ab000000-0000-4000-8000-000000000001',
+   'Alpha Team', 'b0000000-0000-4000-8000-000000000003', true);
+
+-- ---------------------------------------------------------------------------
+-- Office memberships: link demo users to Main Office / Alpha Team
+-- ---------------------------------------------------------------------------
+INSERT INTO office_memberships (id, user_id, office_id, team_id, role, is_primary) VALUES
+  ('ad000000-0000-4000-8000-000000000001',
+   'b0000000-0000-4000-8000-000000000001',
+   'ab000000-0000-4000-8000-000000000001',
+   NULL, 'managing_broker', true),
+  ('ad000000-0000-4000-8000-000000000002',
+   'b0000000-0000-4000-8000-000000000002',
+   'ab000000-0000-4000-8000-000000000001',
+   'ac000000-0000-4000-8000-000000000001', 'agent', true),
+  ('ad000000-0000-4000-8000-000000000003',
+   'b0000000-0000-4000-8000-000000000003',
+   'ab000000-0000-4000-8000-000000000001',
+   'ac000000-0000-4000-8000-000000000001', 'team_lead', true);
+
+-- ---------------------------------------------------------------------------
+-- Transaction Economics
+-- ---------------------------------------------------------------------------
+
+-- Transaction 1: $425,000 purchase, 3% commission, buyer side, 70/30 split, 80% close prob
+INSERT INTO transaction_economics (
+  id, transaction_id, organization_id,
+  purchase_price, commission_type, commission_rate, commission_amount,
+  gross_commission, representation_side,
+  brokerage_split_pct, brokerage_share, agent_share,
+  has_referral, referral_fee_pct, referral_fee_amount, referral_party_name,
+  net_brokerage_revenue,
+  is_projected, is_finalized, finalized_at, finalized_by_user_id,
+  close_probability, expected_close_date, notes
+) VALUES (
+  'ae000000-0000-4000-8000-000000000001',
+  'e0000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  425000.00, 'percentage', 3.0000, NULL,
+  12750.00, 'buyer',
+  30.0000, 3825.00, 8925.00,
+  false, NULL, NULL, NULL,
+  3825.00,
+  true, false, NULL, NULL,
+  80.0000, '2026-05-15', 'Standard buyer purchase commission'
+);
+
+-- Transaction 2: $650,000, 2.5% commission, seller side, 65/35 split, 25% referral, 60% close prob
+INSERT INTO transaction_economics (
+  id, transaction_id, organization_id,
+  purchase_price, commission_type, commission_rate, commission_amount,
+  gross_commission, representation_side,
+  brokerage_split_pct, brokerage_share, agent_share,
+  has_referral, referral_fee_pct, referral_fee_amount, referral_party_name,
+  net_brokerage_revenue,
+  is_projected, is_finalized, finalized_at, finalized_by_user_id,
+  close_probability, expected_close_date, notes
+) VALUES (
+  'ae000000-0000-4000-8000-000000000002',
+  'e0000000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  650000.00, 'percentage', 2.5000, NULL,
+  16250.00, 'seller',
+  35.0000, 5687.50, 10562.50,
+  true, 25.0000, 4062.50, 'Colorado Referral Network',
+  1625.00,
+  true, false, NULL, NULL,
+  60.0000, '2026-05-20', 'Seller listing with referral fee'
+);
+
+-- Transaction 3 (closed): $380,000, 3%, finalized economics
+INSERT INTO transaction_economics (
+  id, transaction_id, organization_id,
+  purchase_price, commission_type, commission_rate, commission_amount,
+  gross_commission, representation_side,
+  brokerage_split_pct, brokerage_share, agent_share,
+  has_referral, referral_fee_pct, referral_fee_amount, referral_party_name,
+  net_brokerage_revenue,
+  is_projected, is_finalized, finalized_at, finalized_by_user_id,
+  close_probability, expected_close_date, notes
+) VALUES (
+  'ae000000-0000-4000-8000-000000000003',
+  'e0000000-0000-4000-8000-000000000003',
+  'a0000000-0000-4000-8000-000000000001',
+  380000.00, 'percentage', 3.0000, NULL,
+  11400.00, 'buyer',
+  30.0000, 3420.00, 7980.00,
+  false, NULL, NULL, NULL,
+  3420.00,
+  false, true, '2026-03-15 12:00:00-06', 'b0000000-0000-4000-8000-000000000001',
+  100.0000, '2026-03-15', 'Finalized at closing'
+);
+
+-- Transaction 4 (pending_closing): $525,000, 2.75%, 90% close prob, nearly ready
+INSERT INTO transaction_economics (
+  id, transaction_id, organization_id,
+  purchase_price, commission_type, commission_rate, commission_amount,
+  gross_commission, representation_side,
+  brokerage_split_pct, brokerage_share, agent_share,
+  has_referral, referral_fee_pct, referral_fee_amount, referral_party_name,
+  net_brokerage_revenue,
+  is_projected, is_finalized, finalized_at, finalized_by_user_id,
+  close_probability, expected_close_date, notes
+) VALUES (
+  'ae000000-0000-4000-8000-000000000004',
+  'e0000000-0000-4000-8000-000000000004',
+  'a0000000-0000-4000-8000-000000000001',
+  525000.00, 'percentage', 2.7500, NULL,
+  14437.50, 'buyer',
+  30.0000, 4331.25, 10106.25,
+  false, NULL, NULL, NULL,
+  4331.25,
+  true, false, NULL, NULL,
+  90.0000, '2026-04-10', 'Pending closing — nearly ready'
+);
+
+-- ---------------------------------------------------------------------------
+-- Commission Splits for Transaction 1 (agent 70%, brokerage 30%)
+-- ---------------------------------------------------------------------------
+INSERT INTO commission_splits (id, economics_id, recipient_type, recipient_user_id, recipient_name, split_pct, split_amount, notes) VALUES
+  ('af000000-0000-4000-8000-000000000001',
+   'ae000000-0000-4000-8000-000000000001',
+   'agent', 'b0000000-0000-4000-8000-000000000002', 'James Whitfield',
+   70.0000, 8925.00, 'Agent share — 70% of gross'),
+  ('af000000-0000-4000-8000-000000000002',
+   'ae000000-0000-4000-8000-000000000001',
+   'brokerage', NULL, 'Realty Partners Group',
+   30.0000, 3825.00, 'Brokerage share — 30% of gross');
+
+-- ---------------------------------------------------------------------------
+-- Policy Rules
+-- ---------------------------------------------------------------------------
+
+-- Rule 1: Required purchase agreement before active status (enforcement: block)
+INSERT INTO policy_rules (
+  id, organization_id, office_id, name, description,
+  category, enforcement_mode, rule_config, applies_to_transaction_types,
+  is_active, created_by_user_id
+) VALUES (
+  'b0100000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  NULL,
+  'Required purchase agreement before active status',
+  'All transactions must have a signed purchase agreement uploaded before transitioning to active status.',
+  'required_document', 'block',
+  '{"document_type": "purchase_agreement"}'::jsonb,
+  '[]'::jsonb,
+  true, 'b0000000-0000-4000-8000-000000000001'
+);
+
+-- Rule 2: Required economics before pending_closing (enforcement: warn)
+INSERT INTO policy_rules (
+  id, organization_id, office_id, name, description,
+  category, enforcement_mode, rule_config, applies_to_transaction_types,
+  is_active, created_by_user_id
+) VALUES (
+  'b0100000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  NULL,
+  'Required economics before pending_closing',
+  'Transaction economics with gross commission must be entered before a transaction moves to pending_closing status.',
+  'required_economics', 'warn',
+  '{"require_gross_commission": true}'::jsonb,
+  '[]'::jsonb,
+  true, 'b0000000-0000-4000-8000-000000000001'
+);
+
+-- ---------------------------------------------------------------------------
+-- Compliance Issues
+-- ---------------------------------------------------------------------------
+
+-- Issue on Transaction 2: Missing title commitment (open, warning)
+INSERT INTO compliance_issues (
+  id, organization_id, transaction_id,
+  category, severity, title, description,
+  status, assigned_to_user_id,
+  resolved_by_user_id, resolved_at, resolution_notes,
+  policy_rule_id, metadata
+) VALUES (
+  'b0200000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  'e0000000-0000-4000-8000-000000000002',
+  'missing_document', 'warning',
+  'Missing title commitment',
+  'Transaction draft for 1580 Canyon Blvd is missing a title commitment document.',
+  'open', NULL,
+  NULL, NULL, NULL,
+  NULL,
+  '{"document_type": "title_commitment"}'::jsonb
+);
+
+-- Issue on Transaction 1: resolved missing document issue
+INSERT INTO compliance_issues (
+  id, organization_id, transaction_id,
+  category, severity, title, description,
+  status, assigned_to_user_id,
+  resolved_by_user_id, resolved_at, resolution_notes,
+  policy_rule_id, metadata
+) VALUES (
+  'b0200000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  'e0000000-0000-4000-8000-000000000001',
+  'missing_document', 'warning',
+  'Missing pre-approval letter',
+  'Pre-approval letter was initially missing from the transaction.',
+  'resolved', 'b0000000-0000-4000-8000-000000000003',
+  'b0000000-0000-4000-8000-000000000003', '2026-04-03 14:00:00-06',
+  'Pre-approval letter uploaded and verified by Sarah Chen.',
+  NULL,
+  '{"document_type": "pre_approval_letter"}'::jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- Policy Override: pending approval for missing economics rule on Transaction 2
+-- ---------------------------------------------------------------------------
+INSERT INTO policy_overrides (
+  id, policy_rule_id, transaction_id, organization_id,
+  override_reason, overridden_by_user_id, approved_by_user_id,
+  status, expires_at
+) VALUES (
+  'b0300000-0000-4000-8000-000000000001',
+  'b0100000-0000-4000-8000-000000000002',
+  'e0000000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  'Transaction is still in draft — economics will be added once offer is accepted.',
+  'b0000000-0000-4000-8000-000000000003', NULL,
+  'pending', NULL
+);
+
+-- ---------------------------------------------------------------------------
+-- Close Forecast Snapshot for current month (April 2026)
+-- ---------------------------------------------------------------------------
+INSERT INTO close_forecast_snapshots (
+  id, organization_id, snapshot_date, forecast_month,
+  total_projected, total_weighted, total_closed,
+  transaction_count, at_risk_count,
+  details, computed_at
+) VALUES (
+  'b0400000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000001',
+  '2026-04-04', '2026-04-01',
+  14437.50, 12993.75, 0,
+  1, 0,
+  '[{"transaction_id": "e0000000-0000-4000-8000-000000000004", "gross_commission": 14437.50, "close_probability": 90, "weighted_amount": 12993.75, "status": "pending_closing", "expected_close_date": "2026-04-10"}]'::jsonb,
+  '2026-04-04 08:30:00-06'
+);

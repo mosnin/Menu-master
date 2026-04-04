@@ -2,17 +2,17 @@ import { auth0 } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import { getCurrentUserProfile } from '@/lib/auth/session';
 import { supabase } from '@/lib/db/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Inbox,
   ClipboardList,
   Eye,
   AlertTriangle,
-  ArrowRight,
   Clock,
 } from 'lucide-react';
-import Link from 'next/link';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { SectionHeader } from '@/components/ui/section-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { QueueItemCard } from '@/components/queue/queue-item-card';
 import type { QueueItem } from '@/components/queue/queue-item-card';
 
@@ -131,107 +131,39 @@ export default async function QueuePage() {
 
   return (
     <div className="space-y-10">
-      {/* Page header */}
-      <div className="pt-2 pb-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Work Queue</h1>
-        <p className="text-muted-foreground mt-2 text-base leading-relaxed">
-          {totalCount > 0 ? (
-            <>
-              You have{' '}
-              <span className="font-medium text-foreground">{totalCount} items</span>{' '}
-              needing your attention.
-            </>
-          ) : (
-            'Items needing your attention will appear here.'
-          )}
-        </p>
-      </div>
+      <PageHeader
+        title="Work Queue"
+        description={totalCount > 0
+          ? `You have ${totalCount} items needing your attention.`
+          : 'Items needing your attention will appear here.'
+        }
+      />
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <Card className="rounded-2xl border-l-4 border-l-blue-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100/80 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Assigned to Me</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5">
-                  {assignedItems.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-l-4 border-l-amber-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100/80 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
-                <Eye className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Needs Review</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5">
-                  {needsReviewItems.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-l-4 border-l-red-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100/80 text-red-700 dark:bg-red-950/40 dark:text-red-400">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5 text-red-600 dark:text-red-400">
-                  {overdueItems.length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Assigned to Me" value={assignedItems.length} icon={ClipboardList} accent="blue" />
+        <StatCard label="Needs Review" value={needsReviewItems.length} icon={Eye} accent="amber" />
+        <StatCard label="Overdue" value={overdueItems.length} icon={AlertTriangle} accent="red" />
       </div>
 
       {/* Sections */}
       <div className="space-y-10">
         {/* My Assigned Items */}
         <section>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/40">
-                <ClipboardList className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold tracking-tight">My Assigned Items</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Checklist items and tasks assigned to you
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/transactions"
-              className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+          <SectionHeader
+            icon={ClipboardList}
+            iconClassName="text-blue-600 dark:text-blue-400"
+            title="My Assigned Items"
+            description="Checklist items and tasks assigned to you"
+            linkHref="/transactions"
+            className="mb-5"
+          />
 
           {assignedItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600 mb-5 dark:bg-green-950/40 dark:text-green-400">
-                <Inbox className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">No assigned items</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                When checklist items or tasks are assigned to you, they will appear here for easy tracking.
-              </p>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No assigned items"
+              description="When checklist items or tasks are assigned to you, they will appear here for easy tracking."
+            />
           ) : (
             <div className="space-y-3">
               {assignedItems.map((item) => (
@@ -243,36 +175,22 @@ export default async function QueuePage() {
 
         {/* Needs Review */}
         <section>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-amber-50 p-2 dark:bg-amber-950/40">
-                <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold tracking-tight">Needs Review</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Items flagged for review and pending approvals
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/approvals"
-              className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1"
-            >
-              View approvals <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+          <SectionHeader
+            icon={Eye}
+            iconClassName="text-amber-600 dark:text-amber-400"
+            title="Needs Review"
+            description="Items flagged for review and pending approvals"
+            linkHref="/approvals"
+            linkLabel="View approvals"
+            className="mb-5"
+          />
 
           {needsReviewItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600 mb-5 dark:bg-green-950/40 dark:text-green-400">
-                <Eye className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">Nothing to review</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                Checklist items requiring review and pending approval requests will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={Eye}
+              title="Nothing to review"
+              description="Checklist items requiring review and pending approval requests will appear here."
+            />
           ) : (
             <div className="space-y-3">
               {needsReviewItems.map((item) => (
@@ -284,30 +202,20 @@ export default async function QueuePage() {
 
         {/* Overdue */}
         <section>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-red-50 p-2 dark:bg-red-950/40">
-                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold tracking-tight">Overdue</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Past-due items across all transactions
-                </p>
-              </div>
-            </div>
-          </div>
+          <SectionHeader
+            icon={AlertTriangle}
+            iconClassName="text-red-600 dark:text-red-400"
+            title="Overdue"
+            description="Past-due items across all transactions"
+            className="mb-5"
+          />
 
           {overdueItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-600 mb-5 dark:bg-green-950/40 dark:text-green-400">
-                <Clock className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">Nothing overdue</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                Great work! All items are on track. Overdue checklist items will appear here if deadlines are missed.
-              </p>
-            </div>
+            <EmptyState
+              icon={Clock}
+              title="Nothing overdue"
+              description="Great work! All items are on track. Overdue checklist items will appear here if deadlines are missed."
+            />
           ) : (
             <div className="space-y-3">
               {overdueItems.map((item) => (

@@ -2,6 +2,7 @@ import { auth0 } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import { getDigestPreferencesAction } from '@/app/actions/digest-actions';
 import { DigestSettingsForm, type DigestPreferences } from '@/components/digest/digest-settings-form';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default async function DigestSettingsPage() {
   const session = await auth0.getSession();
@@ -33,13 +34,12 @@ export default async function DigestSettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-2">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Digest Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Configure your daily portfolio digest delivery and content.
-        </p>
-      </div>
+      <PageHeader
+        title="Digest Settings"
+        description="Configure your daily digest delivery preferences."
+        backHref="/settings"
+        backLabel="Settings"
+      />
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

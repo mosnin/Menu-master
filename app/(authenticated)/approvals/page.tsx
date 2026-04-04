@@ -20,6 +20,9 @@ import Link from 'next/link';
 import { getCurrentUserProfile } from '@/lib/auth/session';
 import { supabase } from '@/lib/db/client';
 import { ApprovalCard } from '@/components/approval/approval-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 
 async function getApprovalData(orgId: string) {
   const now = new Date();
@@ -87,54 +90,16 @@ export default async function ApprovalsQueuePage() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Approvals</h1>
-        <p className="text-muted-foreground mt-2 text-base leading-relaxed">
-          Review and approve AI-generated actions across all transactions.
-        </p>
-      </div>
+      <PageHeader
+        title="Approvals"
+        description="Review and approve AI-generated actions across all transactions."
+      />
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <Card className="rounded-2xl border-l-4 border-l-amber-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100/80 text-amber-700">
-                <Clock className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5">{pending.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-l-4 border-l-emerald-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100/80 text-green-700">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Approved Today</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5">{approvedToday}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-l-4 border-l-red-400 shadow-sm">
-          <CardContent className="p-7">
-            <div className="flex items-center gap-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100/80 text-red-700">
-                <XCircle className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rejected Today</p>
-                <p className="text-3xl font-semibold tracking-tight mt-0.5">{rejectedToday}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Pending" value={pending.length} icon={Clock} accent="amber" />
+        <StatCard label="Approved Today" value={approvedToday} icon={CheckCircle2} accent="green" />
+        <StatCard label="Rejected Today" value={rejectedToday} icon={XCircle} accent="red" />
       </div>
 
       <Tabs defaultValue="pending">
@@ -154,21 +119,11 @@ export default async function ApprovalsQueuePage() {
 
         <TabsContent value="pending" className="mt-8">
           {pending.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100/80 text-green-600 mb-5">
-                <ShieldCheck className="h-7 w-7" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">All caught up</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                No pending approvals right now. When documents are processed or emails are drafted, items will appear here for your review.
-              </p>
-              <Button variant="outline" size="sm" className="mt-6 rounded-lg px-5" asChild>
-                <Link href="/transactions">
-                  <FileText className="h-4 w-4 mr-1.5" />
-                  View Transactions
-                </Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No pending approvals"
+              description="When AI generates emails, corrections, or extractions that need sign-off, they will appear here."
+            />
           ) : (
             <div className="space-y-5">
               {pending.map((approval) => (
@@ -196,15 +151,11 @@ export default async function ApprovalsQueuePage() {
 
         <TabsContent value="approved" className="mt-8">
           {approved.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 mb-5">
-                <CheckCircle2 className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">No approved items yet</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                Approved items will appear here once you start reviewing pending approvals.
-              </p>
-            </div>
+            <EmptyState
+              icon={CheckCircle2}
+              title="No approved items yet"
+              description="Approved items will appear here once you start reviewing pending approvals."
+            />
           ) : (
             <div className="space-y-5">
               {approved.map((approval) => (
@@ -232,15 +183,11 @@ export default async function ApprovalsQueuePage() {
 
         <TabsContent value="rejected" className="mt-8">
           {rejected.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 mb-5">
-                <XCircle className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">No rejected items</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                Rejected items will appear here. You can review past rejections and their notes.
-              </p>
-            </div>
+            <EmptyState
+              icon={XCircle}
+              title="No rejected items"
+              description="Rejected items will appear here. You can review past rejections and their notes."
+            />
           ) : (
             <div className="space-y-5">
               {rejected.map((approval) => (
@@ -268,21 +215,11 @@ export default async function ApprovalsQueuePage() {
 
         <TabsContent value="all" className="mt-8">
           {all.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 mb-5">
-                <Inbox className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight">No approval items yet</h3>
-              <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-                Upload documents to a transaction to trigger AI processing. Approval items will be created automatically.
-              </p>
-              <Button variant="outline" size="sm" className="mt-6 rounded-lg px-5" asChild>
-                <Link href="/transactions">
-                  <ArrowRight className="h-4 w-4 mr-1.5" />
-                  Go to Transactions
-                </Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No approval items yet"
+              description="Upload documents to a transaction to trigger AI processing. Approval items will be created automatically."
+            />
           ) : (
             <div className="space-y-5">
               {all.map((approval) => (

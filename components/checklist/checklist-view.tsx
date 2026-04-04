@@ -139,7 +139,7 @@ export function ChecklistView({ items, onStatusChange }: ChecklistViewProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 pb-5">
+      <div className="flex items-center gap-2 pb-5 flex-wrap">
         <Filter className="h-3.5 w-3.5 text-muted-foreground/40 mr-0.5" />
         {([
           ['all', 'All'],
@@ -204,7 +204,7 @@ export function ChecklistView({ items, onStatusChange }: ChecklistViewProps) {
                         {statusIcons[item.status] ?? statusIcons.pending}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium tracking-tight ${item.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
+                        <p className={`text-sm font-medium tracking-tight truncate ${item.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
                           {item.title}
                         </p>
                         {item.description && (

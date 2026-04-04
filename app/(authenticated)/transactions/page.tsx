@@ -15,6 +15,8 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useState } from 'react';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
 
 const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
   draft: 'secondary',
@@ -24,43 +26,21 @@ const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warnin
   cancelled: 'destructive',
 };
 
-function EmptyState() {
+function LocalEmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-24 px-8 text-center">
-      <div className="rounded-full bg-muted/50 p-6 mb-6">
-        <FileText className="h-8 w-8 text-muted-foreground/70" />
-      </div>
-      <h3 className="text-xl font-semibold tracking-tight">No transactions yet</h3>
-      <p className="text-sm text-muted-foreground mt-3 mb-10 max-w-md leading-relaxed">
-        Transactions are the core of Deal Desk. Create one to start managing
-        documents, tracking deadlines, and using AI-powered extraction.
-      </p>
-      <div className="flex flex-col sm:flex-row gap-3">
+    <SharedEmptyState
+      icon={FileText}
+      title="No transactions yet"
+      description="Transactions are the core of Deal Desk. Create one to start managing documents, tracking deadlines, and using AI-powered extraction."
+      action={
         <Button asChild className="rounded-lg px-5 py-2.5">
           <Link href="/transactions/new" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Create Your First Transaction
           </Link>
         </Button>
-      </div>
-      <div className="mt-12 grid gap-6 sm:grid-cols-3 w-full max-w-lg">
-        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
-          <Upload className="h-5 w-5 text-muted-foreground/70 mb-3" />
-          <p className="text-xs font-semibold">Upload Documents</p>
-          <p className="text-xs text-muted-foreground mt-1.5">PDFs, images, contracts</p>
-        </div>
-        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
-          <Search className="h-5 w-5 text-muted-foreground/70 mb-3" />
-          <p className="text-xs font-semibold">AI Extraction</p>
-          <p className="text-xs text-muted-foreground mt-1.5">Auto-extract key data</p>
-        </div>
-        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
-          <Calendar className="h-5 w-5 text-muted-foreground/70 mb-3" />
-          <p className="text-xs font-semibold">Track Deadlines</p>
-          <p className="text-xs text-muted-foreground mt-1.5">Never miss a date</p>
-        </div>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -129,18 +109,18 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground mt-2 text-base">Manage your real estate transactions</p>
-        </div>
-        <Button asChild className="rounded-lg px-5 py-2.5">
-          <Link href="/transactions/new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Transaction
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Transactions"
+        description="Manage your real estate transactions"
+        actions={
+          <Button asChild className="rounded-lg px-5 py-2.5">
+            <Link href="/transactions/new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Transaction
+            </Link>
+          </Button>
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="p-1">
@@ -152,7 +132,7 @@ export default function TransactionsPage() {
 
         <TabsContent value="all" className="mt-8">
           {transactions.length === 0 ? (
-            <EmptyState />
+            <LocalEmptyState />
           ) : (
             <div className="space-y-4">
               {transactions.map((tx) => (
@@ -162,13 +142,13 @@ export default function TransactionsPage() {
           )}
         </TabsContent>
         <TabsContent value="active" className="mt-8">
-          <EmptyState />
+          <LocalEmptyState />
         </TabsContent>
         <TabsContent value="draft" className="mt-8">
-          <EmptyState />
+          <LocalEmptyState />
         </TabsContent>
         <TabsContent value="closed" className="mt-8">
-          <EmptyState />
+          <LocalEmptyState />
         </TabsContent>
       </Tabs>
     </div>

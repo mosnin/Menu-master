@@ -93,7 +93,7 @@ export function TransactionForm() {
                 className="h-10 rounded-lg"
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2.5">
                 <Label htmlFor="city" className="text-sm font-medium">City</Label>
                 <Input id="city" name="city" placeholder="Denver" className="h-10 rounded-lg" />
@@ -124,7 +124,7 @@ export function TransactionForm() {
               <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Buyer
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2.5">
                   <Label htmlFor="buyerName" className="text-sm font-medium">Name</Label>
                   <Input id="buyerName" name="buyerName" placeholder="John Smith" className="h-10 rounded-lg" />
@@ -143,7 +143,7 @@ export function TransactionForm() {
               <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Seller
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2.5">
                   <Label htmlFor="sellerName" className="text-sm font-medium">Name</Label>
                   <Input id="sellerName" name="sellerName" placeholder="Jane Doe" className="h-10 rounded-lg" />
@@ -158,7 +158,7 @@ export function TransactionForm() {
         </Card>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
           <Button
             type="button"
             variant="outline"

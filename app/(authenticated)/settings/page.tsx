@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   User,
   Building2,
@@ -21,12 +22,7 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-2">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your profile and organization settings.
-        </p>
-      </div>
+      <PageHeader title="Settings" description="Manage your profile and organization." />
 
       {/* Profile card */}
       <Card className="rounded-xl shadow-sm">

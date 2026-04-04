@@ -5,44 +5,35 @@ import { logAction } from '@/lib/audit/logger';
 import type {
   PolicyRule,
   PolicyOverride,
-  PolicyCategory,
   EnforcementMode,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
-// createRule
+// createPolicyRule
 // ---------------------------------------------------------------------------
 
-interface CreateRuleParams {
-  orgId: string;
-  officeId?: string;
-  name: string;
-  description?: string;
-  category: PolicyCategory;
-  enforcementMode: EnforcementMode;
-  ruleConfig: Record<string, unknown>;
-  appliesTo?: string[];
-  userId: string;
-}
-
-export async function createRule(params: CreateRuleParams): Promise<PolicyRule> {
+export async function createPolicyRule(
+  orgId: string,
+  data: Record<string, unknown>,
+  userId: string,
+): Promise<PolicyRule> {
   const rule = await ruleRepo.create({
-    organization_id: params.orgId,
-    office_id: params.officeId ?? null,
-    name: params.name,
-    description: params.description ?? null,
-    category: params.category,
-    enforcement_mode: params.enforcementMode,
-    rule_config: params.ruleConfig,
-    applies_to_transaction_types: params.appliesTo ?? [],
+    organization_id: orgId,
+    office_id: (data.officeId as string) ?? null,
+    name: data.name as string,
+    description: (data.description as string) ?? null,
+    category: data.category as PolicyRule['category'],
+    enforcement_mode: data.enforcementMode as PolicyRule['enforcement_mode'],
+    rule_config: (data.ruleConfig as Record<string, unknown>) ?? {},
+    applies_to_transaction_types: (data.appliesTo as string[]) ?? [],
     is_active: true,
-    created_by_user_id: params.userId,
+    created_by_user_id: userId,
   });
 
   await logAction({
-    organizationId: params.orgId,
+    organizationId: orgId,
     actorType: 'user',
-    actorUserId: params.userId,
+    actorUserId: userId,
     action: 'policy_rule.created',
     targetType: 'policy_rule',
     targetId: rule.id,
@@ -53,14 +44,23 @@ export async function createRule(params: CreateRuleParams): Promise<PolicyRule> 
 }
 
 // ---------------------------------------------------------------------------
-// updateRule
+// updatePolicyRule
 // ---------------------------------------------------------------------------
 
-export async function updateRule(
+export async function updatePolicyRule(
   ruleId: string,
-  updates: Partial<Pick<PolicyRule, 'name' | 'description' | 'category' | 'enforcement_mode' | 'rule_config' | 'applies_to_transaction_types' | 'office_id'>>,
+  data: Record<string, unknown>,
   userId: string,
 ): Promise<PolicyRule> {
+  const updates: Record<string, unknown> = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.category !== undefined) updates.category = data.category;
+  if (data.enforcementMode !== undefined) updates.enforcement_mode = data.enforcementMode;
+  if (data.ruleConfig !== undefined) updates.rule_config = data.ruleConfig;
+  if (data.appliesTo !== undefined) updates.applies_to_transaction_types = data.appliesTo;
+  if (data.officeId !== undefined) updates.office_id = data.officeId;
+
   const rule = await ruleRepo.update(ruleId, updates);
 
   await logAction({
@@ -70,17 +70,17 @@ export async function updateRule(
     action: 'policy_rule.updated',
     targetType: 'policy_rule',
     targetId: ruleId,
-    metadata: { updated_fields: Object.keys(updates) },
+    metadata: { updated_fields: Object.keys(data) },
   });
 
   return rule;
 }
 
 // ---------------------------------------------------------------------------
-// toggleRule
+// togglePolicyRule
 // ---------------------------------------------------------------------------
 
-export async function toggleRule(
+export async function togglePolicyRule(
   ruleId: string,
   isActive: boolean,
   userId: string,
@@ -101,10 +101,10 @@ export async function toggleRule(
 }
 
 // ---------------------------------------------------------------------------
-// getRules
+// getPolicyRules
 // ---------------------------------------------------------------------------
 
-export async function getRules(
+export async function getPolicyRules(
   orgId: string,
   officeId?: string,
 ): Promise<PolicyRule[]> {
@@ -112,7 +112,7 @@ export async function getRules(
 }
 
 // ---------------------------------------------------------------------------
-// evaluateRules — evaluates all active rules against transaction state
+// evaluatePolicies — evaluates all active rules against transaction state
 // ---------------------------------------------------------------------------
 
 interface RuleEvaluationResult {
@@ -121,22 +121,23 @@ interface RuleEvaluationResult {
   details: string;
 }
 
-export async function evaluateRules(
+export async function evaluatePolicies(
   transactionId: string,
-  orgId: string,
+  userId: string,
 ): Promise<RuleEvaluationResult[]> {
-  const rules = await ruleRepo.findActiveByOrg(orgId);
-  const overrides = await overrideRepo.findByTransactionId(transactionId);
-  const results: RuleEvaluationResult[] = [];
-
   // Fetch transaction data for evaluation
   const { data: transaction } = await supabase
     .from('transactions')
-    .select('id, status, office_id')
+    .select('id, organization_id, status, office_id')
     .eq('id', transactionId)
     .single();
 
   if (!transaction) return [];
+
+  const orgId = transaction.organization_id;
+  const rules = await ruleRepo.findActiveByOrg(orgId);
+  const overrides = await overrideRepo.findByTransactionId(transactionId);
+  const results: RuleEvaluationResult[] = [];
 
   for (const rule of rules) {
     // Check if rule applies to this transaction's office
@@ -165,7 +166,6 @@ export async function evaluateRules(
     if (!violated) {
       results.push({ rule, status: 'pass', details: 'Rule satisfied' });
     } else {
-      // Map enforcement mode to result status
       const statusMap: Record<EnforcementMode, RuleEvaluationResult['status']> = {
         warn: 'warn',
         block: 'block',
@@ -244,9 +244,6 @@ async function evaluateSingleRule(
     }
 
     case 'stage_gate': {
-      const requiredStage = config.required_status as string | undefined;
-      if (!requiredStage) return null;
-
       const { data: txn } = await supabase
         .from('transactions')
         .select('status')
@@ -300,37 +297,41 @@ async function evaluateSingleRule(
 // requestOverride
 // ---------------------------------------------------------------------------
 
-interface RequestOverrideParams {
-  ruleId: string;
-  transactionId: string;
-  orgId: string;
-  reason: string;
-  userId: string;
-}
-
 export async function requestOverride(
-  params: RequestOverrideParams,
+  ruleId: string,
+  transactionId: string,
+  reason: string,
+  userId: string,
 ): Promise<PolicyOverride> {
+  // Fetch org from transaction
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('organization_id')
+    .eq('id', transactionId)
+    .single();
+
+  const orgId = transaction?.organization_id ?? '';
+
   const override = await overrideRepo.create({
-    policy_rule_id: params.ruleId,
-    transaction_id: params.transactionId,
-    organization_id: params.orgId,
-    override_reason: params.reason,
-    overridden_by_user_id: params.userId,
+    policy_rule_id: ruleId,
+    transaction_id: transactionId,
+    organization_id: orgId,
+    override_reason: reason,
+    overridden_by_user_id: userId,
     approved_by_user_id: null,
     status: 'pending',
     expires_at: null,
   });
 
   await logAction({
-    organizationId: params.orgId,
-    transactionId: params.transactionId,
+    organizationId: orgId,
+    transactionId,
     actorType: 'user',
-    actorUserId: params.userId,
+    actorUserId: userId,
     action: 'policy_override.requested',
     targetType: 'policy_override',
     targetId: override.id,
-    metadata: { rule_id: params.ruleId, reason: params.reason },
+    metadata: { rule_id: ruleId, reason },
   });
 
   return override;
@@ -344,7 +345,6 @@ export async function approveOverride(
   overrideId: string,
   approverUserId: string,
 ): Promise<PolicyOverride> {
-  // Verify approver has broker_admin role
   await requireBrokerAdmin(approverUserId);
 
   const override = await overrideRepo.update(overrideId, {
@@ -372,10 +372,9 @@ export async function approveOverride(
 
 export async function rejectOverride(
   overrideId: string,
+  reason: string | undefined,
   approverUserId: string,
-  reason?: string,
 ): Promise<PolicyOverride> {
-  // Verify approver has broker_admin role
   await requireBrokerAdmin(approverUserId);
 
   const override = await overrideRepo.update(overrideId, {

@@ -1,42 +1,31 @@
 import { TransactionTabs } from '@/components/transaction/transaction-tabs';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import * as transactionRepo from '@/lib/repositories/transactions';
 
 interface TransactionLayoutProps {
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }
 
-export default async function TransactionLayout({
-  children,
-  params,
-}: TransactionLayoutProps) {
+export default async function TransactionLayout({ children, params }: TransactionLayoutProps) {
   const { id } = await params;
+
+  let title = 'Transaction';
+  try {
+    const transaction = await transactionRepo.findById(id);
+    if (transaction?.title) title = transaction.title;
+  } catch {
+    // Fall through with default title
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/transactions"
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Transactions
-        </Link>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Transaction Details</h1>
-          <p className="text-sm text-muted-foreground">ID: {id}</p>
-        </div>
-        <Badge variant="secondary">Draft</Badge>
-      </div>
-
       <TransactionTabs transactionId={id} />
-
-      <div>{children}</div>
+      <div className="pt-2">
+        {children}
+      </div>
     </div>
   );
 }

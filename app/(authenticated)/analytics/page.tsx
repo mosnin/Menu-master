@@ -8,6 +8,7 @@ import { CorrectionHotspots } from '@/components/analytics/correction-hotspots';
 import { QueueAging } from '@/components/analytics/queue-aging';
 import { RecommendationPerformance } from '@/components/analytics/recommendation-performance';
 import { FeedbackView } from '@/components/analytics/feedback-view';
+import { PageHeader } from '@/components/ui/page-header';
 
 export default async function AnalyticsPage() {
   const session = await auth0.getSession();
@@ -23,12 +24,10 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="pt-2 pb-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Product Analytics</h1>
-        <p className="text-muted-foreground mt-2 text-base">
-          Understand product usage and pilot health at a glance.
-        </p>
-      </div>
+      <PageHeader
+        title="Analytics"
+        description="Product usage, activation, and engagement metrics."
+      />
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="h-10">

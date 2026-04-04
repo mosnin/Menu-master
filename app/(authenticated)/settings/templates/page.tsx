@@ -5,15 +5,15 @@ import { getTemplates } from '@/lib/services/org-config-service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   LayoutTemplate,
   Plus,
   CheckSquare,
   Calendar,
-  ArrowLeft,
   ArrowUpRight,
 } from 'lucide-react';
-import Link from 'next/link';
 import type { OrganizationTemplate } from '@/types';
 
 function getItemCount(template: OrganizationTemplate): number {
@@ -63,44 +63,32 @@ export default async function TemplatesPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-2">
       {/* Page header */}
-      <div>
-        <Link
-          href="/settings"
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-1.5 mb-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Settings
-        </Link>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
-            <p className="mt-1 text-muted-foreground">
-              Manage checklist and timeline templates for your organization.
-            </p>
-          </div>
+      <PageHeader
+        title="Templates"
+        description="Manage checklist and timeline templates for your organization."
+        backHref="/settings"
+        backLabel="Settings"
+        actions={
           <Button className="rounded-xl px-5 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
             <Plus className="h-4 w-4 mr-1.5" />
             New Template
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Templates */}
       {templates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/60 mb-5">
-            <LayoutTemplate className="h-7 w-7 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold tracking-tight">No templates yet</h3>
-          <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
-            Templates let you quickly apply standardized checklists and timelines to new transactions.
-            Create your first template to streamline your workflow.
-          </p>
-          <Button variant="outline" size="sm" className="mt-6 rounded-lg px-5">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Create Your First Template
-          </Button>
-        </div>
+        <EmptyState
+          icon={LayoutTemplate}
+          title="No templates yet"
+          description="Templates let you quickly apply standardized checklists and timelines to new transactions. Create your first template to streamline your workflow."
+          action={
+            <Button variant="outline" size="sm" className="rounded-lg px-5">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Create Your First Template
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-6">
           {/* Checklist Templates */}

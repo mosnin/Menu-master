@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Newspaper,
   AlertTriangle,
   Clock,
   CheckSquare,
@@ -17,6 +16,7 @@ import {
   Settings,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/page-header';
 import { getDigestAction } from '@/app/actions/digest-actions';
 import { DigestPreviewButton } from '@/components/digest/digest-preview-button';
 
@@ -102,27 +102,21 @@ export default async function DigestPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-2">
-      {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2.5">
-            <Newspaper className="h-6 w-6 text-muted-foreground" />
-            Daily Digest
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            {digest ? `Digest for ${formatDate(digest.digest_date)}` : 'Your daily portfolio summary'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DigestPreviewButton />
-          <Button variant="ghost" size="sm" asChild className="rounded-lg">
-            <Link href="/settings/digests" className="flex items-center gap-1.5">
-              <Settings className="h-3.5 w-3.5" />
-              Settings
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Daily Digest"
+        description="Your daily portfolio briefing."
+        actions={
+          <div className="flex items-center gap-2">
+            <DigestPreviewButton />
+            <Button variant="ghost" size="sm" asChild className="rounded-lg">
+              <Link href="/settings/digests" className="flex items-center gap-1.5">
+                <Settings className="h-3.5 w-3.5" />
+                Settings
+              </Link>
+            </Button>
+          </div>
+        }
+      />
 
       {/* Digest content or empty state */}
       {digest && hasDigestContent(digest.content_json) ? (

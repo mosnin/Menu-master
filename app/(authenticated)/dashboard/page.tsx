@@ -23,6 +23,10 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { SectionHeader } from '@/components/ui/section-header';
+import { EmptyState } from '@/components/ui/empty-state';
 import { WelcomeBanner } from '@/components/onboarding/welcome-banner';
 import { PilotReadiness } from '@/components/dashboard/pilot-readiness';
 import { getHealthSummaryAction, getClosingSoonAction } from '@/app/actions/health-actions';
@@ -58,14 +62,10 @@ export default async function DashboardPage() {
       <WelcomeBanner />
 
       {/* Hero Section */}
-      <div className="pt-2 pb-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {greeting}, {firstName}
-        </h1>
-        <p className="text-muted-foreground mt-2 text-base">
-          You have <span className="font-medium text-foreground">12 active transactions</span> across your portfolio today.
-        </p>
-      </div>
+      <PageHeader
+        title={`${greeting}, ${firstName}`}
+        description="Your portfolio overview for today."
+      />
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
@@ -86,71 +86,16 @@ export default async function DashboardPage() {
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/transactions" className="group">
-          <Card className="border-l-4 border-l-blue-500 transition-all duration-200 group-hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Transactions</p>
-                  <p className="text-3xl font-semibold tracking-tight mt-2">12</p>
-                  <p className="text-xs text-muted-foreground mt-1">3 updated today</p>
-                </div>
-                <div className="rounded-lg bg-blue-50 p-2.5 dark:bg-blue-950/40">
-                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard label="Active Transactions" value={12} subtext="3 updated today" icon={FileText} accent="blue" />
         </Link>
-
         <Link href="/approvals" className="group">
-          <Card className="border-l-4 border-l-amber-500 transition-all duration-200 group-hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Approvals</p>
-                  <p className="text-3xl font-semibold tracking-tight mt-2">4</p>
-                  <p className="text-xs text-muted-foreground mt-1">2 awaiting your review</p>
-                </div>
-                <div className="rounded-lg bg-amber-50 p-2.5 dark:bg-amber-950/40">
-                  <CheckSquare className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard label="Pending Approvals" value={4} subtext="2 awaiting your review" icon={CheckSquare} accent="amber" />
         </Link>
-
         <Link href="/transactions" className="group">
-          <Card className="border-l-4 border-l-orange-500 transition-all duration-200 group-hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Upcoming Deadlines</p>
-                  <p className="text-3xl font-semibold tracking-tight mt-2">7</p>
-                  <p className="text-xs text-muted-foreground mt-1">In the next 14 days</p>
-                </div>
-                <div className="rounded-lg bg-orange-50 p-2.5 dark:bg-orange-950/40">
-                  <Calendar className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard label="Upcoming Deadlines" value={7} subtext="In the next 14 days" icon={Calendar} accent="orange" />
         </Link>
-
         <Link href="/transactions" className="group">
-          <Card className="border-l-4 border-l-red-500 transition-all duration-200 group-hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Issues</p>
-                  <p className="text-3xl font-semibold tracking-tight mt-2 text-red-600 dark:text-red-400">3</p>
-                  <p className="text-xs text-muted-foreground mt-1">Missing docs or failed extractions</p>
-                </div>
-                <div className="rounded-lg bg-red-50 p-2.5 dark:bg-red-950/40">
-                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard label="Issues" value={3} subtext="Missing docs or failed extractions" icon={AlertTriangle} accent="red" />
         </Link>
       </div>
 
@@ -171,58 +116,10 @@ export default async function DashboardPage() {
             <h2 className="text-lg font-semibold tracking-tight">Portfolio Health</h2>
           </div>
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-            <Card className="border-l-4 border-l-green-500 transition-all duration-200 hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Healthy</p>
-                    <p className="text-2xl font-semibold tracking-tight mt-1 text-green-600 dark:text-green-400">{healthSummary.healthy}</p>
-                  </div>
-                  <div className="rounded-lg bg-green-50 p-2 dark:bg-green-950/40">
-                    <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-amber-500 transition-all duration-200 hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Watch</p>
-                    <p className="text-2xl font-semibold tracking-tight mt-1 text-amber-600 dark:text-amber-400">{healthSummary.watch}</p>
-                  </div>
-                  <div className="rounded-lg bg-amber-50 p-2 dark:bg-amber-950/40">
-                    <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-orange-500 transition-all duration-200 hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">At Risk</p>
-                    <p className="text-2xl font-semibold tracking-tight mt-1 text-orange-600 dark:text-orange-400">{healthSummary.at_risk}</p>
-                  </div>
-                  <div className="rounded-lg bg-orange-50 p-2 dark:bg-orange-950/40">
-                    <CircleAlert className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-l-4 border-l-red-500 transition-all duration-200 hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Critical</p>
-                    <p className="text-2xl font-semibold tracking-tight mt-1 text-red-600 dark:text-red-400">{healthSummary.critical}</p>
-                  </div>
-                  <div className="rounded-lg bg-red-50 p-2 dark:bg-red-950/40">
-                    <TriangleAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard label="Healthy" value={healthSummary.healthy} icon={Shield} accent="green" />
+            <StatCard label="Watch" value={healthSummary.watch} icon={Eye} accent="amber" />
+            <StatCard label="At Risk" value={healthSummary.at_risk} icon={CircleAlert} accent="orange" />
+            <StatCard label="Critical" value={healthSummary.critical} icon={TriangleAlert} accent="red" />
           </div>
         </div>
       )}
@@ -231,16 +128,8 @@ export default async function DashboardPage() {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Closing Soon */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/40">
-                <Timer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Closing Soon</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Transactions closing in 7 days</p>
-              </div>
-            </div>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Timer} iconClassName="text-blue-600 dark:text-blue-400" title="Closing Soon" description="Transactions closing in 7 days" />
           </CardHeader>
           <CardContent>
             {closingSoon.length > 0 ? (
@@ -271,34 +160,20 @@ export default async function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Timer className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">No closings this week</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                  Transactions approaching their closing date will appear here.
-                </p>
-              </div>
+              <EmptyState
+                icon={Timer}
+                title="No closings this week"
+                description="Transactions approaching their closing date will appear here."
+                compact
+              />
             )}
           </CardContent>
         </Card>
 
         {/* Today's Digest Link */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-purple-50 p-2 dark:bg-purple-950/40">
-                <Newspaper className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Daily Digest</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Your portfolio summary</p>
-              </div>
-            </div>
-            <Link href="/digest" className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1">
-              View <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Newspaper} iconClassName="text-purple-600 dark:text-purple-400" title="Daily Digest" description="Your portfolio summary" linkHref="/digest" />
           </CardHeader>
           <CardContent>
             {hasDigest ? (
@@ -317,21 +192,20 @@ export default async function DashboardPage() {
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Newspaper className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">No digest yet today</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                  Your daily digest will be generated based on your configured schedule.
-                </p>
-                <Button variant="outline" size="sm" className="mt-5 rounded-xl" asChild>
-                  <Link href="/settings/digests" className="flex items-center gap-2">
-                    Configure Digest
-                    <ArrowUpRight className="h-3 w-3" />
-                  </Link>
-                </Button>
-              </div>
+              <EmptyState
+                icon={Newspaper}
+                title="No digest yet today"
+                description="Your daily digest will be generated based on your configured schedule."
+                action={
+                  <Button variant="outline" size="sm" className="rounded-xl" asChild>
+                    <Link href="/settings/digests" className="flex items-center gap-2">
+                      Configure Digest
+                      <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                }
+                compact
+              />
             )}
           </CardContent>
         </Card>
@@ -341,120 +215,69 @@ export default async function DashboardPage() {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Needs Attention */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-yellow-50 p-2 dark:bg-yellow-950/40">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Needs Attention</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Transactions requiring your action</p>
-              </div>
-            </div>
-            <Link href="/transactions" className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={AlertTriangle} iconClassName="text-yellow-600 dark:text-yellow-400" title="Needs Attention" description="Transactions requiring your action" linkHref="/transactions" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-green-50 p-4 mb-4 dark:bg-green-950/40">
-                <CheckSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <p className="text-sm font-semibold tracking-tight">You are all caught up</p>
-              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                When transactions have missing documents, failed extractions, or overdue items, they will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={CheckSquare}
+              title="You are all caught up"
+              description="When transactions have missing documents, failed extractions, or overdue items, they will appear here."
+              compact
+            />
           </CardContent>
         </Card>
 
         {/* Upcoming Deadlines */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-muted p-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Upcoming Deadlines</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Due in the next 14 days</p>
-              </div>
-            </div>
-            <Link href="/transactions" className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Clock} iconClassName="text-muted-foreground" title="Upcoming Deadlines" description="Due in the next 14 days" linkHref="/transactions" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Calendar className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold tracking-tight">No upcoming deadlines</p>
-              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                As you add checklist items with due dates, upcoming deadlines will be surfaced here so nothing slips.
-              </p>
-            </div>
+            <EmptyState
+              icon={Calendar}
+              title="No upcoming deadlines"
+              description="As you add checklist items with due dates, upcoming deadlines will be surfaced here."
+              compact
+            />
           </CardContent>
         </Card>
 
         {/* Pending Approvals */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-muted p-2">
-                <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Pending Approvals</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Review and approve actions</p>
-              </div>
-            </div>
-            <Link href="/approvals" className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1">
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={CheckSquare} iconClassName="text-muted-foreground" title="Pending Approvals" description="Review and approve actions" linkHref="/approvals" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Inbox className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold tracking-tight">No pending approvals</p>
-              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                When AI drafts emails or extracts data that needs your sign-off, approval requests will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No pending approvals"
+              description="When AI drafts emails or extracts data that needs your sign-off, approval requests will appear here."
+              compact
+            />
           </CardContent>
         </Card>
 
         {/* Recent Documents */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-muted p-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Recent Documents</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Latest uploaded documents</p>
-              </div>
-            </div>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={FileText} iconClassName="text-muted-foreground" title="Recent Documents" description="Latest uploaded documents" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Upload className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-semibold tracking-tight">No documents yet</p>
-              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                Upload a purchase agreement, disclosure, or amendment. The AI will automatically extract key details.
-              </p>
-              <Button variant="outline" size="sm" className="mt-5 rounded-xl" asChild>
-                <Link href="/transactions" className="flex items-center gap-2">
-                  Go to Transactions
-                  <ArrowUpRight className="h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={Upload}
+              title="No documents yet"
+              description="Upload a purchase agreement, disclosure, or amendment. The AI will automatically extract key details."
+              action={
+                <Button variant="outline" size="sm" className="rounded-xl" asChild>
+                  <Link href="/transactions" className="flex items-center gap-2">
+                    Go to Transactions
+                    <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </Button>
+              }
+              compact
+            />
           </CardContent>
         </Card>
       </div>

@@ -145,9 +145,9 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
                 const isActive = event.status === 'in_progress';
 
                 return (
-                  <div key={event.id} className="relative flex gap-4 pl-10">
+                  <div key={event.id} className="relative flex gap-4 pl-10 overflow-hidden">
                     <div className={`absolute left-[9px] top-[18px] h-3 w-3 rounded-full ring-4 transition-all duration-300 ${dotColor} ${isActive ? 'ring-[6px] scale-110' : ''}`} />
-                    <div className={`flex-1 rounded-xl border px-5 py-[18px] transition-all duration-300 hover:shadow-md hover:shadow-black/[0.04] ${
+                    <div className={`flex-1 min-w-0 rounded-xl border px-5 py-[18px] transition-all duration-300 hover:shadow-md hover:shadow-black/[0.04] ${
                       event.status === 'overdue' ? 'border-red-200/50 bg-red-50/20' :
                       event.status === 'completed' ? 'border-emerald-100/50 bg-emerald-50/15' :
                       'hover:bg-muted/10'
@@ -157,7 +157,7 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
                           <span className="shrink-0">
                             {eventIcons[event.event_type] ?? <Calendar className="h-4 w-4 text-muted-foreground" />}
                           </span>
-                          <p className="text-sm font-semibold tracking-tight">{event.title}</p>
+                          <p className="text-sm font-semibold tracking-tight truncate min-w-0">{event.title}</p>
                         </div>
                         <span className={`shrink-0 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
                           event.status === 'completed' ? 'bg-emerald-50/70 text-emerald-600' :
@@ -170,9 +170,9 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
                         </span>
                       </div>
                       {event.description && (
-                        <p className="text-xs text-muted-foreground mt-1.5 ml-[26px] leading-relaxed">{event.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1.5 ml-0 sm:ml-[26px] leading-relaxed">{event.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-3.5 ml-[26px] flex-wrap">
+                      <div className="flex items-center gap-3 mt-3.5 ml-0 sm:ml-[26px] flex-wrap">
                         {event.event_date && (
                           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                             <Clock className="h-3 w-3" />

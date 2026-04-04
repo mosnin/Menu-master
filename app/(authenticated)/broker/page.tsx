@@ -4,6 +4,10 @@ import { redirect } from 'next/navigation';
 import { supabase } from '@/lib/db/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { SectionHeader } from '@/components/ui/section-header';
 import {
   DollarSign,
   TrendingUp,
@@ -163,72 +167,21 @@ export default async function BrokerOverviewPage() {
   return (
     <div className="space-y-10">
       {/* Page header */}
-      <div className="pt-2 pb-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Broker Overview</h1>
-        <p className="text-muted-foreground mt-2 text-base leading-relaxed">
-          Revenue pipeline, compliance health, and close forecast at a glance.
-        </p>
-      </div>
+      <PageHeader title="Broker Overview" description="Revenue, compliance, and pipeline health at a glance." />
 
       {/* Revenue Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card className="border-l-4 border-l-blue-500 transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Projected</p>
-                <p className="text-3xl font-semibold tracking-tight mt-2">{formatCurrency(totalProjected)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Unfinalised pipeline</p>
-              </div>
-              <div className="rounded-lg bg-blue-50 p-2.5 dark:bg-blue-950/40">
-                <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-violet-500 transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Weighted</p>
-                <p className="text-3xl font-semibold tracking-tight mt-2">{formatCurrency(totalWeighted)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Probability-adjusted</p>
-              </div>
-              <div className="rounded-lg bg-violet-50 p-2.5 dark:bg-violet-950/40">
-                <TrendingUp className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500 transition-all duration-200 hover:shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Closed This Month</p>
-                <p className="text-3xl font-semibold tracking-tight mt-2 text-green-600 dark:text-green-400">{formatCurrency(totalClosed)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Finalized revenue</p>
-              </div>
-              <div className="rounded-lg bg-green-50 p-2.5 dark:bg-green-950/40">
-                <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard label="Total Projected" value={formatCurrency(totalProjected)} subtext="Unfinalised pipeline" icon={DollarSign} accent="blue" />
+        <StatCard label="Total Weighted" value={formatCurrency(totalWeighted)} subtext="Probability-adjusted" icon={TrendingUp} accent="purple" />
+        <StatCard label="Closed This Month" value={formatCurrency(totalClosed)} subtext="Finalized revenue" icon={DollarSign} accent="green" />
       </div>
 
       {/* Pipeline Health + Compliance + Close Forecast */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Pipeline Health */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/40">
-                <Briefcase className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <CardTitle className="text-base font-semibold tracking-tight">Pipeline Health</CardTitle>
-            </div>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Briefcase} iconClassName="text-blue-600 dark:text-blue-400" title="Pipeline Health" />
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
@@ -274,19 +227,8 @@ export default async function BrokerOverviewPage() {
 
         {/* Compliance */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-red-50 p-2 dark:bg-red-950/40">
-                <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
-              </div>
-              <CardTitle className="text-base font-semibold tracking-tight">Compliance</CardTitle>
-            </div>
-            <Link
-              href="/broker/compliance"
-              className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={ShieldAlert} iconClassName="text-red-600 dark:text-red-400" title="Compliance" linkHref="/broker/compliance" linkLabel="View all" />
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -308,19 +250,8 @@ export default async function BrokerOverviewPage() {
 
         {/* Close Forecast */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-violet-50 p-2 dark:bg-violet-950/40">
-                <Calendar className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              <CardTitle className="text-base font-semibold tracking-tight">Close Forecast</CardTitle>
-            </div>
-            <Link
-              href="/broker/forecast"
-              className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1"
-            >
-              Details <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Calendar} iconClassName="text-violet-600 dark:text-violet-400" title="Close Forecast" linkHref="/broker/forecast" linkLabel="Details" />
           </CardHeader>
           <CardContent>
             {data.forecast.length > 0 ? (
@@ -346,15 +277,7 @@ export default async function BrokerOverviewPage() {
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="rounded-full bg-muted p-3 mb-3">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">No forecast data</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
-                  Forecasts will appear once transaction economics are added.
-                </p>
-              </div>
+              <EmptyState icon={Calendar} title="No forecast data" description="Forecasts will appear once transaction economics are added." compact />
             )}
           </CardContent>
         </Card>
@@ -364,16 +287,8 @@ export default async function BrokerOverviewPage() {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Top At-Risk Closings */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-orange-50 p-2 dark:bg-orange-950/40">
-                <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Top At-Risk Closings</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">5 lowest health scores</p>
-              </div>
-            </div>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={AlertTriangle} iconClassName="text-orange-600 dark:text-orange-400" title="Top At-Risk Closings" description="5 lowest health scores" />
           </CardHeader>
           <CardContent>
             {atRiskClosings.length > 0 ? (
@@ -405,31 +320,15 @@ export default async function BrokerOverviewPage() {
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="rounded-full bg-green-50 p-4 mb-4 dark:bg-green-950/40">
-                  <Shield className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">All deals healthy</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                  At-risk transactions will appear here when health scores drop.
-                </p>
-              </div>
+              <EmptyState icon={Shield} title="All deals healthy" description="At-risk transactions will appear here when health scores drop." />
             )}
           </CardContent>
         </Card>
 
         {/* Pending Overrides */}
         <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-amber-50 p-2 dark:bg-amber-950/40">
-                <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Pending Overrides</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Policy overrides needing approval</p>
-              </div>
-            </div>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={ShieldAlert} iconClassName="text-amber-600 dark:text-amber-400" title="Pending Overrides" description="Policy overrides needing approval" />
           </CardHeader>
           <CardContent>
             {pendingOverrides.length > 0 ? (
@@ -458,37 +357,15 @@ export default async function BrokerOverviewPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="rounded-full bg-green-50 p-4 mb-4 dark:bg-green-950/40">
-                  <Shield className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">No pending overrides</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                  Policy override requests that need broker approval will appear here.
-                </p>
-              </div>
+              <EmptyState icon={Shield} title="No pending overrides" description="Policy override requests that need broker approval will appear here." />
             )}
           </CardContent>
         </Card>
 
         {/* Recent Compliance Issues */}
         <Card className="rounded-xl lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg bg-red-50 p-2 dark:bg-red-950/40">
-                <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Recent Compliance Issues</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">Latest 5 open issues</p>
-              </div>
-            </div>
-            <Link
-              href="/broker/compliance"
-              className="text-sm text-primary hover:underline transition-colors duration-150 flex items-center gap-1"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
+          <CardHeader className="pb-4">
+            <SectionHeader icon={Shield} iconClassName="text-red-600 dark:text-red-400" title="Recent Compliance Issues" description="Latest 5 open issues" linkHref="/broker/compliance" linkLabel="View all" />
           </CardHeader>
           <CardContent>
             {recentCompliance.length > 0 ? (
@@ -519,15 +396,7 @@ export default async function BrokerOverviewPage() {
                 })}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="rounded-full bg-green-50 p-4 mb-4 dark:bg-green-950/40">
-                  <Shield className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <p className="text-sm font-semibold tracking-tight">No open compliance issues</p>
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-xs leading-relaxed">
-                  Compliance issues flagged by policy rules will appear here.
-                </p>
-              </div>
+              <EmptyState icon={Shield} title="No open compliance issues" description="Compliance issues flagged by policy rules will appear here." />
             )}
           </CardContent>
         </Card>

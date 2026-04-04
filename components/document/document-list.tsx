@@ -125,7 +125,7 @@ export function DocumentList({ documents }: DocumentListProps) {
         return (
           <div key={doc.id} className="rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-md hover:shadow-black/[0.04]">
             <div
-              className={`flex items-center justify-between px-5 py-[18px] transition-colors duration-200 ${hasDetails ? 'cursor-pointer hover:bg-muted/20' : ''}`}
+              className={`flex items-center justify-between gap-3 px-5 py-[18px] transition-colors duration-200 flex-wrap sm:flex-nowrap ${hasDetails ? 'cursor-pointer hover:bg-muted/20' : ''}`}
               onClick={() => hasDetails && setExpandedId(isExpanded ? null : doc.id)}
             >
               <div className="flex items-center gap-4 min-w-0">
@@ -151,7 +151,7 @@ export function DocumentList({ documents }: DocumentListProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 shrink-0 ml-4">
+              <div className="flex items-center gap-2.5 shrink-0 ml-0 sm:ml-4 flex-wrap">
                 {hasMissingSigs && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50/80 px-2.5 py-1 text-xs font-medium text-red-600">
                     <PenLine className="h-3 w-3" />
@@ -181,9 +181,9 @@ export function DocumentList({ documents }: DocumentListProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {doc.extraction_results.map((result, i) => (
                         <div key={i} className="flex items-center justify-between rounded-lg bg-background border border-border/60 px-4 py-3 text-xs">
-                          <span className="text-muted-foreground">{result.field}</span>
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-medium">{result.value}</span>
+                          <span className="text-muted-foreground truncate min-w-0">{result.field}</span>
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="font-medium truncate max-w-[150px]">{result.value}</span>
                             <ConfidenceBadge score={result.confidence} />
                           </div>
                         </div>

@@ -14,6 +14,8 @@ import {
   LayoutTemplate,
   BarChart3,
   Newspaper,
+  TrendingUp,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,12 +31,19 @@ const navigation = [
   { name: 'Approvals', href: '/approvals', icon: CheckSquare, showBadge: true },
 ];
 
+const brokerNavigation = [
+  { name: 'Broker Overview', href: '/broker', icon: Building2 },
+  { name: 'Forecast', href: '/broker/forecast', icon: TrendingUp, indent: true },
+];
+
 const secondaryNavigation = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
+  { name: 'Compliance', href: '/broker', icon: Shield, adminOnly: true },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Rules', href: '/settings/rules', icon: Scale, indent: true },
   { name: 'Templates', href: '/settings/templates', icon: LayoutTemplate, indent: true },
   { name: 'Digest Settings', href: '/settings/digests', icon: Newspaper, indent: true },
+  { name: 'Policies', href: '/settings/policies', icon: Shield, indent: true, adminOnly: true },
 ];
 
 function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; userRole?: string }) {
@@ -59,8 +68,9 @@ function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; use
     return () => clearInterval(interval);
   }, []);
 
-  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean; indent?: boolean; adminOnly?: boolean }) {
+  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean; indent?: boolean; adminOnly?: boolean; coordinatorPlus?: boolean }) {
     if (item.adminOnly && userRole !== 'broker_admin') return null;
+    if (item.coordinatorPlus && userRole !== 'coordinator' && userRole !== 'broker_admin') return null;
     const isActive = item.indent
       ? pathname === item.href
       : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -158,6 +168,23 @@ function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; use
         <nav className="space-y-0.5 px-3">
           {navigation.map(renderNavItem)}
         </nav>
+
+        {/* Broker section */}
+        {userRole === 'broker_admin' && (
+          <>
+            <div className="mt-8 mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
+
+            <div className="mt-5 px-5 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
+                Broker
+              </span>
+            </div>
+
+            <nav className="space-y-0.5 px-3">
+              {brokerNavigation.map(renderNavItem)}
+            </nav>
+          </>
+        )}
 
         {/* Secondary section */}
         <div className="mt-8 mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
