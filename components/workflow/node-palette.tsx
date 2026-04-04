@@ -25,6 +25,13 @@ import {
   Webhook,
   Mail,
   CircleDot,
+  Brain,
+  Sparkles,
+  FileSearch2,
+  MessageSquare,
+  PenLine,
+  ShieldAlert,
+  Route,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +42,7 @@ import { cn } from '@/lib/utils';
 interface NodeMeta {
   label: string;
   icon: React.ReactNode;
-  group: 'control' | 'domain';
+  group: 'control' | 'domain' | 'agent';
 }
 
 const NODE_META: Record<string, NodeMeta> = {
@@ -63,6 +70,14 @@ const NODE_META: Record<string, NodeMeta> = {
   handoff_accepted_offer: { label: 'Handoff Accepted Offer', icon: <Handshake className="h-4 w-4" />, group: 'domain' },
   emit_webhook: { label: 'Emit Webhook', icon: <Webhook className="h-4 w-4" />, group: 'domain' },
   send_digest: { label: 'Send Digest', icon: <Mail className="h-4 w-4" />, group: 'domain' },
+
+  agent_next_best_action_planner: { label: 'Next Best Action Planner', icon: <Brain className="h-4 w-4" />, group: 'agent' },
+  agent_exception_triage_classifier: { label: 'Exception Triage Classifier', icon: <ShieldAlert className="h-4 w-4" />, group: 'agent' },
+  agent_document_classifier: { label: 'Document Classifier', icon: <FileSearch2 className="h-4 w-4" />, group: 'agent' },
+  agent_offer_explanation: { label: 'Offer Explanation', icon: <Sparkles className="h-4 w-4" />, group: 'agent' },
+  agent_communication_draft: { label: 'Communication Draft', icon: <PenLine className="h-4 w-4" />, group: 'agent' },
+  agent_compliance_critic: { label: 'Compliance Critic', icon: <MessageSquare className="h-4 w-4" />, group: 'agent' },
+  agent_deal_router: { label: 'Deal Router', icon: <Route className="h-4 w-4" />, group: 'agent' },
 };
 
 function getMeta(type: string): NodeMeta {
@@ -91,6 +106,7 @@ export function NodePalette({ onAddNode }: NodePaletteProps) {
 
   const controlTypes = allTypes.filter((t) => getMeta(t).group === 'control');
   const domainTypes = allTypes.filter((t) => getMeta(t).group === 'domain');
+  const agentTypes = allTypes.filter((t) => getMeta(t).group === 'agent');
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
@@ -127,6 +143,32 @@ export function NodePalette({ onAddNode }: NodePaletteProps) {
         </p>
         <div className="flex flex-col gap-1.5">
           {domainTypes.map((type) => {
+            const meta = getMeta(type);
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onAddNode(type)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg p-2.5 text-left text-sm transition-colors',
+                  'hover:bg-muted/40 active:bg-muted/60 cursor-pointer',
+                )}
+              >
+                <span className="text-muted-foreground">{meta.icon}</span>
+                <span className="font-medium">{meta.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* AI Agents */}
+      <div>
+        <p className="mb-3 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+          AI Agents
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {agentTypes.map((type) => {
             const meta = getMeta(type);
             return (
               <button

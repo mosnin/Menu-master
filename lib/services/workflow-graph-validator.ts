@@ -28,6 +28,13 @@ export const VALID_NODE_TYPES = new Set<string>([
   'handoff_accepted_offer',
   'emit_webhook',
   'send_digest',
+  'agent_next_best_action_planner',
+  'agent_exception_triage_classifier',
+  'agent_document_classifier',
+  'agent_offer_explanation',
+  'agent_communication_draft',
+  'agent_compliance_critic',
+  'agent_deal_router',
 ]);
 
 // ---------------------------------------------------------------------------

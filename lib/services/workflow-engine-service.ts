@@ -2,6 +2,8 @@ import * as workflowRunsRepo from '@/lib/repositories/workflow-runs';
 import * as workflowRunStepsRepo from '@/lib/repositories/workflow-run-steps';
 import * as workflowVersionsRepo from '@/lib/repositories/workflow-versions';
 import { logAction } from '@/lib/audit/logger';
+import { isAgentNodeType } from '@/lib/ai/agent-nodes/registry';
+import { executeAgentNode } from '@/lib/ai/agent-nodes/executor';
 import type {
   WorkflowRun,
   WorkflowRunStep,
@@ -37,6 +39,13 @@ const DOMAIN_NODE_TYPES = new Set([
   'handoff_accepted_offer',
   'emit_webhook',
   'send_digest',
+  'agent_next_best_action_planner',
+  'agent_exception_triage_classifier',
+  'agent_document_classifier',
+  'agent_offer_explanation',
+  'agent_communication_draft',
+  'agent_compliance_critic',
+  'agent_deal_router',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -416,6 +425,12 @@ export async function executeDomainNode(
   config: Record<string, unknown>,
   context: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  // Dispatch to agent node executor if applicable
+  if (isAgentNodeType(nodeType)) {
+    const result = await executeAgentNode(nodeType as any, config, context);
+    return { agent_result: result, executed: true, node_type: nodeType };
+  }
+
   // Stub implementation — will be replaced with real service calls later
   return { executed: true, node_type: nodeType };
 }

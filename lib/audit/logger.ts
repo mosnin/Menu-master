@@ -135,7 +135,11 @@ export type AuditAction =
   | 'workflow.version_created'
   | 'workflow.version_validated'
   | 'workflow.version_published'
-  | 'workflow.version_archived';
+  | 'workflow.version_archived'
+  | 'agent_node.executed'
+  | 'agent_node.failed'
+  | 'agent_node.circuit_opened'
+  | 'agent_node.safety_violation';
 
 interface LogActionParams {
   organizationId?: string;
