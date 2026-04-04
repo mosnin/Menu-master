@@ -25,7 +25,26 @@ export type AuditAction =
   | 'reminder.scheduled'
   | 'reminder.sent'
   | 'user.signed_in'
-  | 'user.profile_synced';
+  | 'user.profile_synced'
+  | 'field_correction.applied'
+  | 'completeness.recalculated'
+  | 'exception.detected'
+  | 'exception.resolved'
+  | 'recommendation.generated'
+  | 'recommendation.dismissed'
+  | 'recommendation.completed'
+  | 'assignment.created'
+  | 'assignment.removed'
+  | 'queue_view.saved'
+  | 'comment.created'
+  | 'mention.created'
+  | 'communication_thread.created'
+  | 'communication_message.added'
+  | 'email_account.connected'
+  | 'rule.created'
+  | 'rule.updated'
+  | 'template.created'
+  | 'template.applied';
 
 interface LogActionParams {
   organizationId?: string;
