@@ -13,16 +13,20 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Transactions', href: '/transactions', icon: FileText },
   { name: 'Approvals', href: '/approvals', icon: CheckSquare, showBadge: true },
+];
+
+const secondaryNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -44,16 +48,64 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, []);
 
+  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean }) {
+    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          'group relative flex items-center gap-3 rounded-lg px-3 py-3 text-[13px] font-medium',
+          'transition-all duration-[150ms] ease-[cubic-bezier(0.25,0.1,0.25,1)]',
+          isActive
+            ? 'bg-primary/[0.07] text-foreground'
+            : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-foreground'
+        )}
+      >
+        {/* Active indicator bar */}
+        {isActive && (
+          <span
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-primary"
+            style={{ transition: 'height var(--transition-fast)' }}
+          />
+        )}
+        <item.icon
+          className={cn(
+            'h-[18px] w-[18px] shrink-0 transition-colors duration-[150ms]',
+            isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground'
+          )}
+        />
+        <span className="flex-1 tracking-[-0.01em]">{item.name}</span>
+        {item.showBadge && pendingCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="h-5 min-w-5 rounded-full px-1.5 flex items-center justify-center text-[10px] font-semibold"
+          >
+            {pendingCount}
+          </Badge>
+        )}
+      </Link>
+    );
+  }
+
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-background">
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-            <FileText className="h-4 w-4 text-primary-foreground" />
+    <div className="flex h-full w-[260px] flex-col bg-[hsl(var(--sidebar))]">
+      {/* Organization switcher */}
+      <div className="flex h-[60px] items-center px-5">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-3 transition-opacity duration-[150ms] hover:opacity-80"
+          onClick={onNavigate}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground shadow-[var(--shadow-soft)]">
+            <FileText className="h-4 w-4 text-background" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm leading-tight">Deal Desk</span>
-            <span className="text-[10px] font-normal text-muted-foreground leading-tight flex items-center gap-1">
+            <span className="text-[13px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
+              Deal Desk
+            </span>
+            <span className="text-[10px] font-normal text-muted-foreground/70 leading-tight flex items-center gap-1 mt-0.5">
               <Building2 className="h-2.5 w-2.5" />
               Realty Partners Group
             </span>
@@ -61,49 +113,80 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4">
-        <div className="px-3 mb-4">
-          <Button asChild className="w-full justify-start gap-2" size="sm">
-            <Link href="/transactions/new">
+      {/* Divider */}
+      <div className="mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
+
+      <div className="flex-1 overflow-y-auto sidebar-scroll pt-6 pb-2">
+        {/* Primary action */}
+        <div className="px-4 mb-7">
+          <Button
+            asChild
+            className="w-full justify-center gap-2 h-9 shadow-[var(--shadow-soft)] text-[13px] font-medium"
+            size="sm"
+          >
+            <Link href="/transactions/new" onClick={onNavigate}>
               <Plus className="h-4 w-4" />
               New Transaction
             </Link>
           </Button>
         </div>
 
-        <nav className="space-y-1 px-3">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-muted-foreground hover:bg-secondary hover:text-secondary-foreground'
-                )}
-              >
-                <item.icon className={cn('h-4 w-4', isActive && 'text-primary')} />
-                <span className="flex-1">{item.name}</span>
-                {item.showBadge && pendingCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="h-5 min-w-5 rounded-full px-1.5 flex items-center justify-center text-xs"
-                  >
-                    {pendingCount}
-                  </Badge>
-                )}
-              </Link>
-            );
-          })}
+        {/* Main section label */}
+        <div className="px-5 mb-2">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
+            Menu
+          </span>
+        </div>
+
+        {/* Primary nav items */}
+        <nav className="space-y-0.5 px-3">
+          {navigation.map(renderNavItem)}
+        </nav>
+
+        {/* Secondary section */}
+        <div className="mt-8 mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
+
+        <div className="mt-5 px-5 mb-2">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
+            Workspace
+          </span>
+        </div>
+
+        <nav className="space-y-0.5 px-3">
+          {secondaryNavigation.map(renderNavItem)}
         </nav>
       </div>
 
-      <div className="border-t p-4">
-        <p className="text-xs text-muted-foreground">Deal Desk v0.1.0</p>
+      {/* Bottom section */}
+      <div className="mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
+      <div className="px-5 py-4">
+        <p className="text-[10px] text-muted-foreground/40 tracking-wide font-medium">
+          Deal Desk v0.1.0
+        </p>
       </div>
     </div>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside className="border-r border-[hsl(var(--sidebar-border))]">
+      <SidebarContent />
+    </aside>
+  );
+}
+
+interface MobileSidebarProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="left" className="p-0 w-[260px]">
+        <SidebarContent onNavigate={() => onOpenChange(false)} />
+      </SheetContent>
+    </Sheet>
   );
 }

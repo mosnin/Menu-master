@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Upload, FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { uploadDocumentAction } from '@/app/actions/document-actions';
@@ -49,29 +48,40 @@ export function DocumentUpload({ transactionId, organizationId }: DocumentUpload
   }
 
   return (
-    <Card
-      className={`border-2 border-dashed transition-colors ${
-        dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+    <div
+      className={`rounded-xl border-2 border-dashed p-10 transition-colors ${
+        dragActive
+          ? 'border-primary bg-primary/5'
+          : 'border-muted-foreground/20 bg-muted/30'
       }`}
       onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
       onDragLeave={() => setDragActive(false)}
       onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFiles(e.dataTransfer.files); }}
     >
-      <CardContent className="flex flex-col items-center justify-center py-10">
+      <div className="flex flex-col items-center justify-center text-center">
         {isUploading ? (
           <>
-            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <Loader2 className="h-7 w-7 text-muted-foreground animate-spin" />
+            </div>
             <p className="text-sm font-medium">Uploading...</p>
+            <p className="mt-1 text-xs text-muted-foreground">Please wait while your files are processed</p>
           </>
         ) : (
           <>
-            <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-            <p className="text-sm font-medium">Drop PDF files here or click to upload</p>
-            <p className="text-xs text-muted-foreground mt-1">PDF files only, up to 10MB each</p>
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <Upload className="h-7 w-7 text-muted-foreground/70" />
+            </div>
+            <p className="text-sm font-medium">
+              Drop PDF files here or click to upload
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              PDF files only, up to 10MB each
+            </p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
+              className="mt-5 rounded-lg"
               onClick={() => inputRef.current?.click()}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -87,7 +97,7 @@ export function DocumentUpload({ transactionId, organizationId }: DocumentUpload
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

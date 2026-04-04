@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import {
   FileText,
   CheckCircle2,
@@ -42,13 +41,13 @@ interface DocumentListProps {
   documents: DocumentItem[];
 }
 
-const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive'; icon: React.ReactNode }> = {
-  pending: { label: 'Pending', variant: 'secondary', icon: <Clock className="h-3.5 w-3.5" /> },
-  processing: { label: 'Processing', variant: 'default', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
-  completed: { label: 'Extracted', variant: 'success', icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-  failed: { label: 'Failed', variant: 'destructive', icon: <AlertCircle className="h-3.5 w-3.5" /> },
-  ocr_required: { label: 'OCR Required', variant: 'warning', icon: <ScanSearch className="h-3.5 w-3.5" /> },
-  manual_review: { label: 'Manual Review', variant: 'warning', icon: <Eye className="h-3.5 w-3.5" /> },
+const statusConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  pending: { label: 'Pending', icon: <Clock className="h-3.5 w-3.5" />, className: 'bg-gray-100/80 text-gray-600' },
+  processing: { label: 'Processing', icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: 'bg-blue-50/80 text-blue-600' },
+  completed: { label: 'Extracted', icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: 'bg-emerald-50/80 text-emerald-600' },
+  failed: { label: 'Failed', icon: <AlertCircle className="h-3.5 w-3.5" />, className: 'bg-red-50/80 text-red-600' },
+  ocr_required: { label: 'OCR Required', icon: <ScanSearch className="h-3.5 w-3.5" />, className: 'bg-amber-50/80 text-amber-600' },
+  manual_review: { label: 'Manual Review', icon: <Eye className="h-3.5 w-3.5" />, className: 'bg-amber-50/80 text-amber-600' },
 };
 
 const docTypeConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
@@ -63,13 +62,13 @@ const docTypeConfig: Record<string, { label: string; icon: React.ReactNode; clas
 
 function ConfidenceBadge({ score }: { score: number }) {
   const pct = Math.round(score * 100);
-  let colorClass = 'text-green-700 bg-green-50';
-  if (pct < 70) colorClass = 'text-red-700 bg-red-50';
-  else if (pct < 90) colorClass = 'text-yellow-700 bg-yellow-50';
+  let colorClass = 'text-emerald-700 bg-emerald-50/70 ring-1 ring-emerald-200/50';
+  if (pct < 70) colorClass = 'text-red-600 bg-red-50/70 ring-1 ring-red-200/50';
+  else if (pct < 90) colorClass = 'text-amber-700 bg-amber-50/70 ring-1 ring-amber-200/50';
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${colorClass}`}>
-      {pct}% confidence
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums ${colorClass}`}>
+      {pct}%
     </span>
   );
 }
@@ -77,7 +76,7 @@ function ConfidenceBadge({ score }: { score: number }) {
 function DocumentTypeBadge({ type }: { type: string | null }) {
   if (!type) {
     return (
-      <span className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs text-muted-foreground border-muted">
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs text-muted-foreground bg-muted/50">
         <FileX className="h-3 w-3" />
         Unclassified
       </span>
@@ -86,14 +85,14 @@ function DocumentTypeBadge({ type }: { type: string | null }) {
   const config = docTypeConfig[type];
   if (!config) {
     return (
-      <span className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs text-muted-foreground border-muted">
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs text-muted-foreground bg-muted/50">
         <FileText className="h-3 w-3" />
         {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium ${config.className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}>
       {config.icon}
       {config.label}
     </span>
@@ -105,10 +104,10 @@ export function DocumentList({ documents }: DocumentListProps) {
 
   if (documents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-        <FileText className="h-10 w-10 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium">No documents uploaded yet</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-md">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
+        <FileText className="h-10 w-10 text-muted-foreground/60 mb-4" />
+        <h3 className="text-lg font-semibold tracking-tight">No documents uploaded yet</h3>
+        <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
           Upload PDF documents to trigger AI extraction, checklist generation, and timeline events.
         </p>
       </div>
@@ -116,7 +115,7 @@ export function DocumentList({ documents }: DocumentListProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {documents.map((doc) => {
         const status = statusConfig[doc.processing_status] ?? statusConfig.pending;
         const isExpanded = expandedId === doc.id;
@@ -124,24 +123,24 @@ export function DocumentList({ documents }: DocumentListProps) {
         const hasDetails = doc.extraction_results || hasMissingSigs || doc.has_addenda;
 
         return (
-          <div key={doc.id} className="rounded-lg border overflow-hidden">
+          <div key={doc.id} className="rounded-xl border overflow-hidden transition-shadow duration-200 hover:shadow-sm">
             <div
-              className={`flex items-center justify-between p-3 ${hasDetails ? 'cursor-pointer hover:bg-muted/30 transition-colors' : ''}`}
+              className={`flex items-center justify-between px-5 py-4 ${hasDetails ? 'cursor-pointer hover:bg-muted/20 transition-colors duration-200' : ''}`}
               onClick={() => hasDetails && setExpandedId(isExpanded ? null : doc.id)}
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-3.5 min-w-0">
                 {hasDetails && (
-                  <span className="shrink-0 text-muted-foreground">
+                  <span className="shrink-0 text-muted-foreground/70">
                     {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
                 )}
-                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                <FileText className="h-5 w-5 text-muted-foreground/60 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <p className="text-sm font-semibold tracking-tight truncate">{doc.file_name}</p>
+                  <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
                     <DocumentTypeBadge type={doc.document_type} />
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(doc.created_at).toLocaleDateString()}
+                    <span className="text-xs text-muted-foreground/70">
+                      {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                     {doc.confidence_score != null && (
                       <ConfidenceBadge score={doc.confidence_score} />
@@ -150,38 +149,38 @@ export function DocumentList({ documents }: DocumentListProps) {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 ml-3">
+              <div className="flex items-center gap-2.5 shrink-0 ml-4">
                 {hasMissingSigs && (
-                  <span className="inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50/80 px-2.5 py-1 text-xs font-medium text-red-600">
                     <PenLine className="h-3 w-3" />
                     {doc.missing_signatures!.length} missing sig{doc.missing_signatures!.length > 1 ? 's' : ''}
                   </span>
                 )}
                 {doc.has_addenda && (
-                  <span className="inline-flex items-center gap-1 rounded bg-purple-50 px-1.5 py-0.5 text-xs font-medium text-purple-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50/80 px-2.5 py-1 text-xs font-medium text-purple-600">
                     <FileText className="h-3 w-3" />
                     {doc.addenda_count ?? '?'} addend{(doc.addenda_count ?? 0) === 1 ? 'um' : 'a'}
                   </span>
                 )}
-                <Badge variant={status.variant} className="flex items-center gap-1">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${status.className}`}>
                   {status.icon}
                   {status.label}
-                </Badge>
+                </span>
               </div>
             </div>
 
             {isExpanded && hasDetails && (
-              <div className="border-t bg-muted/20 px-4 py-3 space-y-3">
+              <div className="border-t bg-muted/10 px-6 py-5 space-y-5">
                 {doc.extraction_results && doc.extraction_results.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                       Extraction Results
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {doc.extraction_results.map((result, i) => (
-                        <div key={i} className="flex items-center justify-between rounded bg-background border px-2.5 py-1.5 text-xs">
+                        <div key={i} className="flex items-center justify-between rounded-lg bg-background border px-3.5 py-2.5 text-xs">
                           <span className="text-muted-foreground">{result.field}</span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             <span className="font-medium">{result.value}</span>
                             <ConfidenceBadge score={result.confidence} />
                           </div>
@@ -193,12 +192,12 @@ export function DocumentList({ documents }: DocumentListProps) {
 
                 {hasMissingSigs && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                       Missing Signatures
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {doc.missing_signatures!.map((sig, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+                        <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-red-50/80 px-3 py-1.5 text-xs font-medium text-red-600">
                           <PenLine className="h-3 w-3" />
                           {sig}
                         </span>
@@ -209,10 +208,10 @@ export function DocumentList({ documents }: DocumentListProps) {
 
                 {doc.has_addenda && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                       Addenda
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {doc.addenda_count ?? 'Unknown number of'} addend{(doc.addenda_count ?? 0) === 1 ? 'um' : 'a'} detected in this document.
                     </p>
                   </div>

@@ -1,52 +1,64 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Shield, Zap, CheckCircle2 } from 'lucide-react';
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white relative overflow-hidden px-6">
       {/* Subtle background pattern */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{
+      <div className="absolute inset-0 opacity-[0.02]" style={{
         backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)',
-        backgroundSize: '32px 32px',
+        backgroundSize: '40px 40px',
       }} />
 
-      <div className="relative z-10 w-full max-w-sm px-4">
-        <Card className="shadow-lg border-0 shadow-slate-200/60">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-md">
-              <FileText className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <CardTitle className="text-2xl">Deal Desk</CardTitle>
-            <CardDescription className="text-sm mt-1">
-              AI-powered real estate transaction management
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2.5">
-                <Zap className="h-4 w-4 text-amber-500 shrink-0" />
-                <span>Automated document extraction</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                <span>Smart checklists and timelines</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Shield className="h-4 w-4 text-blue-500 shrink-0" />
-                <span>Human-in-the-loop approvals</span>
-              </div>
-            </div>
+      <div className="relative z-10 w-full max-w-md text-center">
+        {/* Logo */}
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg">
+          <FileText className="h-8 w-8 text-primary-foreground" />
+        </div>
 
-            <Button asChild className="w-full" size="lg">
-              <a href="/auth/login">Sign in with Auth0</a>
-            </Button>
+        {/* App name */}
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          Deal Desk
+        </h1>
 
-            <p className="text-xs text-center text-muted-foreground">
-              Secure authentication powered by Auth0
-            </p>
-          </CardContent>
-        </Card>
+        {/* Tagline */}
+        <p className="mt-3 text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
+          AI-powered real estate transaction management
+        </p>
+
+        {/* Feature bullets */}
+        <div className="mt-10 space-y-4 text-left max-w-xs mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+              <Zap className="h-[18px] w-[18px] text-amber-500" />
+            </div>
+            <span className="text-sm text-muted-foreground">Automated document extraction</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50">
+              <CheckCircle2 className="h-[18px] w-[18px] text-green-500" />
+            </div>
+            <span className="text-sm text-muted-foreground">Smart checklists and timelines</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+              <Shield className="h-[18px] w-[18px] text-blue-500" />
+            </div>
+            <span className="text-sm text-muted-foreground">Human-in-the-loop approvals</span>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="mt-10">
+          <Button asChild className="w-full h-12 rounded-xl text-base font-medium shadow-sm" size="lg">
+            <a href="/auth/login">Sign in with Auth0</a>
+          </Button>
+        </div>
+
+        {/* Footer */}
+        <p className="mt-8 text-xs text-muted-foreground/60">
+          Secure authentication powered by Auth0
+        </p>
       </div>
     </div>
   );

@@ -34,91 +34,144 @@ export function TransactionForm() {
 
   return (
     <form action={handleSubmit}>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Transaction Details</CardTitle>
+      <div className="space-y-8">
+        {/* Transaction Details */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold tracking-tight">
+              Transaction Details
+            </CardTitle>
             <CardDescription>Basic information about this transaction</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Transaction Title</Label>
+          <CardContent>
+            <div className="space-y-2.5">
+              <Label htmlFor="title" className="text-sm font-medium">
+                Transaction Title
+              </Label>
               <Input
                 id="title"
                 name="title"
                 placeholder="e.g., 123 Main St Purchase"
                 required
+                className="h-10 rounded-lg"
+              />
+              <p className="text-xs text-muted-foreground">
+                A descriptive name to identify this transaction.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Property Address */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold tracking-tight">
+              Property Address
+            </CardTitle>
+            <CardDescription>Optional — can be extracted from documents later</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2.5">
+              <Label htmlFor="addressLine1" className="text-sm font-medium">
+                Address Line 1
+              </Label>
+              <Input
+                id="addressLine1"
+                name="addressLine1"
+                placeholder="123 Main Street"
+                className="h-10 rounded-lg"
               />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Property Address</CardTitle>
-            <CardDescription>Optional - can be extracted from documents later</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="addressLine1">Address Line 1</Label>
-              <Input id="addressLine1" name="addressLine1" placeholder="123 Main Street" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="addressLine2">Address Line 2</Label>
-              <Input id="addressLine2" name="addressLine2" placeholder="Suite 100" />
+            <div className="space-y-2.5">
+              <Label htmlFor="addressLine2" className="text-sm font-medium">
+                Address Line 2
+              </Label>
+              <Input
+                id="addressLine2"
+                name="addressLine2"
+                placeholder="Suite 100"
+                className="h-10 rounded-lg"
+              />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" name="city" placeholder="Denver" />
+              <div className="space-y-2.5">
+                <Label htmlFor="city" className="text-sm font-medium">City</Label>
+                <Input id="city" name="city" placeholder="Denver" className="h-10 rounded-lg" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
-                <Input id="state" name="state" placeholder="CO" maxLength={2} />
+              <div className="space-y-2.5">
+                <Label htmlFor="state" className="text-sm font-medium">State</Label>
+                <Input id="state" name="state" placeholder="CO" maxLength={2} className="h-10 rounded-lg" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="postalCode">Zip Code</Label>
-                <Input id="postalCode" name="postalCode" placeholder="80202" />
+              <div className="space-y-2.5">
+                <Label htmlFor="postalCode" className="text-sm font-medium">Zip Code</Label>
+                <Input id="postalCode" name="postalCode" placeholder="80202" className="h-10 rounded-lg" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Parties</CardTitle>
-            <CardDescription>Optional - can be extracted from documents later</CardDescription>
+        {/* Parties */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold tracking-tight">
+              Parties
+            </CardTitle>
+            <CardDescription>Optional — can be extracted from documents later</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="buyerName">Buyer Name</Label>
-                <Input id="buyerName" name="buyerName" placeholder="John Smith" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="buyerEmail">Buyer Email</Label>
-                <Input id="buyerEmail" name="buyerEmail" type="email" placeholder="john@example.com" />
+          <CardContent className="space-y-6">
+            {/* Buyer section */}
+            <div>
+              <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Buyer
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2.5">
+                  <Label htmlFor="buyerName" className="text-sm font-medium">Name</Label>
+                  <Input id="buyerName" name="buyerName" placeholder="John Smith" className="h-10 rounded-lg" />
+                </div>
+                <div className="space-y-2.5">
+                  <Label htmlFor="buyerEmail" className="text-sm font-medium">Email</Label>
+                  <Input id="buyerEmail" name="buyerEmail" type="email" placeholder="john@example.com" className="h-10 rounded-lg" />
+                </div>
               </div>
             </div>
+
             <Separator />
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sellerName">Seller Name</Label>
-                <Input id="sellerName" name="sellerName" placeholder="Jane Doe" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sellerEmail">Seller Email</Label>
-                <Input id="sellerEmail" name="sellerEmail" type="email" placeholder="jane@example.com" />
+
+            {/* Seller section */}
+            <div>
+              <p className="mb-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Seller
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2.5">
+                  <Label htmlFor="sellerName" className="text-sm font-medium">Name</Label>
+                  <Input id="sellerName" name="sellerName" placeholder="Jane Doe" className="h-10 rounded-lg" />
+                </div>
+                <div className="space-y-2.5">
+                  <Label htmlFor="sellerEmail" className="text-sm font-medium">Email</Label>
+                  <Input id="sellerEmail" name="sellerEmail" type="email" placeholder="jane@example.com" className="h-10 rounded-lg" />
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl px-6"
+            onClick={() => router.back()}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-xl px-8 h-11 text-sm font-medium"
+          >
             {isSubmitting ? 'Creating...' : 'Create Transaction'}
           </Button>
         </div>

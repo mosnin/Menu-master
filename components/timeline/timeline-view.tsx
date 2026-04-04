@@ -106,10 +106,10 @@ function formatEventDate(dateStr: string) {
 export function TimelineView({ events, transactionId }: TimelineViewProps) {
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-        <Calendar className="h-10 w-10 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium">No timeline events yet</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-md">
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
+        <Calendar className="h-10 w-10 text-muted-foreground/60 mb-4" />
+        <h3 className="text-lg font-semibold tracking-tight">No timeline events yet</h3>
+        <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
           Events will appear as documents are processed and milestones are reached.
         </p>
       </div>
@@ -139,56 +139,57 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {groups.map((group) => (
         <div key={group.label}>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 sticky top-0 bg-background py-1">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 sticky top-0 bg-background py-1.5">
             {group.label}
           </h4>
           <div className="relative">
-            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border" />
+            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border/50" />
             <div className="space-y-4">
               {group.events.map((event) => {
                 const dotColor = statusDotColors[event.status] ?? 'bg-gray-400 ring-gray-100';
                 const source = sourceConfig[event.source] ?? sourceConfig.system;
+                const isActive = event.status === 'in_progress';
 
                 return (
                   <div key={event.id} className="relative flex gap-4 pl-10">
-                    <div className={`absolute left-[10px] top-3.5 h-2.5 w-2.5 rounded-full ring-4 ${dotColor}`} />
-                    <div className={`flex-1 rounded-lg border p-3 transition-colors ${
-                      event.status === 'overdue' ? 'border-red-200 bg-red-50/40' :
-                      event.status === 'completed' ? 'border-green-100 bg-green-50/30' :
-                      ''
+                    <div className={`absolute left-[9px] top-4 h-3 w-3 rounded-full ring-4 transition-all duration-300 ${dotColor} ${isActive ? 'ring-[6px] scale-110' : ''}`} />
+                    <div className={`flex-1 rounded-xl border px-5 py-4 transition-all duration-200 hover:shadow-sm ${
+                      event.status === 'overdue' ? 'border-red-200/60 bg-red-50/30' :
+                      event.status === 'completed' ? 'border-emerald-100/60 bg-emerald-50/20' :
+                      'hover:bg-muted/10'
                     }`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <span className="shrink-0">
                             {eventIcons[event.event_type] ?? <Calendar className="h-4 w-4 text-muted-foreground" />}
                           </span>
-                          <p className="text-sm font-medium">{event.title}</p>
+                          <p className="text-sm font-semibold tracking-tight">{event.title}</p>
                         </div>
-                        <Badge variant={statusColors[event.status] ?? 'secondary'} className="shrink-0">
-                          {event.status}
+                        <Badge variant={statusColors[event.status] ?? 'secondary'} className="shrink-0 rounded-full px-3 py-0.5 capitalize">
+                          {event.status.replace(/_/g, ' ')}
                         </Badge>
                       </div>
                       {event.description && (
-                        <p className="text-xs text-muted-foreground mt-1 ml-6">{event.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1.5 ml-[26px] leading-relaxed">{event.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2 ml-6 flex-wrap">
+                      <div className="flex items-center gap-3 mt-3 ml-[26px] flex-wrap">
                         {event.event_date && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground/80">
                             <Clock className="h-3 w-3" />
                             {formatEventDate(event.event_date)}
                           </span>
                         )}
-                        <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium ${source.className}`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${source.className}`}>
                           {source.icon}
                           {source.label}
                         </span>
                         {event.related_document_id && transactionId && (
                           <a
                             href={`/transactions/${transactionId}/documents`}
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors duration-150"
                           >
                             <LinkIcon className="h-3 w-3" />
                             View document
@@ -197,7 +198,7 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
                         {event.related_approval_id && transactionId && (
                           <a
                             href={`/transactions/${transactionId}/communications`}
-                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors duration-150"
                           >
                             <ThumbsUp className="h-3 w-3" />
                             View approval

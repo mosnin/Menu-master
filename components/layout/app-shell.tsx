@@ -1,4 +1,7 @@
-import { Sidebar } from './sidebar';
+'use client';
+
+import { useState } from 'react';
+import { Sidebar, MobileSidebar } from './sidebar';
 import { Header } from './header';
 
 interface AppShellProps {
@@ -9,12 +12,30 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, userEmail, userName, userRole }: AppShellProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header userEmail={userEmail} userName={userName} userRole={userRole} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex flex-shrink-0">
+        <Sidebar />
+      </div>
+
+      {/* Mobile sidebar sheet */}
+      <MobileSidebar open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        <Header
+          userEmail={userEmail}
+          userName={userName}
+          userRole={userRole}
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
+        />
+        <main className="flex-1 overflow-y-auto">
+          <div className="content-max p-4 md:p-6 lg:p-8 xl:p-10">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

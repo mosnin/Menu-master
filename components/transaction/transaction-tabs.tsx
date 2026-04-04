@@ -23,7 +23,10 @@ export function TransactionTabs({ transactionId }: TransactionTabsProps) {
 
   return (
     <div className="border-b">
-      <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+      <nav
+        className="-mb-px flex gap-1 overflow-x-auto scroll-smooth snap-x snap-mandatory"
+        aria-label="Tabs"
+      >
         {tabs.map((tab) => {
           const href = `/transactions/${transactionId}/${tab.segment}`;
           const isActive = pathname === href;
@@ -32,10 +35,10 @@ export function TransactionTabs({ transactionId }: TransactionTabsProps) {
               key={tab.segment}
               href={href}
               className={cn(
-                'whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors',
+                'snap-start whitespace-nowrap rounded-lg px-4 py-2.5 text-sm transition-colors',
                 isActive
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground'
+                  ? 'bg-primary/10 font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
               {tab.name}
