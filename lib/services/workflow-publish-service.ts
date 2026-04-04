@@ -6,6 +6,69 @@ import { logAction } from '@/lib/audit/logger';
 import type { WorkflowGraphData, WorkflowVersion } from '@/types';
 
 // ---------------------------------------------------------------------------
+// Publish Governance
+// ---------------------------------------------------------------------------
+
+export class PublishGovernanceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PublishGovernanceError';
+  }
+}
+
+const STAGE_TRANSITION_NODE_TYPES = new Set([
+  'transition_transaction_stage',
+  'transition_listing_stage',
+]);
+
+/**
+ * Inspect a workflow graph and return an array of human-readable warnings that
+ * should be surfaced to the publisher before they confirm the publish action.
+ */
+export function getPublishWarnings(graphData: WorkflowGraphData): string[] {
+  const warnings: string[] = [];
+  const nodes = graphData.nodes ?? [];
+
+  const hasAgentNodes = nodes.some((n) => n.type.startsWith('agent_'));
+  if (hasAgentNodes) {
+    warnings.push(
+      'This workflow contains AI agent nodes that will execute automatically.',
+    );
+  }
+
+  const hasHumanCheckpoints = nodes.some((n) => n.type === 'human_checkpoint');
+  if (hasHumanCheckpoints) {
+    warnings.push(
+      'This workflow includes human checkpoints that will block execution until reviewed.',
+    );
+  }
+
+  const hasBranchingLogic = nodes.some(
+    (n) => n.type === 'condition' || n.type === 'branch',
+  );
+  if (!hasBranchingLogic) {
+    warnings.push(
+      'This workflow has no branching logic \u2014 all paths are unconditional.',
+    );
+  }
+
+  if (nodes.length > 15) {
+    warnings.push(
+      `This workflow has many nodes (${nodes.length}). Consider simplifying.`,
+    );
+  }
+
+  const hasStageTransition = nodes.some((n) =>
+    STAGE_TRANSITION_NODE_TYPES.has(n.type),
+  );
+  if (hasStageTransition) {
+    warnings.push('This workflow can automatically transition stages.');
+  }
+
+  return warnings;
+}
+
+// ---------------------------------------------------------------------------
 // Create a new draft version for a workflow
 // ---------------------------------------------------------------------------
 
@@ -89,7 +152,14 @@ export async function validateDraft(
 export async function publishVersion(
   versionId: string,
   userId: string,
+  publisherRole?: string,
 ): Promise<WorkflowVersion> {
+  if (publisherRole && publisherRole !== 'broker_admin') {
+    throw new PublishGovernanceError(
+      'Only users with the broker_admin role may publish workflow versions.',
+    );
+  }
+
   const version = await versionRepo.findById(versionId);
   if (!version) throw new Error('Version not found');
   if (version.status !== 'validated') {

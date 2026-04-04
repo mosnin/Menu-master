@@ -532,6 +532,143 @@ export async function startManualRun(
 }
 
 // ---------------------------------------------------------------------------
+// Pause a running run
+// ---------------------------------------------------------------------------
+
+export async function pauseRun(runId: string): Promise<void> {
+  const run = await workflowRunsRepo.findById(runId);
+  if (!run) throw new Error('Workflow run not found');
+  if (run.status !== 'running') {
+    throw new Error(`Cannot pause run: status is "${run.status}"`);
+  }
+
+  await workflowRunsRepo.update(runId, {
+    status: 'waiting',
+    context_data: { ...run.context_data, pause_reason: 'manual_pause' },
+  });
+
+  await logAction({
+    organizationId: run.organization_id,
+    actorType: 'system',
+    action: 'workflow.run_paused',
+    targetType: 'workflow_run',
+    targetId: runId,
+    metadata: { workflow_id: run.workflow_id },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Resume a manually paused run
+// ---------------------------------------------------------------------------
+
+export async function resumePausedRun(runId: string): Promise<void> {
+  const run = await workflowRunsRepo.findById(runId);
+  if (!run) throw new Error('Workflow run not found');
+  if (run.status !== 'waiting') {
+    throw new Error(`Cannot resume run: status is "${run.status}"`);
+  }
+  if (run.context_data?.pause_reason !== 'manual_pause') {
+    throw new Error('Run is not manually paused — use resumeWaitingRun for event-based waits');
+  }
+
+  const { pause_reason: _, ...restContext } = run.context_data;
+  await workflowRunsRepo.update(runId, {
+    status: 'running',
+    context_data: restContext,
+  });
+
+  await logAction({
+    organizationId: run.organization_id,
+    actorType: 'system',
+    action: 'workflow.run_resumed',
+    targetType: 'workflow_run',
+    targetId: runId,
+    metadata: { workflow_id: run.workflow_id },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Override a failed/waiting step
+// ---------------------------------------------------------------------------
+
+export async function overrideStep(
+  runId: string,
+  stepId: string,
+  overrideOutput: Record<string, unknown>,
+): Promise<void> {
+  const run = await workflowRunsRepo.findById(runId);
+  if (!run) throw new Error('Workflow run not found');
+
+  const step = await workflowRunStepsRepo.findById(stepId);
+  if (!step) throw new Error('Step not found');
+  if (step.run_id !== runId) throw new Error('Step does not belong to this run');
+  if (step.status !== 'failed' && step.status !== 'waiting') {
+    throw new Error(`Cannot override step: status is "${step.status}"`);
+  }
+
+  // Mark the step as completed with the override output
+  await workflowRunStepsRepo.update(stepId, {
+    status: 'completed',
+    output_data: overrideOutput,
+    completed_at: new Date().toISOString(),
+  });
+
+  // Merge override output into run context
+  const updatedContext = { ...run.context_data, ...overrideOutput };
+
+  // Get the workflow graph to find the next nodes
+  const version = await workflowVersionsRepo.findById(run.workflow_version_id);
+  if (!version) throw new Error('Workflow version not found');
+
+  const graph: WorkflowGraphData = version.graph_data;
+  const outgoingEdges = graph.edges
+    .filter((e) => e.source_node_id === step.node_id)
+    .sort((a, b) => a.order - b.order);
+
+  // Set the run back to running and update context
+  await workflowRunsRepo.update(runId, {
+    status: 'running',
+    context_data: updatedContext,
+  });
+
+  await logAction({
+    organizationId: run.organization_id,
+    actorType: 'system',
+    action: 'workflow.step_overridden',
+    targetType: 'workflow_run_step',
+    targetId: stepId,
+    metadata: { run_id: runId, node_id: step.node_id },
+  });
+
+  // Execute the next nodes
+  for (const edge of outgoingEdges) {
+    await executeStep(runId, edge.target_node_id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Re-run a workflow from an existing run
+// ---------------------------------------------------------------------------
+
+export async function rerunWorkflow(originalRunId: string): Promise<string> {
+  const originalRun = await workflowRunsRepo.findById(originalRunId);
+  if (!originalRun) throw new Error('Original workflow run not found');
+
+  const newRun = await startWorkflowRun(
+    originalRun.workflow_version_id,
+    originalRun.organization_id,
+    originalRun.trigger_event_type ?? 'manual_trigger',
+    originalRun.trigger_payload ?? {},
+    {
+      entityType: originalRun.entity_type ?? undefined,
+      entityId: originalRun.entity_id ?? undefined,
+    },
+  );
+
+  return newRun.id;
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
 
