@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge';
 import {
   Calendar,
   FileText,
@@ -47,14 +46,6 @@ const eventIcons: Record<string, React.ReactNode> = {
   reminder_scheduled: <Bell className="h-4 w-4 text-yellow-600" />,
   title_search: <Shield className="h-4 w-4 text-cyan-600" />,
   appraisal: <DollarSign className="h-4 w-4 text-amber-600" />,
-};
-
-const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
-  upcoming: 'secondary',
-  in_progress: 'default',
-  completed: 'success',
-  overdue: 'destructive',
-  cancelled: 'secondary',
 };
 
 const statusDotColors: Record<string, string> = {
@@ -139,14 +130,14 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {groups.map((group) => (
         <div key={group.label}>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 sticky top-0 bg-background py-1.5">
+          <h4 className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-5 sticky top-0 bg-background py-2 z-10">
             {group.label}
           </h4>
           <div className="relative">
-            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border/50" />
+            <div className="absolute left-[15px] top-0 bottom-0 w-px bg-border/30" />
             <div className="space-y-4">
               {group.events.map((event) => {
                 const dotColor = statusDotColors[event.status] ?? 'bg-gray-400 ring-gray-100';
@@ -155,10 +146,10 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
 
                 return (
                   <div key={event.id} className="relative flex gap-4 pl-10">
-                    <div className={`absolute left-[9px] top-4 h-3 w-3 rounded-full ring-4 transition-all duration-300 ${dotColor} ${isActive ? 'ring-[6px] scale-110' : ''}`} />
-                    <div className={`flex-1 rounded-xl border px-5 py-4 transition-all duration-200 hover:shadow-sm ${
-                      event.status === 'overdue' ? 'border-red-200/60 bg-red-50/30' :
-                      event.status === 'completed' ? 'border-emerald-100/60 bg-emerald-50/20' :
+                    <div className={`absolute left-[9px] top-[18px] h-3 w-3 rounded-full ring-4 transition-all duration-300 ${dotColor} ${isActive ? 'ring-[6px] scale-110' : ''}`} />
+                    <div className={`flex-1 rounded-xl border px-5 py-[18px] transition-all duration-300 hover:shadow-md hover:shadow-black/[0.04] ${
+                      event.status === 'overdue' ? 'border-red-200/50 bg-red-50/20' :
+                      event.status === 'completed' ? 'border-emerald-100/50 bg-emerald-50/15' :
                       'hover:bg-muted/10'
                     }`}>
                       <div className="flex items-start justify-between gap-3">
@@ -168,21 +159,27 @@ export function TimelineView({ events, transactionId }: TimelineViewProps) {
                           </span>
                           <p className="text-sm font-semibold tracking-tight">{event.title}</p>
                         </div>
-                        <Badge variant={statusColors[event.status] ?? 'secondary'} className="shrink-0 rounded-full px-3 py-0.5 capitalize">
+                        <span className={`shrink-0 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium capitalize ${
+                          event.status === 'completed' ? 'bg-emerald-50/70 text-emerald-600' :
+                          event.status === 'overdue' ? 'bg-red-50/70 text-red-600' :
+                          event.status === 'in_progress' ? 'bg-blue-50/70 text-blue-600' :
+                          event.status === 'cancelled' ? 'bg-gray-100/70 text-gray-500' :
+                          'bg-gray-100/70 text-gray-600'
+                        }`}>
                           {event.status.replace(/_/g, ' ')}
-                        </Badge>
+                        </span>
                       </div>
                       {event.description && (
                         <p className="text-xs text-muted-foreground mt-1.5 ml-[26px] leading-relaxed">{event.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-3 ml-[26px] flex-wrap">
+                      <div className="flex items-center gap-3 mt-3.5 ml-[26px] flex-wrap">
                         {event.event_date && (
-                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground/80">
+                          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                             <Clock className="h-3 w-3" />
                             {formatEventDate(event.event_date)}
                           </span>
                         )}
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${source.className}`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${source.className}`}>
                           {source.icon}
                           {source.label}
                         </span>

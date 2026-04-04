@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   ScrollText,
   Bot,
@@ -36,15 +34,15 @@ interface AuditEntry {
 const actorConfig: Record<string, { icon: React.ReactNode; className: string }> = {
   user: {
     icon: <User className="h-3.5 w-3.5" />,
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
+    className: 'bg-blue-50/70 text-blue-600',
   },
   system: {
     icon: <Monitor className="h-3.5 w-3.5" />,
-    className: 'bg-gray-50 text-gray-700 border-gray-200',
+    className: 'bg-gray-100/70 text-gray-600',
   },
   ai: {
     icon: <Bot className="h-3.5 w-3.5" />,
-    className: 'bg-violet-50 text-violet-700 border-violet-200',
+    className: 'bg-violet-50/70 text-violet-600',
   },
 };
 
@@ -77,9 +75,9 @@ function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-xl border overflow-hidden">
       {/* Header */}
-      <div className="grid grid-cols-[160px_120px_1fr_140px_140px] gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
+      <div className="grid grid-cols-[160px_120px_1fr_140px_140px] gap-2 px-5 py-3 bg-muted/30 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider border-b">
         <span>Timestamp</span>
         <span>Actor</span>
         <span>Action</span>
@@ -97,8 +95,8 @@ function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
           return (
             <div key={entry.id}>
               <div
-                className={`grid grid-cols-[160px_120px_1fr_140px_140px] gap-2 px-4 py-2.5 items-center text-sm transition-colors ${
-                  hasMetadata ? 'cursor-pointer hover:bg-muted/30' : ''
+                className={`grid grid-cols-[160px_120px_1fr_140px_140px] gap-2 px-5 py-3.5 items-center text-sm transition-colors duration-200 ${
+                  hasMetadata ? 'cursor-pointer hover:bg-muted/20' : ''
                 }`}
                 onClick={() => hasMetadata && setExpandedId(isExpanded ? null : entry.id)}
               >
@@ -110,7 +108,7 @@ function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
 
                 {/* Actor */}
                 <div>
-                  <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium ${actor.className}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${actor.className}`}>
                     {actor.icon}
                     {entry.actor_type === 'ai' ? 'AI' : entry.actor_type.charAt(0).toUpperCase() + entry.actor_type.slice(1)}
                   </span>
@@ -146,13 +144,13 @@ function AuditLogTable({ entries }: { entries: AuditEntry[] }) {
 
               {/* Expanded metadata */}
               {isExpanded && hasMetadata && (
-                <div className="px-4 pb-3 pt-1 bg-muted/10 border-t">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                <div className="px-6 pb-4 pt-2 bg-muted/[0.04] border-t">
+                  <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-3">
                     Metadata
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {Object.entries(entry.metadata!).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between rounded bg-background border px-2.5 py-1.5 text-xs">
+                      <div key={key} className="flex items-center justify-between rounded-lg bg-background border border-border/60 px-3.5 py-2.5 text-xs">
                         <span className="text-muted-foreground">{key.replace(/_/g, ' ')}</span>
                         <span className="font-medium font-mono text-xs">
                           {typeof value === 'object' ? JSON.stringify(value) : String(value)}
@@ -174,19 +172,19 @@ export default function AuditLogPage() {
   const entries: AuditEntry[] = []; // populated by data fetching
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-lg font-semibold">Audit Log</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-lg font-semibold tracking-tight">Audit Log</h2>
+        <p className="text-sm text-muted-foreground/80 mt-1">
           Complete history of actions for this transaction.
         </p>
       </div>
 
       {entries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border">
-          <ScrollText className="h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No audit entries yet</p>
-          <p className="text-xs text-muted-foreground mt-1">
+        <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border">
+          <ScrollText className="h-8 w-8 text-muted-foreground/40 mb-4" />
+          <p className="text-sm font-medium text-muted-foreground">No audit entries yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-1.5 max-w-md leading-relaxed">
             All actions including document uploads, extractions, approvals, and emails are logged here.
           </p>
         </div>

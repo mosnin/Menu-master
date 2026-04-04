@@ -70,6 +70,7 @@ export async function generateChecklistFromExtraction(
     source: 'ai_generated' as const,
     requires_review: item.requires_review,
     completed_at: null,
+    assigned_to_user_id: null,
   }));
 
   const { data, error } = await supabase
@@ -112,6 +113,7 @@ export async function generateDefaultChecklist(
     source: 'template' as const,
     requires_review: false,
     completed_at: null,
+    assigned_to_user_id: null,
   }));
 
   const { data, error } = await supabase

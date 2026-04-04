@@ -27,6 +27,7 @@ export async function createApproval(
     payload_json: params.payload ?? null,
     decision_notes: null,
     decided_at: null,
+    assigned_reviewer_id: null,
   });
 
   await logAction({

@@ -73,6 +73,7 @@ export async function addChecklistItemAction(data: {
     source: data.source ?? 'manual',
     requires_review: data.requiresReview ?? false,
     completed_at: null,
+    assigned_to_user_id: null,
   });
 
   await logAction({

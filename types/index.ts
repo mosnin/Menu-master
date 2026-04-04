@@ -82,6 +82,37 @@ export type DocumentType = string; // Free-form; no fixed set of values
 
 export type EventType = string; // Free-form; no fixed set of values
 
+// Phase 2 union types
+
+export type ReadinessState =
+  | 'not_ready'
+  | 'needs_attention'
+  | 'nearly_ready'
+  | 'ready';
+
+export type ExceptionSeverity = 'info' | 'warning' | 'critical';
+
+export type ExceptionResolutionStatus = 'open' | 'acknowledged' | 'resolved';
+
+export type RecommendationStatus = 'pending' | 'executed' | 'dismissed';
+
+export type CommentEntityType = 'transaction' | 'document' | 'approval';
+
+export type CommunicationProvider = 'google' | 'microsoft';
+
+export type MessageDirection = 'inbound' | 'outbound';
+
+export type SyncStatus = 'active' | 'paused' | 'error' | 'disconnected';
+
+export type LinkedBy = 'auto' | 'manual';
+
+export type PacketIngestionStatus =
+  | 'pending'
+  | 'processing'
+  | 'classifying'
+  | 'completed'
+  | 'failed';
+
 // -----------------------------------------------------------------------------
 // Database row types
 // -----------------------------------------------------------------------------
@@ -199,6 +230,7 @@ export interface ChecklistItem {
   source: ChecklistItemSource;
   requires_review: boolean;
   completed_at: string | null;
+  assigned_to_user_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -224,6 +256,7 @@ export interface Approval {
   status: ApprovalStatus;
   requested_by_user_id: string;
   decided_by_user_id: string | null;
+  assigned_reviewer_id: string | null;
   payload_json: Record<string, unknown> | null;
   decision_notes: string | null;
   decided_at: string | null;
@@ -272,4 +305,215 @@ export interface AuditLog {
   target_id: string | null;
   metadata_json: Record<string, unknown> | null;
   created_at: string;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 2 database row types
+// -----------------------------------------------------------------------------
+
+export interface ExtractedFieldValue {
+  id: string;
+  document_id: string;
+  extraction_id: string;
+  field_name: string;
+  extracted_value: string;
+  corrected_value: string | null;
+  corrected_by_user_id: string | null;
+  corrected_at: string | null;
+  is_locked: boolean;
+  confidence_score: number | null;
+  source_page: number | null;
+  created_at: string;
+}
+
+export interface FieldCorrection {
+  id: string;
+  field_value_id: string;
+  previous_value: string;
+  new_value: string;
+  corrected_by_user_id: string;
+  correction_reason: string | null;
+  created_at: string;
+}
+
+export interface TransactionCompleteness {
+  id: string;
+  transaction_id: string;
+  readiness_state: ReadinessState;
+  completeness_score: number;
+  missing_documents: Record<string, unknown>[];
+  missing_signatures: Record<string, unknown>[];
+  missing_dates: Record<string, unknown>[];
+  missing_financing: Record<string, unknown>[];
+  unresolved_reviews: number;
+  blockers: Record<string, unknown>[];
+  computed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionException {
+  id: string;
+  transaction_id: string;
+  exception_type: string;
+  severity: ExceptionSeverity;
+  title: string;
+  description: string | null;
+  resolution_status: ExceptionResolutionStatus;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionRecommendation {
+  id: string;
+  transaction_id: string;
+  title: string;
+  reason: string;
+  confidence: number;
+  risk_level: string;
+  source_signals: Record<string, unknown>[];
+  suggested_owner_id: string | null;
+  action_type: string;
+  action_payload: Record<string, unknown>;
+  status: RecommendationStatus;
+  executed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransactionAssignment {
+  id: string;
+  transaction_id: string;
+  primary_agent_id: string | null;
+  coordinator_owner_id: string | null;
+  broker_reviewer_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Comment {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  parent_comment_id: string | null;
+  author_user_id: string;
+  body: string;
+  is_resolved: boolean;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  entity_type: CommentEntityType;
+  entity_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Mention {
+  id: string;
+  comment_id: string;
+  mentioned_user_id: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface CommunicationThread {
+  id: string;
+  organization_id: string;
+  transaction_id: string | null;
+  provider: CommunicationProvider;
+  external_thread_id: string;
+  subject: string;
+  last_message_at: string;
+  participant_emails: string[];
+  is_linked: boolean;
+  linked_by: LinkedBy | null;
+  link_confidence: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommunicationMessage {
+  id: string;
+  thread_id: string;
+  external_message_id: string;
+  direction: MessageDirection;
+  from_email: string;
+  to_emails: string[];
+  cc_emails: string[];
+  subject: string;
+  body_text: string;
+  body_html: string | null;
+  sent_at: string;
+  has_attachments: boolean;
+  attachment_count: number;
+  created_at: string;
+}
+
+export interface EmailAccountConnection {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  provider: CommunicationProvider;
+  email_address: string;
+  access_token_encrypted: string;
+  refresh_token_encrypted: string;
+  token_expires_at: string;
+  sync_status: SyncStatus;
+  last_sync_at: string | null;
+  sync_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QueueView {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  name: string;
+  queue_type: string;
+  filters: Record<string, unknown>;
+  sort_order: Record<string, unknown> | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationRule {
+  id: string;
+  organization_id: string;
+  rule_type: string;
+  rule_config: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationTemplate {
+  id: string;
+  organization_id: string;
+  template_type: string;
+  transaction_type: string | null;
+  name: string;
+  description: string | null;
+  template_data: Record<string, unknown>;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PacketIngestion {
+  id: string;
+  organization_id: string;
+  transaction_id: string | null;
+  status: PacketIngestionStatus;
+  file_count: number;
+  classification_results: Record<string, unknown> | null;
+  created_by_user_id: string;
+  processing_started_at: string | null;
+  processing_completed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
 }
