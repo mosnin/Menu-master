@@ -24,7 +24,8 @@ import {
 import { VALID_NODE_TYPES } from '@/lib/services/workflow-graph-validator';
 
 import type { WorkflowNodeType } from '@/types';
-import type { AgentNodeResult, AgentNodeDefinition, AgentArchetype } from '@/lib/ai/agent-nodes/types';
+import type { AgentNodeResult, AgentNodeDefinition, AgentArchetype, FailureFallback, MemoryScope } from '@/lib/ai/agent-nodes/types';
+import { applyScopeFilter } from '@/lib/ai/agent-nodes/safety';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -38,8 +39,10 @@ function makeResult(overrides?: Partial<AgentNodeResult>): AgentNodeResult {
     model: 'gpt-4o',
     latency_ms: 1200,
     retries_used: 0,
+    confidence: null,
     safety_flags: [],
     truncated: false,
+    fallback_used: null,
     ...overrides,
   };
 }
@@ -111,8 +114,12 @@ describe('Safety Constraints', () => {
     expect(DEFAULT_SAFETY.require_human_review).toBe(true);
     expect(DEFAULT_SAFETY.max_tokens).toBeGreaterThan(0);
     expect(DEFAULT_SAFETY.max_retries).toBeGreaterThanOrEqual(0);
+    expect(DEFAULT_SAFETY.max_steps).toBeGreaterThanOrEqual(1);
     expect(DEFAULT_SAFETY.timeout_ms).toBeGreaterThan(0);
     expect(DEFAULT_SAFETY.max_cost_cents).toBeGreaterThan(0);
+    expect(DEFAULT_SAFETY.confidence_threshold).toBeDefined();
+    expect(DEFAULT_SAFETY.failure_fallback).toBe('escalate_to_human');
+    expect(DEFAULT_SAFETY.memory_scope).toBe('workflow_context');
   });
 
   it('validateAgentOutput passes for clean output', () => {
@@ -286,5 +293,128 @@ describe('Type Integration', () => {
     for (const t of AGENT_NODE_TYPES) {
       expect(VALID_NODE_TYPES.has(t)).toBe(true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group 6: Confidence Threshold
+// ---------------------------------------------------------------------------
+
+describe('Confidence Threshold', () => {
+  it('validateAgentOutput passes when confidence is above threshold', () => {
+    const result = makeResult({ confidence: 0.9 });
+    const safety = { ...DEFAULT_SAFETY, confidence_threshold: 0.5 };
+    const { valid } = validateAgentOutput(result, safety);
+    expect(valid).toBe(true);
+  });
+
+  it('validateAgentOutput fails when confidence is below threshold', () => {
+    const result = makeResult({ confidence: 0.3 });
+    const safety = { ...DEFAULT_SAFETY, confidence_threshold: 0.5 };
+    const { valid, violations } = validateAgentOutput(result, safety);
+    expect(valid).toBe(false);
+    expect(violations.some((v) => v.includes('Confidence below threshold'))).toBe(true);
+  });
+
+  it('validateAgentOutput passes when threshold is 0 (accept all)', () => {
+    const result = makeResult({ confidence: 0.1 });
+    const safety = { ...DEFAULT_SAFETY, confidence_threshold: 0 };
+    const { valid } = validateAgentOutput(result, safety);
+    expect(valid).toBe(true);
+  });
+
+  it('validateAgentOutput passes when confidence is null (not reported)', () => {
+    const result = makeResult({ confidence: null });
+    const safety = { ...DEFAULT_SAFETY, confidence_threshold: 0.8 };
+    const { valid } = validateAgentOutput(result, safety);
+    expect(valid).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group 7: Memory Scope
+// ---------------------------------------------------------------------------
+
+describe('Memory Scope', () => {
+  const fullContext = {
+    transaction: { id: 't1', type: 'sale' },
+    transaction_id: 't1',
+    listing: { id: 'l1', price: 500000 },
+    listing_id: 'l1',
+    other_data: 'should be filtered',
+  };
+
+  it('workflow_context returns full context', () => {
+    const scoped = applyScopeFilter(fullContext, 'workflow_context');
+    expect(Object.keys(scoped).length).toBe(Object.keys(fullContext).length);
+  });
+
+  it('step_local returns empty context', () => {
+    const scoped = applyScopeFilter(fullContext, 'step_local');
+    expect(Object.keys(scoped)).toHaveLength(0);
+  });
+
+  it('transaction_scoped returns only transaction keys', () => {
+    const scoped = applyScopeFilter(fullContext, 'transaction_scoped');
+    expect(scoped).toHaveProperty('transaction');
+    expect(scoped).toHaveProperty('transaction_id');
+    expect(scoped).not.toHaveProperty('listing');
+    expect(scoped).not.toHaveProperty('other_data');
+  });
+
+  it('listing_scoped returns only listing keys', () => {
+    const scoped = applyScopeFilter(fullContext, 'listing_scoped');
+    expect(scoped).toHaveProperty('listing');
+    expect(scoped).toHaveProperty('listing_id');
+    expect(scoped).not.toHaveProperty('transaction');
+    expect(scoped).not.toHaveProperty('other_data');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group 8: Failure Fallback
+// ---------------------------------------------------------------------------
+
+describe('Failure Fallback', () => {
+  it('all definitions have a valid failure_fallback strategy', () => {
+    const validStrategies: FailureFallback[] = ['use_default_output', 'escalate_to_human', 'skip', 'abort_run'];
+    for (const def of getAllAgentNodeDefinitions()) {
+      expect(validStrategies).toContain(def.safety.failure_fallback);
+    }
+  });
+
+  it('all definitions have a valid memory_scope', () => {
+    const validScopes: MemoryScope[] = ['step_local', 'workflow_context', 'transaction_scoped', 'listing_scoped'];
+    for (const def of getAllAgentNodeDefinitions()) {
+      expect(validScopes).toContain(def.safety.memory_scope);
+    }
+  });
+
+  it('all definitions have max_steps >= 1', () => {
+    for (const def of getAllAgentNodeDefinitions()) {
+      expect(def.safety.max_steps).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('all definitions have confidence_threshold between 0 and 1', () => {
+    for (const def of getAllAgentNodeDefinitions()) {
+      expect(def.safety.confidence_threshold).toBeGreaterThanOrEqual(0);
+      expect(def.safety.confidence_threshold).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('document classifier uses step_local memory scope', () => {
+    const def = getAgentNodeDefinition('agent_document_classifier')!;
+    expect(def.safety.memory_scope).toBe('step_local');
+  });
+
+  it('exception triage uses transaction_scoped memory', () => {
+    const def = getAgentNodeDefinition('agent_exception_triage_classifier')!;
+    expect(def.safety.memory_scope).toBe('transaction_scoped');
+  });
+
+  it('offer explanation uses listing_scoped memory', () => {
+    const def = getAgentNodeDefinition('agent_offer_explanation')!;
+    expect(def.safety.memory_scope).toBe('listing_scoped');
   });
 });

@@ -5,11 +5,15 @@ import { logger } from '@/lib/logger';
 export const DEFAULT_SAFETY: AgentSafetyConstraints = {
   max_tokens: 2048,
   max_retries: 2,
+  max_steps: 1,
   timeout_ms: 30000,
   allowed_tools: [],
   blocked_actions: ['delete_transaction', 'delete_listing', 'send_email', 'transfer_funds'],
   require_human_review: true,
   max_cost_cents: 10,
+  confidence_threshold: 0,
+  failure_fallback: 'escalate_to_human',
+  memory_scope: 'workflow_context',
   pii_scrub: false,
 };
 
@@ -79,6 +83,13 @@ export function validateAgentOutput(
     violations.push(`Token limit exceeded: ${result.token_usage.completion_tokens} > ${safety.max_tokens}`);
   }
 
+  // Check confidence threshold
+  if (safety.confidence_threshold > 0 && result.confidence !== null) {
+    if (result.confidence < safety.confidence_threshold) {
+      violations.push(`Confidence below threshold: ${result.confidence} < ${safety.confidence_threshold}`);
+    }
+  }
+
   // Check for blocked action references in output
   const outputStr = JSON.stringify(result.output).toLowerCase();
   for (const blocked of safety.blocked_actions) {
@@ -88,6 +99,32 @@ export function validateAgentOutput(
   }
 
   return { valid: violations.length === 0, violations };
+}
+
+// Apply memory scope filtering to context
+export function applyScopeFilter(
+  context: Record<string, unknown>,
+  scope: AgentSafetyConstraints['memory_scope'],
+): Record<string, unknown> {
+  switch (scope) {
+    case 'step_local':
+      return {};
+    case 'transaction_scoped':
+      return pickKeys(context, ['transaction', 'transaction_id', 'transaction_summary', 'transaction_data', 'transaction_type']);
+    case 'listing_scoped':
+      return pickKeys(context, ['listing', 'listing_id', 'listing_details', 'listing_summary', 'listing_stage']);
+    case 'workflow_context':
+    default:
+      return context;
+  }
+}
+
+function pickKeys(obj: Record<string, unknown>, keys: string[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in obj) result[key] = obj[key];
+  }
+  return result;
 }
 
 // Estimate cost in cents based on token usage (GPT-4o pricing approximation)

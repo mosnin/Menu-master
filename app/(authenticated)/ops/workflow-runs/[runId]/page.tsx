@@ -8,6 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Clock, Loader2, SkipForward, Pause } from 'lucide-react';
 import { getWorkflowRunAction } from '@/app/actions/workflow-actions';
 import { formatDate, formatDateTime, humanizeStatus } from '@/lib/format';
+import { AgentNodeInspector } from '@/components/workflow/agent-node-inspector';
+import { isAgentNodeType } from '@/lib/ai/agent-nodes/registry';
+import { getAgentNodeDefinition } from '@/lib/ai/agent-nodes/registry';
+import '@/lib/ai/agent-nodes/definitions'; // Ensure definitions are registered
+import type { AgentNodeResult } from '@/lib/ai/agent-nodes/types';
 import type { WorkflowRun, WorkflowRunStep } from '@/types';
 
 const runStatusColor: Record<string, string> = {
@@ -216,6 +221,16 @@ export default function WorkflowRunDetailPage() {
                         {step.error_message && (
                           <div className="mt-2 rounded-md bg-red-50 px-3 py-2">
                             <p className="text-[11px] text-red-700">{step.error_message}</p>
+                          </div>
+                        )}
+
+                        {/* Agent node inspection */}
+                        {isAgentNodeType(step.node_type) && step.output_data && (
+                          <div className="mt-3">
+                            <AgentNodeInspector
+                              result={(step.output_data as Record<string, unknown>).agent_result as AgentNodeResult ?? null}
+                              definition={getAgentNodeDefinition(step.node_type as Parameters<typeof getAgentNodeDefinition>[0]) ?? null}
+                            />
                           </div>
                         )}
                       </CardContent>

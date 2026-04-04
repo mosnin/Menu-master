@@ -2,12 +2,14 @@ import { getOpenAIClient } from '@/lib/ai/client';
 import { logger } from '@/lib/logger';
 import type { AgentNodeDefinition, AgentNodeResult, AgentNodeType } from './types';
 import { getAgentNodeDefinition } from './registry';
+import type { FailureFallback } from './types';
 import {
   isCircuitOpen,
   recordSuccess,
   recordFailure,
   validateAgentOutput,
   estimateCostCents,
+  applyScopeFilter,
   DEFAULT_SAFETY,
 } from './safety';
 
@@ -20,12 +22,23 @@ export async function executeAgentNode(
   const definition = getAgentNodeDefinition(agentType);
 
   if (!definition) {
-    return makeErrorResult(agentType, startTime, `Unknown agent node type: ${agentType}`);
+    return {
+      success: false,
+      output: { error: `Unknown agent node type: ${agentType}` },
+      token_usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+      model: 'none',
+      latency_ms: Date.now() - startTime,
+      retries_used: 0,
+      confidence: null,
+      safety_flags: ['execution_failed'],
+      truncated: false,
+      fallback_used: null,
+    };
   }
 
   // Circuit breaker check
   if (isCircuitOpen(agentType)) {
-    return makeErrorResult(agentType, startTime, `Circuit breaker open for ${agentType}. Too many recent failures.`);
+    return applyFallback(definition, startTime, `Circuit breaker open for ${agentType}. Too many recent failures.`);
   }
 
   const safety = { ...DEFAULT_SAFETY, ...definition.safety };
@@ -35,6 +48,9 @@ export async function executeAgentNode(
     // Mock fallback
     return makeMockResult(definition, input, startTime);
   }
+
+  // Apply memory scope filtering
+  const scopedContext = applyScopeFilter(sanitizeContext(workflowContext), safety.memory_scope);
 
   let retries = 0;
   while (retries <= safety.max_retries) {
@@ -54,7 +70,7 @@ export async function executeAgentNode(
               role: 'user',
               content: JSON.stringify({
                 input,
-                context: sanitizeContext(workflowContext),
+                context: scopedContext,
               }),
             },
           ],
@@ -76,6 +92,9 @@ export async function executeAgentNode(
         total_tokens: response.usage?.total_tokens ?? 0,
       };
 
+      // Extract confidence from output if present
+      const confidence = typeof output.confidence === 'number' ? output.confidence : null;
+
       const costCents = estimateCostCents(tokenUsage);
       const safetyFlags: string[] = [];
 
@@ -94,15 +113,25 @@ export async function executeAgentNode(
         model: 'gpt-4o',
         latency_ms: Date.now() - startTime,
         retries_used: retries,
+        confidence,
         safety_flags: safetyFlags,
         truncated: (response.choices[0]?.finish_reason === 'length'),
+        fallback_used: null,
       };
 
-      // Validate output against safety constraints
+      // Validate output against safety constraints (including confidence threshold)
       const validation = validateAgentOutput(result, safety);
       if (!validation.valid) {
         result.safety_flags.push(...validation.violations);
         logger.warn('Agent output safety violation', { agentType, violations: validation.violations });
+
+        // If confidence is below threshold, apply fallback
+        const belowThreshold = safety.confidence_threshold > 0
+          && confidence !== null
+          && confidence < safety.confidence_threshold;
+        if (belowThreshold) {
+          return applyFallback(definition, startTime, `Confidence ${confidence} below threshold ${safety.confidence_threshold}`);
+        }
       }
 
       recordSuccess(agentType);
@@ -112,7 +141,7 @@ export async function executeAgentNode(
       retries++;
       if (retries > safety.max_retries) {
         recordFailure(agentType);
-        return makeErrorResult(agentType, startTime, `Failed after ${retries} attempts: ${err instanceof Error ? err.message : String(err)}`);
+        return applyFallback(definition, startTime, `Failed after ${retries} attempts: ${err instanceof Error ? err.message : String(err)}`);
       }
       // Brief pause before retry
       await new Promise(r => setTimeout(r, 500 * retries));
@@ -120,7 +149,7 @@ export async function executeAgentNode(
   }
 
   // Should not reach here
-  return makeErrorResult(agentType, startTime, 'Unexpected executor state');
+  return applyFallback(definition, startTime, 'Unexpected executor state');
 }
 
 function buildSystemPrompt(definition: AgentNodeDefinition, safety: typeof DEFAULT_SAFETY): string {
@@ -130,8 +159,17 @@ function buildSystemPrompt(definition: AgentNodeDefinition, safety: typeof DEFAU
     '',
     'CONSTRAINTS:',
     `- Maximum output tokens: ${safety.max_tokens}`,
-    `- You must NEVER perform these actions: ${safety.blocked_actions.join(', ')}`,
+    `- Maximum reasoning steps: ${safety.max_steps}`,
+    safety.blocked_actions.length > 0
+      ? `- You must NEVER perform these actions: ${safety.blocked_actions.join(', ')}`
+      : '',
+    safety.allowed_tools.length > 0
+      ? `- You may ONLY use these tools: ${safety.allowed_tools.join(', ')}`
+      : '- You have NO tool access. Do not attempt to call any tools.',
     `- Your output must be valid JSON.`,
+    safety.confidence_threshold > 0
+      ? `- Include a "confidence" field (0-1) in your output. Minimum accepted: ${safety.confidence_threshold}.`
+      : '- Include a "confidence" field (0-1) in your output.',
     safety.require_human_review
       ? '- Your output will be reviewed by a human before any action is taken.'
       : '',
@@ -161,21 +199,57 @@ function timeoutPromise(ms: number): Promise<never> {
   );
 }
 
-function makeErrorResult(agentType: string, startTime: number, error: string): AgentNodeResult {
-  return {
+function applyFallback(definition: AgentNodeDefinition, startTime: number, error: string): AgentNodeResult {
+  const fallback = definition.safety.failure_fallback ?? DEFAULT_SAFETY.failure_fallback;
+
+  const base: AgentNodeResult = {
     success: false,
-    output: { error },
+    output: { error, fallback_strategy: fallback },
     token_usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     model: 'none',
     latency_ms: Date.now() - startTime,
     retries_used: 0,
-    safety_flags: ['execution_failed'],
+    confidence: null,
+    safety_flags: ['execution_failed', `fallback:${fallback}`],
     truncated: false,
+    fallback_used: fallback,
   };
+
+  switch (fallback) {
+    case 'use_default_output':
+      // Return a safe default based on archetype
+      base.output = getDefaultOutput(definition.archetype);
+      base.success = true;
+      base.safety_flags.push('default_output_used');
+      break;
+    case 'escalate_to_human':
+      base.output = { error, requires_human_decision: true, original_task: definition.label };
+      break;
+    case 'skip':
+      base.success = true;
+      base.output = { skipped: true, reason: error };
+      break;
+    case 'abort_run':
+      base.output = { error, abort_requested: true };
+      break;
+  }
+
+  return base;
+}
+
+function getDefaultOutput(archetype: string): Record<string, unknown> {
+  const defaults: Record<string, Record<string, unknown>> = {
+    planner: { recommended_actions: [], confidence: 0, summary: 'Unable to compute — using safe default.' },
+    classifier: { classification: 'unknown', confidence: 0, reasoning: 'Classification unavailable — manual review required.' },
+    recommender: { recommendations: [], confidence: 0 },
+    extractor: { extracted_fields: {}, confidence: 0 },
+    critic: { issues: [{ category: 'system', severity: 'medium', description: 'Automated review unavailable — manual review required.' }], risk_level: 'medium', summary: 'Review system unavailable.', review_complete: false },
+    router: { recommended_workflow: 'default', recommended_team: 'general', confidence: 0, routing_factors: ['fallback_routing'] },
+  };
+  return defaults[archetype] ?? { fallback: true, confidence: 0 };
 }
 
 function makeMockResult(definition: AgentNodeDefinition, _input: Record<string, unknown>, startTime: number): AgentNodeResult {
-  // Generate a plausible mock based on archetype
   const mockOutputs: Record<string, Record<string, unknown>> = {
     planner: { recommended_actions: [{ action: 'review_documents', priority: 'high', reason: 'Missing disclosures detected' }], confidence: 0.85 },
     classifier: { classification: 'standard', confidence: 0.92, reasoning: 'Document matches standard transaction pattern' },
@@ -185,14 +259,19 @@ function makeMockResult(definition: AgentNodeDefinition, _input: Record<string, 
     router: { route: 'standard_processing', confidence: 0.95, reasoning: 'Transaction meets standard criteria' },
   };
 
+  const output = mockOutputs[definition.archetype] ?? { mock: true };
+  const confidence = typeof output.confidence === 'number' ? output.confidence : null;
+
   return {
     success: true,
-    output: mockOutputs[definition.archetype] ?? { mock: true },
+    output,
     token_usage: { prompt_tokens: 200, completion_tokens: 150, total_tokens: 350 },
     model: 'mock',
     latency_ms: Date.now() - startTime,
     retries_used: 0,
+    confidence,
     safety_flags: ['mock_response'],
     truncated: false,
+    fallback_used: null,
   };
 }

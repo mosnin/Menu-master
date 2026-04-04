@@ -207,8 +207,156 @@ export function NodeConfigPanel({ node, onUpdate, onDelete, readOnly = false }: 
     );
   }
 
-  // Domain nodes: show config as key-value pairs
-  const isDomainNode =
+  // Agent nodes: show safety constraint overrides
+  const isAgentNode = node.type.startsWith('agent_');
+
+  if (isAgentNode) {
+    const agentSafety = (node.config._safety ?? {}) as Record<string, unknown>;
+    const updateSafety = (key: string, value: unknown) => {
+      if (!node) return;
+      const currentSafety = (node.config._safety ?? {}) as Record<string, unknown>;
+      onUpdate(node.id, { config: { ...node.config, _safety: { ...currentSafety, [key]: value } } });
+    };
+
+    configFields.push(
+      <FieldGroup key="ag_max_tokens" label="Max Tokens">
+        <Input
+          type="number"
+          min={64}
+          max={4096}
+          value={String(agentSafety.max_tokens ?? '')}
+          onChange={(e) => updateSafety('max_tokens', Number(e.target.value))}
+          placeholder="Default from definition"
+          disabled={readOnly}
+        />
+      </FieldGroup>,
+      <FieldGroup key="ag_max_steps" label="Max Steps">
+        <Input
+          type="number"
+          min={1}
+          max={10}
+          value={String(agentSafety.max_steps ?? '')}
+          onChange={(e) => updateSafety('max_steps', Math.min(10, Number(e.target.value)))}
+          placeholder="Default: 1"
+          disabled={readOnly}
+        />
+      </FieldGroup>,
+      <FieldGroup key="ag_timeout" label="Timeout (ms)">
+        <Input
+          type="number"
+          min={1000}
+          value={String(agentSafety.timeout_ms ?? '')}
+          onChange={(e) => updateSafety('timeout_ms', Number(e.target.value))}
+          placeholder="Default from definition"
+          disabled={readOnly}
+        />
+      </FieldGroup>,
+      <FieldGroup key="ag_cost" label="Max Cost (cents)">
+        <Input
+          type="number"
+          min={1}
+          max={100}
+          value={String(agentSafety.max_cost_cents ?? '')}
+          onChange={(e) => updateSafety('max_cost_cents', Number(e.target.value))}
+          placeholder="Default: 10"
+          disabled={readOnly}
+        />
+      </FieldGroup>,
+      <FieldGroup key="ag_confidence" label="Confidence Threshold">
+        <Input
+          type="number"
+          min={0}
+          max={1}
+          step={0.05}
+          value={String(agentSafety.confidence_threshold ?? '')}
+          onChange={(e) => updateSafety('confidence_threshold', Number(e.target.value))}
+          placeholder="0 = accept all"
+          disabled={readOnly}
+        />
+      </FieldGroup>,
+      <FieldGroup key="ag_fallback" label="Failure Fallback">
+        <Select
+          value={(agentSafety.failure_fallback as string) ?? ''}
+          onValueChange={(v) => updateSafety('failure_fallback', v)}
+          disabled={readOnly}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Default from definition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="escalate_to_human">Escalate to Human</SelectItem>
+            <SelectItem value="use_default_output">Use Default Output</SelectItem>
+            <SelectItem value="skip">Skip Node</SelectItem>
+            <SelectItem value="abort_run">Abort Run</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldGroup>,
+      <FieldGroup key="ag_memory" label="Memory Scope">
+        <Select
+          value={(agentSafety.memory_scope as string) ?? ''}
+          onValueChange={(v) => updateSafety('memory_scope', v)}
+          disabled={readOnly}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Default from definition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="workflow_context">Full Workflow Context</SelectItem>
+            <SelectItem value="step_local">Step Local Only</SelectItem>
+            <SelectItem value="transaction_scoped">Transaction Scoped</SelectItem>
+            <SelectItem value="listing_scoped">Listing Scoped</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldGroup>,
+      <FieldGroup key="ag_human_review" label="Require Human Review">
+        <Select
+          value={agentSafety.require_human_review != null ? String(agentSafety.require_human_review) : ''}
+          onValueChange={(v) => updateSafety('require_human_review', v === 'true')}
+          disabled={readOnly}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Default from definition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="true">Yes</SelectItem>
+            <SelectItem value="false">No</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldGroup>,
+      <FieldGroup key="ag_pii" label="PII Scrubbing">
+        <Select
+          value={agentSafety.pii_scrub != null ? String(agentSafety.pii_scrub) : ''}
+          onValueChange={(v) => updateSafety('pii_scrub', v === 'true')}
+          disabled={readOnly}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Default from definition" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="true">Enabled</SelectItem>
+            <SelectItem value="false">Disabled</SelectItem>
+          </SelectContent>
+        </Select>
+      </FieldGroup>,
+    );
+
+    // Show non-safety config fields for agent nodes
+    Object.entries(node.config).forEach(([key, value]) => {
+      if (key === '_safety') return;
+      configFields.push(
+        <FieldGroup key={key} label={formatNodeType(key)}>
+          <Input
+            value={String(value ?? '')}
+            onChange={(e) => updateConfig(key, e.target.value)}
+            disabled={readOnly}
+          />
+        </FieldGroup>,
+      );
+    });
+  }
+
+  // Domain nodes (non-agent): show config as key-value pairs
+  const isDomainNode = !isAgentNode &&
     !['start', 'stop', 'condition', 'branch', 'wait', 'loop', 'join', 'human_checkpoint'].includes(node.type);
 
   if (isDomainNode && Object.keys(node.config).length > 0) {

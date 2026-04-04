@@ -173,6 +173,37 @@ export function AgentNodeInspector({ result, definition, className }: AgentNodeI
           </div>
         </div>
 
+        {/* ---- Confidence & Fallback ---- */}
+        {(result.confidence !== null || result.fallback_used) && (
+          <>
+            <Separator />
+            <div>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                Confidence & Fallback
+              </p>
+              <div className="flex items-center gap-3">
+                {result.confidence !== null && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Confidence:</span>
+                    <span className={cn(
+                      'text-sm font-semibold',
+                      result.confidence >= 0.8 ? 'text-emerald-600' :
+                      result.confidence >= 0.5 ? 'text-amber-600' : 'text-red-600',
+                    )}>
+                      {(result.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+                {result.fallback_used && (
+                  <Badge variant="outline" className="border-orange-300 bg-orange-50 text-[10px] text-orange-700">
+                    Fallback: {result.fallback_used.replace(/_/g, ' ')}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         <Separator />
 
         {/* ---- Safety Flags ---- */}
@@ -244,8 +275,16 @@ export function AgentNodeInspector({ result, definition, className }: AgentNodeI
                 <span>{formatMs(definition.safety.timeout_ms)}</span>
                 <span className="text-muted-foreground">Max retries</span>
                 <span>{definition.safety.max_retries}</span>
+                <span className="text-muted-foreground">Max steps</span>
+                <span>{definition.safety.max_steps}</span>
                 <span className="text-muted-foreground">Max cost</span>
                 <span>{definition.safety.max_cost_cents}c</span>
+                <span className="text-muted-foreground">Confidence threshold</span>
+                <span>{definition.safety.confidence_threshold > 0 ? `${(definition.safety.confidence_threshold * 100).toFixed(0)}%` : 'None'}</span>
+                <span className="text-muted-foreground">Failure fallback</span>
+                <span>{definition.safety.failure_fallback.replace(/_/g, ' ')}</span>
+                <span className="text-muted-foreground">Memory scope</span>
+                <span>{definition.safety.memory_scope.replace(/_/g, ' ')}</span>
                 <span className="text-muted-foreground">PII scrubbing</span>
                 <span>{definition.safety.pii_scrub ? 'Enabled' : 'Disabled'}</span>
               </div>
