@@ -5,6 +5,7 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { recalculateCompleteness, getCompleteness } from '@/lib/services/completeness-service';
 import { supabase } from '@/lib/db/client';
 import { UuidSchema } from '@/lib/validation/schemas';
+import { trackEvent } from '@/lib/analytics/events';
 
 export async function recalculateCompletenessAction(transactionId: string) {
   UuidSchema.parse(transactionId);
@@ -24,6 +25,8 @@ export async function recalculateCompletenessAction(transactionId: string) {
   const result = await recalculateCompleteness(transactionId);
 
   revalidatePath(`/transactions/${transactionId}`);
+
+  trackEvent({ orgId: transaction.organization_id, userId: profile.id, event: 'completeness_recomputed' as any, category: 'completeness', properties: { transactionId } });
 
   return result;
 }

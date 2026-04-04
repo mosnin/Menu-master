@@ -5,6 +5,8 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { applyCorrection, getCorrectionsForDocument } from '@/lib/services/field-correction-service';
 import { supabase } from '@/lib/db/client';
 import { ApplyFieldCorrectionSchema, UuidSchema } from '@/lib/validation/schemas';
+import { trackEvent } from '@/lib/analytics/events';
+import { recordMilestone } from '@/lib/analytics/milestones';
 
 export async function applyFieldCorrectionAction(
   documentId: string,
@@ -46,6 +48,9 @@ export async function applyFieldCorrectionAction(
 
   revalidatePath(`/transactions/${document.transaction_id}`);
   revalidatePath(`/transactions/${document.transaction_id}/documents`);
+
+  trackEvent({ orgId: document.organization_id, userId: profile.id, event: 'extraction_field_corrected' as any, category: 'correction', properties: { fieldName, documentId } });
+  recordMilestone(document.organization_id, profile.id, 'first_correction');
 
   return correction;
 }

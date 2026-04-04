@@ -12,6 +12,7 @@ import {
   Inbox,
   Scale,
   LayoutTemplate,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -27,12 +28,13 @@ const navigation = [
 ];
 
 const secondaryNavigation = [
+  { name: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Rules', href: '/settings/rules', icon: Scale, indent: true },
   { name: 'Templates', href: '/settings/templates', icon: LayoutTemplate, indent: true },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; userRole?: string }) {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -54,7 +56,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     return () => clearInterval(interval);
   }, []);
 
-  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean; indent?: boolean }) {
+  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean; indent?: boolean; adminOnly?: boolean }) {
+    if (item.adminOnly && userRole !== 'broker_admin') return null;
     const isActive = item.indent
       ? pathname === item.href
       : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -178,10 +181,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ userRole }: { userRole?: string }) {
   return (
     <aside className="border-r border-[hsl(var(--sidebar-border))]">
-      <SidebarContent />
+      <SidebarContent userRole={userRole} />
     </aside>
   );
 }
@@ -189,13 +192,14 @@ export function Sidebar() {
 interface MobileSidebarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  userRole?: string;
 }
 
-export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
+export function MobileSidebar({ open, onOpenChange, userRole }: MobileSidebarProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="p-0 w-[260px]">
-        <SidebarContent onNavigate={() => onOpenChange(false)} />
+        <SidebarContent onNavigate={() => onOpenChange(false)} userRole={userRole} />
       </SheetContent>
     </Sheet>
   );

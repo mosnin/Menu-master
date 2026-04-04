@@ -5,6 +5,8 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { CreateTransactionSchema, UpdateTransactionSchema } from '@/lib/validation/schemas';
 import * as transactionService from '@/lib/services/transaction-service';
 import { logAction } from '@/lib/audit/logger';
+import { trackEvent } from '@/lib/analytics/events';
+import { recordMilestone } from '@/lib/analytics/milestones';
 
 export async function createTransactionAction(formData: FormData): Promise<{ id?: string; error?: string }> {
   try {
@@ -36,6 +38,8 @@ export async function createTransactionAction(formData: FormData): Promise<{ id?
     const transaction = await transactionService.createTransaction(parsed, profile.id);
 
     revalidatePath('/transactions');
+    trackEvent({ orgId: parsed.organizationId, userId: profile.id, event: 'transaction_created' as any, category: 'transaction', properties: { transactionId: transaction.id } });
+    recordMilestone(parsed.organizationId, profile.id, 'first_transaction');
     return { id: transaction.id };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to create transaction' };
@@ -78,6 +82,13 @@ export async function updateTransactionAction(id: string, data: Record<string, u
 
   revalidatePath('/transactions');
   revalidatePath(`/transactions/${id}`);
+
+  if (parsed.status) {
+    trackEvent({ orgId: existing.organization_id, userId: profile.id, event: 'transaction_status_changed' as any, category: 'transaction', properties: { transactionId: id, status: parsed.status } });
+    if (parsed.status === 'active') {
+      recordMilestone(existing.organization_id, profile.id, 'first_live_transaction');
+    }
+  }
 
   return transaction;
 }

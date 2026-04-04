@@ -5,6 +5,8 @@ import { requireAuth, requireRole, getCurrentUserProfile } from '@/lib/auth/sess
 import { decideApproval } from '@/lib/services/approval-service';
 import * as approvalRepo from '@/lib/repositories/approvals';
 import { inngest } from '@/lib/workflows/client';
+import { trackEvent } from '@/lib/analytics/events';
+import { recordMilestone } from '@/lib/analytics/milestones';
 
 export async function decideApprovalAction(
   approvalId: string,
@@ -32,6 +34,9 @@ export async function decideApprovalAction(
 
     revalidatePath(`/transactions/${approval.transaction_id}`);
     revalidatePath('/approvals');
+
+    trackEvent({ orgId: existing.organization_id, userId: profile.id, event: (decision === 'approved' ? 'approval_approved' : 'approval_rejected') as any, category: 'approval', properties: { approvalId: approval.id, decision } });
+    recordMilestone(existing.organization_id, profile.id, 'first_approval_completed');
 
     return { success: true };
   } catch (error) {

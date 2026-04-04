@@ -5,6 +5,7 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { addComment, getComments, markMentionRead } from '@/lib/services/comment-service';
 import { supabase } from '@/lib/db/client';
 import { AddCommentSchema, UuidSchema } from '@/lib/validation/schemas';
+import { trackEvent } from '@/lib/analytics/events';
 import type { CommentEntityType } from '@/types';
 
 async function getOrgIdForEntity(entityType: string, entityId: string): Promise<{ orgId: string; transactionId: string | null }> {
@@ -84,6 +85,8 @@ export async function addCommentAction(
   if (transactionId) {
     revalidatePath(`/transactions/${transactionId}`);
   }
+
+  trackEvent({ orgId, userId: profile.id, event: 'comment_created' as any, category: 'feedback', properties: { entityType, entityId, commentId: comment.id } });
 
   return comment;
 }

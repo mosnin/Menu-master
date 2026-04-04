@@ -18,11 +18,11 @@ export function AppShell({ children, userEmail, userName, userRole }: AppShellPr
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <div className="hidden md:flex flex-shrink-0">
-        <Sidebar />
+        <Sidebar userRole={userRole} />
       </div>
 
       {/* Mobile sidebar sheet */}
-      <MobileSidebar open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+      <MobileSidebar open={mobileNavOpen} onOpenChange={setMobileNavOpen} userRole={userRole} />
 
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header

@@ -5,6 +5,7 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { resolveException, getActiveExceptions } from '@/lib/services/exception-service';
 import { supabase } from '@/lib/db/client';
 import { ResolveExceptionSchema, UuidSchema } from '@/lib/validation/schemas';
+import { trackEvent } from '@/lib/analytics/events';
 
 export async function resolveExceptionAction(
   exceptionId: string,
@@ -35,6 +36,8 @@ export async function resolveExceptionAction(
   const result = await resolveException(validated.exceptionId, profile.id, validated.resolution);
 
   revalidatePath(`/transactions/${exception.transaction_id}`);
+
+  trackEvent({ orgId: transaction.organization_id, userId: profile.id, event: 'exception_resolved' as any, category: 'exception', properties: { exceptionId, transactionId: exception.transaction_id } });
 
   return result;
 }

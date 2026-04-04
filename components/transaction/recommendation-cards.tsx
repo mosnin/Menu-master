@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   TrendingUp,
 } from 'lucide-react';
+import { ThumbsFeedback } from '@/components/feedback/thumbs-feedback';
 import type { TransactionRecommendation } from '@/types';
 
 interface RecommendationCardsProps {
@@ -202,6 +203,11 @@ export function RecommendationCards({ transactionId }: RecommendationCardsProps)
                         <X className="h-3.5 w-3.5 mr-1" />
                         Dismiss
                       </Button>
+                      <ThumbsFeedback
+                        featureArea="recommendations"
+                        entityType="recommendation"
+                        entityId={rec.id}
+                      />
                     </div>
                   </div>
                 </div>

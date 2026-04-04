@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { uploadDocument } from '@/lib/services/document-service';
 import { inngest } from '@/lib/workflows/client';
+import { trackEvent } from '@/lib/analytics/events';
+import { recordMilestone } from '@/lib/analytics/milestones';
 
 export async function uploadDocumentAction(formData: FormData): Promise<{ id?: string; error?: string }> {
   try {
@@ -49,6 +51,9 @@ export async function uploadDocumentAction(formData: FormData): Promise<{ id?: s
 
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/transactions/${transactionId}/documents`);
+
+    trackEvent({ orgId, userId: profile.id, event: 'document_uploaded' as any, category: 'document', properties: { documentId: document.id, transactionId } });
+    recordMilestone(orgId, profile.id, 'first_document_upload');
 
     return { id: document.id };
   } catch (error) {

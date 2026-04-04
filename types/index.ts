@@ -517,3 +517,55 @@ export interface PacketIngestion {
   created_at: string;
   updated_at: string;
 }
+
+// -----------------------------------------------------------------------------
+// Analytics types
+// -----------------------------------------------------------------------------
+
+export type EventCategory = 'activation' | 'transaction' | 'document' | 'extraction' | 'correction' | 'completeness' | 'queue' | 'approval' | 'communication' | 'recommendation' | 'exception' | 'feedback' | 'configuration' | 'navigation';
+
+export type FeedbackType = 'thumbs_up' | 'thumbs_down' | 'text' | 'issue_report';
+
+export interface ProductEvent {
+  id: string;
+  organization_id: string | null;
+  user_id: string | null;
+  event_name: string;
+  event_category: EventCategory;
+  properties: Record<string, unknown>;
+  session_id: string | null;
+  created_at: string;
+}
+
+export interface ActivationMilestone {
+  id: string;
+  organization_id: string;
+  user_id: string | null;
+  milestone: string;
+  achieved_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ProductFeedback {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  feedback_type: FeedbackType;
+  feature_area: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  rating: number | null;
+  body: string | null;
+  context: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DailyMetric {
+  id: string;
+  organization_id: string;
+  metric_date: string;
+  metric_name: string;
+  metric_value: number;
+  dimensions: Record<string, unknown>;
+  computed_at: string;
+}

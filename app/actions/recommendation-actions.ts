@@ -5,6 +5,8 @@ import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/
 import { dismissRecommendation, completeRecommendation } from '@/lib/services/recommendation-service';
 import { supabase } from '@/lib/db/client';
 import { UuidSchema } from '@/lib/validation/schemas';
+import { trackEvent } from '@/lib/analytics/events';
+import { recordMilestone } from '@/lib/analytics/milestones';
 
 export async function dismissRecommendationAction(recommendationId: string) {
   UuidSchema.parse(recommendationId);
@@ -32,6 +34,8 @@ export async function dismissRecommendationAction(recommendationId: string) {
   const result = await dismissRecommendation(recommendationId, profile.id);
 
   revalidatePath(`/transactions/${recommendation.transaction_id}`);
+
+  trackEvent({ orgId: transaction.organization_id, userId: profile.id, event: 'recommendation_dismissed' as any, category: 'recommendation', properties: { recommendationId } });
 
   return result;
 }
@@ -81,6 +85,9 @@ export async function completeRecommendationAction(recommendationId: string) {
   const result = await completeRecommendation(recommendationId, profile.id);
 
   revalidatePath(`/transactions/${recommendation.transaction_id}`);
+
+  trackEvent({ orgId: transaction.organization_id, userId: profile.id, event: 'recommendation_executed' as any, category: 'recommendation', properties: { recommendationId } });
+  recordMilestone(transaction.organization_id, profile.id, 'first_recommendation_executed');
 
   return result;
 }

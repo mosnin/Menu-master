@@ -12,6 +12,7 @@ import {
   Info,
   CheckCircle2,
 } from 'lucide-react';
+import { ThumbsFeedback } from '@/components/feedback/thumbs-feedback';
 import type { TransactionException } from '@/types';
 
 interface ExceptionAlertsProps {
@@ -134,6 +135,12 @@ export function ExceptionAlerts({ transactionId }: ExceptionAlertsProps) {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <ThumbsFeedback
+                  featureArea="exceptions"
+                  entityType="exception"
+                  entityId={exception.id}
+                  label="Useful alert?"
+                />
                 <Button
                   size="sm"
                   variant="outline"

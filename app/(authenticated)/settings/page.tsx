@@ -10,7 +10,9 @@ import {
   Plug,
   CheckCircle2,
   Server,
+  MessageSquare,
 } from 'lucide-react';
+import { FeedbackForm } from '@/components/feedback/feedback-form';
 
 export default async function SettingsPage() {
   const session = await auth0.getSession();
@@ -142,6 +144,24 @@ export default async function SettingsPage() {
               {i < arr.length - 1 && <Separator className="mt-4" />}
             </div>
           ))}
+        </CardContent>
+      </Card>
+      {/* Feedback card */}
+      <Card className="rounded-xl shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            Feedback
+          </CardTitle>
+          <CardDescription>Help us improve by sharing your experience</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Have feedback or want to report an issue? We&apos;d love to hear from you.
+            </p>
+            <FeedbackForm />
+          </div>
         </CardContent>
       </Card>
     </div>

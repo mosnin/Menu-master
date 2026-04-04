@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { LogOut, User, ChevronRight, Menu } from 'lucide-react';
+import { FeedbackForm } from '@/components/feedback/feedback-form';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -91,6 +92,9 @@ export function Header({ userEmail, userName, userRole, onMobileMenuToggle }: He
         <Breadcrumbs />
       </div>
 
+      <div className="flex items-center gap-1.5">
+        <FeedbackForm />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -132,6 +136,7 @@ export function Header({ userEmail, userName, userRole, onMobileMenuToggle }: He
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }
