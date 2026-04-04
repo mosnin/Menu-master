@@ -108,7 +108,24 @@ export type AuditAction =
   | 'recompute.started'
   | 'recompute.completed'
   | 'recompute.failed'
-  | 'diagnostics.checked';
+  | 'diagnostics.checked'
+  | 'listing.created'
+  | 'listing.updated'
+  | 'listing.stage_changed'
+  | 'listing.handoff_completed'
+  | 'listing.readiness_computed'
+  | 'listing.checklist_updated'
+  | 'listing.exception_created'
+  | 'listing.exception_resolved'
+  | 'offer.created'
+  | 'offer.updated'
+  | 'offer.status_changed'
+  | 'offer.accepted'
+  | 'seller_portal.invited'
+  | 'seller_portal.revoked'
+  | 'seller_portal.accessed'
+  | 'seller_doc_request.created'
+  | 'seller_doc_request.uploaded';
 
 interface LogActionParams {
   organizationId?: string;

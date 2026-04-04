@@ -61,6 +61,11 @@ const breadcrumbLabels: Record<string, string> = {
   imports: 'Imports',
   duplicates: 'Duplicates',
   diagnostics: 'Diagnostics',
+  listings: 'Listings',
+  offers: 'Offers',
+  seller: 'Seller Portal',
+  launch: 'Launch',
+  'seller-portal': 'Seller Portal',
 };
 
 function Breadcrumbs() {

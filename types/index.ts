@@ -1204,6 +1204,232 @@ export interface SystemDiagnostic {
   checked_at: string;
 }
 
+// -----------------------------------------------------------------------------
+// Phase 8: Listings, Offers, and Seller Workflow types
+// -----------------------------------------------------------------------------
+
+export type ListingStage =
+  | 'intake'
+  | 'preparing'
+  | 'ready_for_review'
+  | 'ready_to_launch'
+  | 'live'
+  | 'paused'
+  | 'under_contract'
+  | 'closed'
+  | 'withdrawn'
+  | 'archived';
+
+export type ListingType = 'residential' | 'commercial' | 'land' | 'multi_family';
+
+export type ListingContactRole =
+  | 'seller' | 'co_seller' | 'listing_agent' | 'co_listing_agent'
+  | 'photographer' | 'stager' | 'inspector' | 'other';
+
+export type ListingChecklistCategory =
+  | 'property_details' | 'disclosures' | 'photography' | 'staging'
+  | 'pricing' | 'listing_description' | 'mls_readiness' | 'documents'
+  | 'marketing' | 'general';
+
+export type ListingChecklistStatus = 'pending' | 'in_progress' | 'completed' | 'skipped' | 'blocked';
+
+export type ListingDocumentCategory =
+  | 'disclosure' | 'inspection' | 'photography' | 'marketing'
+  | 'pricing' | 'contract' | 'addendum' | 'general';
+
+export type OfferFinancingType = 'conventional' | 'fha' | 'va' | 'cash' | 'usda' | 'other';
+
+export type OfferStatus =
+  | 'received' | 'under_review' | 'countered' | 'accepted'
+  | 'rejected' | 'withdrawn' | 'expired';
+
+export type SellerDocRequestStatus = 'pending' | 'viewed' | 'uploaded' | 'expired' | 'cancelled';
+
+export interface Listing {
+  id: string;
+  organization_id: string;
+  property_id: string | null;
+  created_by_user_id: string;
+  title: string;
+  listing_stage: ListingStage;
+  listing_type: ListingType;
+  list_price: number | null;
+  listing_description: string | null;
+  target_launch_date: string | null;
+  actual_launch_date: string | null;
+  mls_number: string | null;
+  seller_name: string | null;
+  seller_email: string | null;
+  seller_phone: string | null;
+  readiness_score: number;
+  readiness_state: ReadinessState;
+  converted_transaction_id: string | null;
+  converted_at: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingContact {
+  id: string;
+  listing_id: string;
+  contact_id: string;
+  role: ListingContactRole;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface ListingChecklistItem {
+  id: string;
+  listing_id: string;
+  title: string;
+  description: string | null;
+  category: ListingChecklistCategory;
+  status: ListingChecklistStatus;
+  assigned_to_user_id: string | null;
+  due_date: string | null;
+  completed_at: string | null;
+  completed_by_user_id: string | null;
+  sort_order: number;
+  is_required: boolean;
+  blocker_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingStageTransition {
+  id: string;
+  listing_id: string;
+  organization_id: string;
+  from_stage: string;
+  to_stage: string;
+  triggered_by_user_id: string | null;
+  trigger_type: StageTriggerType;
+  reason: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ListingTimelineEvent {
+  id: string;
+  listing_id: string;
+  event_type: string;
+  title: string;
+  description: string | null;
+  event_date: string | null;
+  status: TimelineEventStatus;
+  source: TimelineEventSource;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingException {
+  id: string;
+  listing_id: string;
+  exception_type: string;
+  severity: ExceptionSeverity;
+  title: string;
+  description: string | null;
+  resolution_status: ExceptionResolutionStatus;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Offer {
+  id: string;
+  listing_id: string;
+  organization_id: string;
+  buyer_name: string;
+  buyer_email: string | null;
+  buyer_phone: string | null;
+  buyer_agent_name: string | null;
+  buyer_agent_email: string | null;
+  offer_amount: number;
+  earnest_money: number | null;
+  financing_type: OfferFinancingType;
+  contingencies: string[];
+  closing_timeline_days: number | null;
+  proposed_closing_date: string | null;
+  concessions_amount: number | null;
+  concessions_notes: string | null;
+  status: OfferStatus;
+  offer_date: string;
+  expiration_date: string | null;
+  seller_notes: string | null;
+  decision_notes: string | null;
+  decided_by_user_id: string | null;
+  decided_at: string | null;
+  counter_amount: number | null;
+  counter_notes: string | null;
+  submitted_by_user_id: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SellerPortalAccess {
+  id: string;
+  listing_id: string;
+  organization_id: string;
+  seller_email: string;
+  seller_name: string;
+  access_token: string;
+  is_active: boolean;
+  permissions: Record<string, boolean>;
+  last_accessed_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  invited_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SellerDocumentRequest {
+  id: string;
+  listing_id: string;
+  organization_id: string;
+  requested_by_user_id: string;
+  document_type: string;
+  description: string | null;
+  status: SellerDocRequestStatus;
+  seller_portal_access_id: string | null;
+  uploaded_document_id: string | null;
+  due_date: string | null;
+  viewed_at: string | null;
+  uploaded_at: string | null;
+  reminder_count: number;
+  last_reminder_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListingDocument {
+  id: string;
+  listing_id: string;
+  document_id: string;
+  document_category: ListingDocumentCategory;
+  uploaded_by_seller: boolean;
+  created_at: string;
+}
+
+export interface ListingHandoffEvent {
+  id: string;
+  listing_id: string;
+  offer_id: string;
+  transaction_id: string;
+  organization_id: string;
+  handed_off_by_user_id: string;
+  documents_transferred: number;
+  contacts_transferred: number;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface BulkActionJob {
   id: string;
   organization_id: string;

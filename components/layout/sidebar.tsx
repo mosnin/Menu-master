@@ -19,6 +19,7 @@ import {
   Bell,
   InboxIcon,
   Wrench,
+  Home,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ const navigation = [
   { name: 'Queue', href: '/queue', icon: Inbox },
   { name: 'Digest', href: '/digest', icon: Newspaper },
   { name: 'Transactions', href: '/transactions', icon: FileText },
+  { name: 'Listings', href: '/listings', icon: Home },
   { name: 'Approvals', href: '/approvals', icon: CheckSquare, showBadge: true },
 ];
 
@@ -150,16 +152,29 @@ function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; use
       <div className="flex-1 overflow-y-auto sidebar-scroll pt-6 pb-2">
         {/* Primary action */}
         <div className="px-4 mb-7">
-          <Button
-            asChild
-            className="w-full justify-center gap-2 h-9 shadow-[var(--shadow-soft)] text-[13px] font-medium"
-            size="sm"
-          >
-            <Link href="/transactions/new" onClick={onNavigate}>
-              <Plus className="h-4 w-4" />
-              New Transaction
-            </Link>
-          </Button>
+          <div className="space-y-2">
+            <Button
+              asChild
+              className="w-full justify-center gap-2 h-9 shadow-[var(--shadow-soft)] text-[13px] font-medium"
+              size="sm"
+            >
+              <Link href="/transactions/new" onClick={onNavigate}>
+                <Plus className="h-4 w-4" />
+                New Transaction
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="w-full justify-center gap-2 h-9 text-[13px] font-medium"
+              size="sm"
+            >
+              <Link href="/listings/new" onClick={onNavigate}>
+                <Plus className="h-4 w-4" />
+                New Listing
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Main section label */}

@@ -1229,3 +1229,210 @@ INSERT INTO collaborator_invites (
    'tkn_expired_appraiser_742',
    '2026-03-20 00:00:00-06',
    '{"view_documents": true, "upload_documents": true, "view_checklist": false}'::jsonb);
+
+-- =============================================================================
+-- Phase 8: Listings, Offers, and Seller Workflow seed data
+-- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Listings
+-- ---------------------------------------------------------------------------
+-- L1: In-prep listing (missing disclosures)
+INSERT INTO listings (id, organization_id, property_id, created_by_user_id, title, listing_stage, listing_type,
+  list_price, listing_description, target_launch_date, seller_name, seller_email, seller_phone,
+  readiness_score, readiness_state) VALUES
+('d1000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+ 'c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
+ '742 Evergreen Terrace', 'preparing', 'residential',
+ 485000, 'Charming 3BR/2BA in desirable Evergreen neighborhood', '2026-04-20',
+ 'Robert Williams', 'robert.williams@email.com', '(512) 555-7742',
+ 35, 'needs_attention');
+
+-- L2: Ready-to-launch listing
+INSERT INTO listings (id, organization_id, property_id, created_by_user_id, title, listing_stage, listing_type,
+  list_price, listing_description, target_launch_date, seller_name, seller_email,
+  readiness_score, readiness_state) VALUES
+('d1000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001',
+ 'c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002',
+ '1200 Summit View Drive', 'ready_to_launch', 'residential',
+ 725000, 'Stunning 4BR/3BA with panoramic mountain views', '2026-04-10',
+ 'Patricia Henderson', 'patricia.h@email.com',
+ 92, 'ready');
+
+-- L3: Live listing with multiple offers
+INSERT INTO listings (id, organization_id, property_id, created_by_user_id, title, listing_stage, listing_type,
+  list_price, listing_description, actual_launch_date, seller_name, seller_email,
+  readiness_score, readiness_state, mls_number) VALUES
+('d1000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+ 'c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003',
+ '89 Copper Ridge Lane', 'live', 'residential',
+ 550000, 'Move-in ready 3BR townhome in Copper Ridge community', '2026-03-25',
+ 'David & Karen Martinez', 'martinez.dk@email.com',
+ 100, 'ready', 'MLS-2026-4489');
+
+-- L4: Under contract listing (accepted offer, converted)
+INSERT INTO listings (id, organization_id, property_id, created_by_user_id, title, listing_stage, listing_type,
+  list_price, seller_name, seller_email,
+  readiness_score, readiness_state, converted_transaction_id, converted_at) VALUES
+('d1000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+ 'c0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001',
+ '456 Maple Court', 'under_contract', 'residential',
+ 390000, 'Thomas Anderson', 'tanderson@email.com',
+ 100, 'ready', 'e0000000-0000-4000-8000-000000000004', '2026-03-28 14:30:00-06');
+
+-- ---------------------------------------------------------------------------
+-- Listing checklist items for L1 (preparing, with gaps)
+-- ---------------------------------------------------------------------------
+INSERT INTO listing_checklist_items (id, listing_id, title, category, status, is_required, sort_order, description) VALUES
+('d2000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
+ 'Review property details', 'property_details', 'completed', true, 1, 'Confirmed sq ft, rooms, lot size'),
+('d2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
+ 'Gather seller disclosures', 'disclosures', 'pending', true, 2, 'Waiting on seller for lead paint and property condition disclosures'),
+('d2000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001',
+ 'Schedule photography', 'photography', 'in_progress', true, 3, 'Photographer booked for April 12'),
+('d2000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000001',
+ 'Complete pricing analysis', 'pricing', 'completed', true, 4, 'CMA completed, list price agreed with seller'),
+('d2000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000001',
+ 'Write listing description', 'listing_description', 'pending', true, 5, null),
+('d2000000-0000-4000-8000-000000000006', 'd1000000-0000-4000-8000-000000000001',
+ 'Verify MLS readiness', 'mls_readiness', 'pending', true, 6, null),
+('d2000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000001',
+ 'Coordinate staging', 'staging', 'skipped', false, 7, 'Seller declined staging');
+
+-- Checklist items for L2 (ready to launch, all required complete)
+INSERT INTO listing_checklist_items (id, listing_id, title, category, status, is_required, sort_order) VALUES
+('d2000000-0000-4000-8000-000000000010', 'd1000000-0000-4000-8000-000000000002',
+ 'Review property details', 'property_details', 'completed', true, 1),
+('d2000000-0000-4000-8000-000000000011', 'd1000000-0000-4000-8000-000000000002',
+ 'Gather seller disclosures', 'disclosures', 'completed', true, 2),
+('d2000000-0000-4000-8000-000000000012', 'd1000000-0000-4000-8000-000000000002',
+ 'Schedule photography', 'photography', 'completed', true, 3),
+('d2000000-0000-4000-8000-000000000013', 'd1000000-0000-4000-8000-000000000002',
+ 'Complete pricing analysis', 'pricing', 'completed', true, 4),
+('d2000000-0000-4000-8000-000000000014', 'd1000000-0000-4000-8000-000000000002',
+ 'Write listing description', 'listing_description', 'completed', true, 5),
+('d2000000-0000-4000-8000-000000000015', 'd1000000-0000-4000-8000-000000000002',
+ 'Verify MLS readiness', 'mls_readiness', 'completed', true, 6);
+
+-- ---------------------------------------------------------------------------
+-- Listing stage transitions
+-- ---------------------------------------------------------------------------
+INSERT INTO listing_stage_transitions (id, listing_id, organization_id, from_stage, to_stage, triggered_by_user_id, trigger_type) VALUES
+('d3000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
+ 'a0000000-0000-4000-8000-000000000001', 'intake', 'preparing',
+ 'b0000000-0000-4000-8000-000000000001', 'manual'),
+('d3000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000001', 'intake', 'preparing',
+ 'b0000000-0000-4000-8000-000000000002', 'manual'),
+('d3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000001', 'preparing', 'ready_for_review',
+ 'b0000000-0000-4000-8000-000000000002', 'manual'),
+('d3000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000002',
+ 'a0000000-0000-4000-8000-000000000001', 'ready_for_review', 'ready_to_launch',
+ 'b0000000-0000-4000-8000-000000000001', 'manual'),
+('d3000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001', 'intake', 'preparing',
+ 'b0000000-0000-4000-8000-000000000003', 'manual'),
+('d3000000-0000-4000-8000-000000000006', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001', 'preparing', 'ready_to_launch',
+ 'b0000000-0000-4000-8000-000000000003', 'manual'),
+('d3000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001', 'ready_to_launch', 'live',
+ 'b0000000-0000-4000-8000-000000000003', 'manual');
+
+-- ---------------------------------------------------------------------------
+-- Listing exceptions for L1
+-- ---------------------------------------------------------------------------
+INSERT INTO listing_exceptions (id, listing_id, exception_type, severity, title, description, resolution_status) VALUES
+('d4000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
+ 'missing_disclosures', 'critical', 'Seller disclosures overdue',
+ 'Lead paint and property condition disclosures not yet received from seller', 'open'),
+('d4000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
+ 'photography_not_scheduled', 'warning', 'Photography not confirmed',
+ 'Photographer booked but not yet confirmed for April 12', 'acknowledged');
+
+-- ---------------------------------------------------------------------------
+-- Offers for L3 (live listing with 3 offers)
+-- ---------------------------------------------------------------------------
+INSERT INTO offers (id, listing_id, organization_id, buyer_name, buyer_email, buyer_agent_name,
+  offer_amount, earnest_money, financing_type, contingencies, closing_timeline_days,
+  concessions_amount, status, offer_date, submitted_by_user_id) VALUES
+-- Offer 1: Strong cash offer
+('d5000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'Jennifer Walsh', 'jwalsh@email.com', 'Mike Torres',
+ 565000, 15000, 'cash', '{}', 21, 0,
+ 'under_review', '2026-03-30', 'b0000000-0000-4000-8000-000000000003'),
+-- Offer 2: FHA with concessions
+('d5000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'Marcus & Lisa Johnson', 'mjohnson@email.com', 'Amy Lin',
+ 540000, 10000, 'fha', '{"inspection", "appraisal", "financing"}', 45, 12000,
+ 'received', '2026-04-01', 'b0000000-0000-4000-8000-000000000003'),
+-- Offer 3: Conventional, competitive
+('d5000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'Rachel Kim', 'rkim@email.com', null,
+ 555000, 12000, 'conventional', '{"inspection"}', 30, 5000,
+ 'received', '2026-04-02', 'b0000000-0000-4000-8000-000000000003');
+
+-- Accepted offer for L4 (under contract)
+INSERT INTO offers (id, listing_id, organization_id, buyer_name, buyer_email,
+  offer_amount, earnest_money, financing_type, closing_timeline_days,
+  status, offer_date, decided_by_user_id, decided_at, decision_notes,
+  submitted_by_user_id) VALUES
+('d5000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000004',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'Brian & Sara Cooper', 'cooper.bs@email.com',
+ 395000, 10000, 'conventional', 35,
+ 'accepted', '2026-03-25',
+ 'b0000000-0000-4000-8000-000000000001', '2026-03-28 14:00:00-06',
+ 'Strong offer, minimal contingencies, quick close',
+ 'b0000000-0000-4000-8000-000000000001');
+
+-- ---------------------------------------------------------------------------
+-- Seller portal access
+-- ---------------------------------------------------------------------------
+INSERT INTO seller_portal_access (id, listing_id, organization_id, seller_email, seller_name,
+  access_token, is_active, invited_by_user_id, permissions) VALUES
+-- Active access for L1 seller
+('d6000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'robert.williams@email.com', 'Robert Williams',
+ 'sp_tkn_742evergreen_a1b2c3d4e5f6', true,
+ 'b0000000-0000-4000-8000-000000000001',
+ '{"view_progress": true, "upload_documents": true, "view_offers_summary": false}'::jsonb),
+-- Active access for L3 seller
+('d6000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000003',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'martinez.dk@email.com', 'David Martinez',
+ 'sp_tkn_89copper_g7h8i9j0k1l2', true,
+ 'b0000000-0000-4000-8000-000000000003',
+ '{"view_progress": true, "upload_documents": true, "view_offers_summary": true}'::jsonb);
+
+-- ---------------------------------------------------------------------------
+-- Seller document requests
+-- ---------------------------------------------------------------------------
+INSERT INTO seller_document_requests (id, listing_id, organization_id, requested_by_user_id,
+  document_type, description, status, seller_portal_access_id, due_date) VALUES
+-- Pending disclosure for L1
+('d7000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
+ 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
+ 'Seller Property Disclosures', 'Lead paint disclosure and property condition report',
+ 'pending', 'd6000000-0000-4000-8000-000000000001', '2026-04-12'),
+-- Uploaded HOA docs for L1
+('d7000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
+ 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
+ 'HOA Documents', 'CC&Rs and HOA financial statements',
+ 'uploaded', 'd6000000-0000-4000-8000-000000000001', '2026-04-08');
+
+-- ---------------------------------------------------------------------------
+-- Listing handoff event for L4
+-- ---------------------------------------------------------------------------
+INSERT INTO listing_handoff_events (id, listing_id, offer_id, transaction_id, organization_id,
+  handed_off_by_user_id, documents_transferred, contacts_transferred, notes) VALUES
+('d8000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000004',
+ 'd5000000-0000-4000-8000-000000000004', 'e0000000-0000-4000-8000-000000000004',
+ 'a0000000-0000-4000-8000-000000000001',
+ 'b0000000-0000-4000-8000-000000000001', 3, 2,
+ 'Clean handoff — all listing docs and seller contacts carried forward');
