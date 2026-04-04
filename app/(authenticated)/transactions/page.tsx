@@ -18,6 +18,8 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
 import { humanizeStatus } from '@/lib/format';
+import { StageBadge } from '@/components/transaction/stage-badge';
+import type { TransactionStage } from '@/types';
 
 const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'destructive'> = {
   draft: 'secondary',
@@ -49,6 +51,7 @@ function TransactionCard({
   id,
   address,
   status,
+  stage,
   price,
   closingDate,
   documentsCount,
@@ -56,6 +59,7 @@ function TransactionCard({
   id: string;
   address: string;
   status: string;
+  stage?: TransactionStage;
   price: string;
   closingDate: string;
   documentsCount: number;
@@ -70,7 +74,8 @@ function TransactionCard({
                 <Home className="h-4 w-4 text-muted-foreground shrink-0" />
                 <p className="font-semibold truncate tracking-tight text-base">{address}</p>
               </div>
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
+                {stage && <StageBadge stage={stage} />}
                 <span className="font-medium">{price}</span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" />

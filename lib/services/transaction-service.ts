@@ -33,6 +33,7 @@ export async function createTransaction(
     organization_id: input.organizationId,
     title: input.title,
     status: 'draft' as TransactionStatus,
+    stage: 'intake',
     property_id: propertyId,
     created_by_user_id: userId,
     office_id: null,

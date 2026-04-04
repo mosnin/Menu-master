@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { LogOut, User, ChevronRight, Menu } from 'lucide-react';
 import { FeedbackForm } from '@/components/feedback/feedback-form';
+import { SearchCommand } from '@/components/search/search-command';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -52,6 +54,9 @@ const breadcrumbLabels: Record<string, string> = {
   digests: 'Digest Settings',
   requests: 'Requests',
   'getting-started': 'Getting Started',
+  inbox: 'Inbox',
+  notifications: 'Notifications',
+  compliance: 'Compliance',
 };
 
 function Breadcrumbs() {
@@ -111,6 +116,8 @@ export function Header({ userEmail, userName, userRole, onMobileMenuToggle }: He
       </div>
 
       <div className="flex items-center gap-1.5">
+        <SearchCommand />
+        <NotificationBell />
         <FeedbackForm />
 
       <DropdownMenu>

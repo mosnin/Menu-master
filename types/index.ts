@@ -147,6 +147,7 @@ export interface Transaction {
   organization_id: string;
   title: string;
   status: TransactionStatus;
+  stage: TransactionStage;
   property_id: string | null;
   created_by_user_id: string;
   office_id: string | null;
@@ -956,4 +957,139 @@ export interface DailyMetric {
   metric_value: number;
   dimensions: Record<string, unknown>;
   computed_at: string;
+}
+
+// -----------------------------------------------------------------------------
+// Phase 6: Platform Completeness types
+// -----------------------------------------------------------------------------
+
+export type TransactionStage =
+  | 'intake'
+  | 'under_contract'
+  | 'due_diligence'
+  | 'financing'
+  | 'appraisal'
+  | 'title_and_escrow'
+  | 'closing_prep'
+  | 'closed'
+  | 'fell_through'
+  | 'archived';
+
+export type StageTriggerType = 'manual' | 'automatic' | 'policy' | 'system';
+
+export type NotificationCategory =
+  | 'approval_assigned'
+  | 'mention'
+  | 'overdue_item'
+  | 'blocked_transaction'
+  | 'external_upload'
+  | 'compliance_issue'
+  | 'processing_failure'
+  | 'exception_raised'
+  | 'stage_changed'
+  | 'document_request_fulfilled'
+  | 'policy_override_needed'
+  | 'closing_approaching'
+  | 'general';
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type BulkActionType =
+  | 'assign_owner'
+  | 'assign_reviewer'
+  | 'request_review'
+  | 'mark_reviewed'
+  | 'send_reminder'
+  | 'archive'
+  | 'change_stage'
+  | 'bulk_approve';
+
+export type BulkActionStatus = 'pending' | 'processing' | 'completed' | 'partial_failure' | 'failed';
+
+export interface StageTransition {
+  id: string;
+  transaction_id: string;
+  organization_id: string;
+  from_stage: string;
+  to_stage: string;
+  triggered_by_user_id: string | null;
+  trigger_type: StageTriggerType;
+  reason: string | null;
+  blocked_by_policy_rule_id: string | null;
+  override_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  category: NotificationCategory;
+  title: string;
+  body: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  transaction_id: string | null;
+  action_url: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  is_archived: boolean;
+  archived_at: string | null;
+  priority: NotificationPriority;
+  dedup_key: string | null;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  approval_assigned: boolean;
+  mention: boolean;
+  overdue_item: boolean;
+  blocked_transaction: boolean;
+  external_upload: boolean;
+  compliance_issue: boolean;
+  processing_failure: boolean;
+  exception_raised: boolean;
+  stage_changed: boolean;
+  document_request_fulfilled: boolean;
+  policy_override_needed: boolean;
+  closing_approaching: boolean;
+  general: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecentSearch {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  query: string;
+  result_entity_type: string | null;
+  result_entity_id: string | null;
+  created_at: string;
+}
+
+export interface BulkActionJob {
+  id: string;
+  organization_id: string;
+  initiated_by_user_id: string;
+  action_type: BulkActionType;
+  target_entity_type: string;
+  target_entity_ids: string[];
+  action_params: Record<string, unknown>;
+  status: BulkActionStatus;
+  total_count: number;
+  success_count: number;
+  failure_count: number;
+  results: Record<string, unknown>[];
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
 }

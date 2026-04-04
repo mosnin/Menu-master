@@ -20,6 +20,10 @@ import { CompletenessBadge } from '@/components/transaction/completeness-badge';
 import { ExceptionAlerts } from '@/components/transaction/exception-alerts';
 import { RecommendationCards } from '@/components/transaction/recommendation-cards';
 import { AssignmentPanel } from '@/components/transaction/assignment-panel';
+import { StagePipeline } from '@/components/transaction/stage-pipeline';
+import { StageTransitionPanel } from '@/components/transaction/stage-transition-panel';
+import * as transactionRepo from '@/lib/repositories/transactions';
+import type { TransactionStage } from '@/types';
 
 interface OverviewPageProps {
   params: Promise<{ id: string }>;
@@ -28,10 +32,20 @@ interface OverviewPageProps {
 export default async function OverviewPage({ params }: OverviewPageProps) {
   const { id: transactionId } = await params;
 
+  const transaction = await transactionRepo.findById(transactionId);
+  const currentStage = (transaction?.stage ?? 'intake') as TransactionStage;
+
   return (
     <div className="grid gap-10 lg:grid-cols-3">
       {/* Main Content - Left 2/3 */}
       <div className="lg:col-span-2 space-y-10">
+        {/* Stage Pipeline */}
+        <Card className="rounded-2xl shadow-sm overflow-hidden">
+          <CardContent className="p-5">
+            <StagePipeline currentStage={currentStage} />
+          </CardContent>
+        </Card>
+
         {/* Completeness Badge */}
         <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-muted/30" />}>
           <CompletenessBadge transactionId={transactionId} />
@@ -182,6 +196,9 @@ export default async function OverviewPage({ params }: OverviewPageProps) {
 
       {/* Sidebar - Right 1/3 */}
       <div className="space-y-8">
+        {/* Stage Transition Panel */}
+        <StageTransitionPanel transactionId={transactionId} currentStage={currentStage} />
+
         {/* Assignment Panel */}
         <AssignmentPanel transactionId={transactionId} />
 

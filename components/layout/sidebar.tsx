@@ -16,6 +16,8 @@ import {
   Newspaper,
   TrendingUp,
   Shield,
+  Bell,
+  InboxIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,7 @@ import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
   { name: 'Queue', href: '/queue', icon: Inbox },
   { name: 'Digest', href: '/digest', icon: Newspaper },
   { name: 'Transactions', href: '/transactions', icon: FileText },

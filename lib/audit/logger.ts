@@ -85,7 +85,16 @@ export type AuditAction =
   | 'office.created'
   | 'office.updated'
   | 'team.created'
-  | 'team.updated';
+  | 'team.updated'
+  | 'stage.changed'
+  | 'stage.blocked'
+  | 'notification.created'
+  | 'notification.read'
+  | 'notification.archived'
+  | 'search.executed'
+  | 'bulk_action.started'
+  | 'bulk_action.completed'
+  | 'bulk_action.failed';
 
 interface LogActionParams {
   organizationId?: string;
