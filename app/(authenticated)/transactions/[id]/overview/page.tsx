@@ -17,12 +17,28 @@ import {
   Search,
 } from 'lucide-react';
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { CompletenessBadge } from '@/components/transaction/completeness-badge';
+import { ExceptionAlerts } from '@/components/transaction/exception-alerts';
+import { RecommendationCards } from '@/components/transaction/recommendation-cards';
+import { AssignmentPanel } from '@/components/transaction/assignment-panel';
 
-export default async function OverviewPage() {
+interface OverviewPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function OverviewPage({ params }: OverviewPageProps) {
+  const { id: transactionId } = await params;
+
   return (
     <div className="grid gap-10 lg:grid-cols-3">
       {/* Main Content - Left 2/3 */}
       <div className="lg:col-span-2 space-y-10">
+        {/* Completeness Badge */}
+        <Suspense fallback={<div className="h-12 animate-pulse rounded-xl bg-muted/30" />}>
+          <CompletenessBadge transactionId={transactionId} />
+        </Suspense>
+
         {/* Transaction Status Banner */}
         <Card className="rounded-2xl border-blue-200/50 bg-gradient-to-br from-blue-50/90 via-blue-50/50 to-transparent shadow-sm">
           <CardContent className="p-6">
@@ -50,6 +66,12 @@ export default async function OverviewPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Exception Alerts */}
+        <ExceptionAlerts transactionId={transactionId} />
+
+        {/* Recommendations */}
+        <RecommendationCards transactionId={transactionId} />
 
         {/* Next Steps */}
         <Card className="rounded-2xl shadow-sm">
@@ -162,6 +184,9 @@ export default async function OverviewPage() {
 
       {/* Sidebar - Right 1/3 */}
       <div className="space-y-8">
+        {/* Assignment Panel */}
+        <AssignmentPanel transactionId={transactionId} />
+
         {/* Extraction Summary */}
         <Card className="rounded-2xl shadow-sm">
           <CardHeader className="pb-4 p-7">

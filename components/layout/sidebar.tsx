@@ -9,6 +9,9 @@ import {
   Settings,
   Plus,
   Building2,
+  Inbox,
+  Scale,
+  LayoutTemplate,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,12 +21,15 @@ import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Queue', href: '/queue', icon: Inbox },
   { name: 'Transactions', href: '/transactions', icon: FileText },
   { name: 'Approvals', href: '/approvals', icon: CheckSquare, showBadge: true },
 ];
 
 const secondaryNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Rules', href: '/settings/rules', icon: Scale, indent: true },
+  { name: 'Templates', href: '/settings/templates', icon: LayoutTemplate, indent: true },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -48,8 +54,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     return () => clearInterval(interval);
   }, []);
 
-  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean }) {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+  function renderNavItem(item: typeof navigation[number] & { showBadge?: boolean; indent?: boolean }) {
+    const isActive = item.indent
+      ? pathname === item.href
+      : pathname === item.href || pathname.startsWith(item.href + '/');
     return (
       <Link
         key={item.name}
@@ -58,6 +66,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         className={cn(
           'group relative flex items-center gap-3 rounded-lg px-3 py-3 text-[13px] font-medium',
           'transition-all duration-[150ms] ease-[cubic-bezier(0.25,0.1,0.25,1)]',
+          item.indent && 'pl-10 py-2',
           isActive
             ? 'bg-primary/[0.07] text-foreground'
             : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-foreground'
@@ -72,11 +81,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         )}
         <item.icon
           className={cn(
-            'h-[18px] w-[18px] shrink-0 transition-colors duration-[150ms]',
+            'shrink-0 transition-colors duration-[150ms]',
+            item.indent ? 'h-[15px] w-[15px]' : 'h-[18px] w-[18px]',
             isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover:text-foreground'
           )}
         />
-        <span className="flex-1 tracking-[-0.01em]">{item.name}</span>
+        <span className={cn('flex-1 tracking-[-0.01em]', item.indent && 'text-[12px]')}>{item.name}</span>
         {item.showBadge && pendingCount > 0 && (
           <Badge
             variant="destructive"
