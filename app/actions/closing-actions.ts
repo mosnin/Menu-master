@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireAuth, requireRole, getCurrentUserProfile } from '@/lib/auth/session';
 import * as transactionService from '@/lib/services/transaction-service';
-import * as closingService from '@/lib/services/closing-service';
+import * as closingService from '@/lib/services/closing-readiness-service';
 
 async function getTransactionOrgId(transactionId: string): Promise<string> {
   const transaction = await transactionService.getTransactionWithDetails(transactionId);
@@ -22,7 +22,7 @@ export async function computeClosingReadinessAction(
     const orgId = await getTransactionOrgId(transactionId);
     await requireRole(orgId, ['agent', 'coordinator', 'broker_admin']);
 
-    const readiness = await closingService.computeClosingReadiness(transactionId, profile.id);
+    const readiness = await closingService.computeClosingReadiness(transactionId);
 
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/transactions/${transactionId}/closing`);

@@ -12,6 +12,8 @@ const tabs = [
   { name: 'Overview', segment: 'overview' },
   { name: 'Documents', segment: 'documents' },
   { name: 'Checklist', segment: 'checklist' },
+  { name: 'Closing', segment: 'closing' },
+  { name: 'Collaborators', segment: 'collaborators' },
   { name: 'Timeline', segment: 'timeline' },
   { name: 'Approvals', segment: 'approvals' },
   { name: 'Communications', segment: 'communications' },

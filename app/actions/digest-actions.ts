@@ -8,28 +8,33 @@ export async function updateDigestPreferencesAction(
   isEnabled: boolean,
   deliveryHour?: number,
   timezone?: string,
-  includeTransactionSummary?: boolean,
-  includeActionItems?: boolean,
-  includeUpcomingDeadlines?: boolean,
-  includeHealthScores?: boolean,
+  includeDeadlines?: boolean,
+  includeHealthRisks?: boolean,
+  includePendingApprovals?: boolean,
+  includeStaleResponses?: boolean,
+  includeClosingSoon?: boolean,
 ): Promise<{ success?: boolean; error?: string }> {
   try {
     await requireAuth();
     const profile = await getCurrentUserProfile();
     if (!profile) return { error: 'User profile not found' };
 
-    await digestService.updateDigestPreferences(profile.id, {
-      isEnabled,
-      deliveryHour,
+    const orgId = profile.memberships?.[0]?.organization_id;
+    if (!orgId) return { error: 'No organization found' };
+
+    await digestService.updatePreferences(profile.id, orgId, {
+      is_enabled: isEnabled,
+      delivery_hour: deliveryHour,
       timezone,
-      includeTransactionSummary,
-      includeActionItems,
-      includeUpcomingDeadlines,
-      includeHealthScores,
+      include_deadlines: includeDeadlines,
+      include_health_risks: includeHealthRisks,
+      include_pending_approvals: includePendingApprovals,
+      include_stale_responses: includeStaleResponses,
+      include_closing_soon: includeClosingSoon,
     });
 
     revalidatePath('/settings');
-    revalidatePath('/settings/notifications');
+    revalidatePath('/settings/digests');
 
     return { success: true };
   } catch (error) {
@@ -43,7 +48,7 @@ export async function getDigestPreferencesAction() {
     const profile = await getCurrentUserProfile();
     if (!profile) return { error: 'User profile not found' };
 
-    const preferences = await digestService.getDigestPreferences(profile.id);
+    const preferences = await digestService.getPreferences(profile.id);
     return { data: preferences };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to get digest preferences' };
@@ -58,7 +63,8 @@ export async function getDigestAction(
     const profile = await getCurrentUserProfile();
     if (!profile) return { error: 'User profile not found' };
 
-    const digest = await digestService.getDigest(profile.id, date);
+    const targetDate = date ?? new Date().toISOString().split('T')[0];
+    const digest = await digestService.getDigest(profile.id, targetDate);
     return { data: digest };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to get digest' };
@@ -71,7 +77,10 @@ export async function generateDigestPreviewAction() {
     const profile = await getCurrentUserProfile();
     if (!profile) return { error: 'User profile not found' };
 
-    const preview = await digestService.generateDigestPreview(profile.id);
+    const orgId = profile.memberships?.[0]?.organization_id;
+    if (!orgId) return { error: 'No organization found' };
+
+    const preview = await digestService.generateDigest(profile.id, orgId);
     return { data: preview };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to generate digest preview' };

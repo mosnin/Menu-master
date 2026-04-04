@@ -13,6 +13,7 @@ import {
   Scale,
   LayoutTemplate,
   BarChart3,
+  Newspaper,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { useEffect, useState } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Queue', href: '/queue', icon: Inbox },
+  { name: 'Digest', href: '/digest', icon: Newspaper },
   { name: 'Transactions', href: '/transactions', icon: FileText },
   { name: 'Approvals', href: '/approvals', icon: CheckSquare, showBadge: true },
 ];
@@ -32,6 +34,7 @@ const secondaryNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Rules', href: '/settings/rules', icon: Scale, indent: true },
   { name: 'Templates', href: '/settings/templates', icon: LayoutTemplate, indent: true },
+  { name: 'Digest Settings', href: '/settings/digests', icon: Newspaper, indent: true },
 ];
 
 function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; userRole?: string }) {

@@ -14,7 +14,7 @@ async function getTransactionOrgId(transactionId: string): Promise<string> {
 export async function requestExportAction(
   transactionId: string,
   sections?: string[],
-  format?: string,
+  format?: import('@/types').ExportFormat | undefined,
 ): Promise<{ success?: boolean; data?: any; error?: string }> {
   try {
     await requireAuth();
@@ -25,9 +25,10 @@ export async function requestExportAction(
     await requireRole(orgId, ['broker_admin']);
 
     const job = await auditExportService.requestExport({
+      orgId,
       transactionId,
       sections,
-      format,
+      format: (format as 'json' | 'pdf') ?? 'json',
       requestedByUserId: profile.id,
     });
 
