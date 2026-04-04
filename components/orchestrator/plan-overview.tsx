@@ -70,6 +70,7 @@ function SubgoalItem({ subgoal }: { subgoal: OrchestratorSubgoal }) {
         'flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors',
         subgoal.status === 'blocked' && 'bg-red-50/50',
         subgoal.status === 'in_progress' && 'bg-blue-50/50',
+        subgoal.status === 'waiting' && 'bg-yellow-50/50',
         subgoal.status === 'completed' && 'bg-green-50/30',
       )}
     >
@@ -77,18 +78,35 @@ function SubgoalItem({ subgoal }: { subgoal: OrchestratorSubgoal }) {
         <SubgoalStatusIcon status={subgoal.status} />
       </div>
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            'text-xs font-medium',
-            subgoal.status === 'completed' && 'text-muted-foreground line-through',
-            subgoal.status === 'skipped' && 'text-muted-foreground line-through',
+        <div className="flex items-center gap-2">
+          <p
+            className={cn(
+              'text-xs font-medium',
+              subgoal.status === 'completed' && 'text-muted-foreground line-through',
+              subgoal.status === 'skipped' && 'text-muted-foreground line-through',
+            )}
+          >
+            {subgoal.title}
+          </p>
+          {subgoal.urgency === 'critical' && (
+            <Badge className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0">Critical</Badge>
           )}
-        >
-          {subgoal.title}
-        </p>
+        </div>
         {subgoal.intent && (
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
             {subgoal.intent}
+          </p>
+        )}
+        {subgoal.status === 'waiting' && subgoal.waiting_on_type && (
+          <p className="text-[11px] text-yellow-700 mt-1 flex items-center gap-1">
+            <Clock className="h-2.5 w-2.5 shrink-0" />
+            Waiting on {subgoal.waiting_on_type}
+            {subgoal.waiting_on_detail ? `: ${subgoal.waiting_on_detail}` : ''}
+            {subgoal.waiting_since && (
+              <span className="text-yellow-600 ml-1">
+                ({formatDistanceToNow(new Date(subgoal.waiting_since), { addSuffix: false })})
+              </span>
+            )}
           </p>
         )}
         {subgoal.status === 'blocked' && subgoal.blocked_reason && (
@@ -209,11 +227,29 @@ export function PlanOverview({ orchestratorId, organizationId }: PlanOverviewPro
         </p>
       </div>
 
+      {/* Risk summary */}
+      {plan.risk_summary && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-amber-50/50 px-3 py-2.5">
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700 leading-relaxed">{plan.risk_summary}</p>
+        </div>
+      )}
+
       {/* Blocked reason */}
       {plan.status === 'blocked' && plan.blocked_reason && (
         <div className="flex items-start gap-2.5 rounded-xl bg-red-50/50 px-3 py-2.5">
           <AlertTriangle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
           <p className="text-xs text-red-700 leading-relaxed">{plan.blocked_reason}</p>
+        </div>
+      )}
+
+      {/* Replan info */}
+      {plan.replan_count > 0 && plan.last_replan_reason && (
+        <div className="rounded-xl bg-blue-50/50 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-blue-600 mb-0.5">
+            Replanned {plan.replan_count} time{plan.replan_count > 1 ? 's' : ''}
+          </p>
+          <p className="text-[11px] text-blue-700 leading-relaxed">{plan.last_replan_reason}</p>
         </div>
       )}
 

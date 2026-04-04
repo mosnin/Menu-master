@@ -1,19 +1,34 @@
 import { getOpenAIClient } from '@/lib/ai/client';
-import type { WorldStateSnapshot, OrchestratorMemoryEntry, PlannerOutput, LearningContext } from '@/types';
+import type {
+  WorldStateSnapshot,
+  OrchestratorMemoryEntry,
+  PlannerOutput,
+  LearningContext,
+  OrchestratorPlan,
+  OrchestratorSubgoal,
+} from '@/types';
 import { getAllTools } from './tool-registry';
+
+export interface PlannerEntityContext {
+  entityType: string;
+  entityId: string;
+  orgId: string;
+  specialistRecommendations?: { tool_name: string; reason: string; urgency: string; confidence: number }[];
+  specialistEscalations?: string[];
+  specialistSummary?: string;
+  learningContext?: LearningContext;
+  /** Current active plan, if one exists */
+  activePlan?: OrchestratorPlan;
+  /** Subgoals for the active plan */
+  activeSubgoals?: OrchestratorSubgoal[];
+  /** What the plan lifecycle decided this cycle */
+  planAction?: string;
+}
 
 export async function runPlanner(
   worldState: WorldStateSnapshot,
   memory: OrchestratorMemoryEntry[],
-  _entityContext: {
-    entityType: string;
-    entityId: string;
-    orgId: string;
-    specialistRecommendations?: { tool_name: string; reason: string; urgency: string; confidence: number }[];
-    specialistEscalations?: string[];
-    specialistSummary?: string;
-    learningContext?: LearningContext;
-  },
+  _entityContext: PlannerEntityContext,
 ): Promise<PlannerOutput> {
   const client = getOpenAIClient();
 
@@ -32,17 +47,45 @@ export async function runPlanner(
   const humanCorrections = memory.filter(m => m.memory_type === 'human_correction').slice(0, 3);
   const pendingDecisions = memory.filter(m => m.memory_type === 'pending_decision' && !m.resolved);
 
+  // Build plan context section
+  let planSection = '';
+  if (_entityContext.activePlan && _entityContext.activeSubgoals) {
+    const plan = _entityContext.activePlan;
+    const subgoals = _entityContext.activeSubgoals;
+    const pendingSg = subgoals.filter(sg => sg.status === 'pending' || sg.status === 'in_progress');
+    const waitingSg = subgoals.filter(sg => sg.status === 'waiting');
+    const blockedSg = subgoals.filter(sg => sg.status === 'blocked');
+    const completedSg = subgoals.filter(sg => sg.status === 'completed' || sg.status === 'skipped');
+
+    planSection = `\n\nACTIVE PLAN (${_entityContext.planAction ?? 'continue'}):
+Objective: ${plan.objective}
+Status: ${plan.status} | Version: ${plan.version} | Priority: ${plan.priority}
+Progress: ${completedSg.length}/${subgoals.length} subgoals done
+
+PENDING SUBGOALS (advance these):
+${pendingSg.map(sg => `- [${sg.urgency}] ${sg.title} → tools: ${sg.linked_tool_names.join(', ') || 'none'}${sg.depends_on_subgoal_ids.length > 0 ? ' (has dependencies)' : ''}`).join('\n') || 'None'}
+
+WAITING SUBGOALS (check if unblocked):
+${waitingSg.map(sg => `- ${sg.title} → waiting on ${sg.waiting_on_type ?? 'unknown'}: ${sg.waiting_on_detail ?? sg.title}`).join('\n') || 'None'}
+
+BLOCKED SUBGOALS (escalate or work around):
+${blockedSg.map(sg => `- ${sg.title} → ${sg.blocked_reason ?? 'unknown reason'}`).join('\n') || 'None'}
+
+IMPORTANT: Prioritize actions that advance pending subgoals. Do not propose actions unrelated to the plan unless a new critical issue appeared.`;
+  }
+
   const systemPrompt = `You are the Deal Desk Orchestrator Planner. You observe deal state and propose bounded actions.
 
 RULES:
 1. You can ONLY propose actions from the available tools list
 2. Each action must have a clear reason tied to the current state
 3. Prefer safe actions over risky ones
-4. If prior recommendations were ignored, note this but don't repeat the same action
-5. If there are unresolved blockers, prioritize those
-6. Never propose actions that bypass approvals or compliance
-7. Be concise — this is an operations system, not a conversation
-8. Output valid JSON only
+4. If an active plan exists, prioritize advancing its pending subgoals
+5. If prior recommendations were ignored, note this but don't repeat the same action
+6. If there are unresolved blockers, prioritize those
+7. Never propose actions that bypass approvals or compliance
+8. Be concise — this is an operations system, not a conversation
+9. Output valid JSON only
 
 AVAILABLE TOOLS:
 ${JSON.stringify(availableTools, null, 2)}`;
@@ -103,7 +146,7 @@ UNRESOLVED BLOCKERS: ${unresolvedBlockers.map(b => b.summary).join('; ') || 'Non
 RECENT ACTIONS: ${recentActions.map(a => a.summary).join('; ') || 'None'}
 FAILURE PATTERNS: ${failurePatterns.map(f => f.summary).join('; ') || 'None'}
 HUMAN CORRECTIONS: ${humanCorrections.map(c => c.summary).join('; ') || 'None'}
-PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}${specialistSection}${learningSection}
+PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}${planSection}${specialistSection}${learningSection}
 
 Analyze this state and produce a JSON plan with this exact structure:
 {
@@ -125,7 +168,7 @@ Analyze this state and produce a JSON plan with this exact structure:
 }`;
 
   if (!client) {
-    return createMockPlannerOutput(worldState);
+    return createMockPlannerOutput(worldState, _entityContext.activeSubgoals);
   }
 
   try {
@@ -146,70 +189,111 @@ Analyze this state and produce a JSON plan with this exact structure:
     const parsed = JSON.parse(content) as PlannerOutput;
     return parsed;
   } catch {
-    return createMockPlannerOutput(worldState);
+    return createMockPlannerOutput(worldState, _entityContext.activeSubgoals);
   }
 }
 
-function createMockPlannerOutput(worldState: WorldStateSnapshot): PlannerOutput {
+function createMockPlannerOutput(
+  worldState: WorldStateSnapshot,
+  activeSubgoals?: OrchestratorSubgoal[],
+): PlannerOutput {
   const actions: PlannerOutput['proposed_actions'] = [];
 
-  if (worldState.completeness_score < 50) {
-    actions.push({
-      tool_name: 'recompute_completeness',
-      params: {},
-      risk_class: 'safe',
-      confidence: 0.95,
-      reason: 'Completeness score is low, recompute to check current state',
-      prerequisites: [],
-    });
+  // When a plan exists, prioritize actions that advance pending subgoals
+  if (activeSubgoals && activeSubgoals.length > 0) {
+    const pendingSubgoals = activeSubgoals.filter(
+      sg => sg.status === 'pending' || sg.status === 'in_progress',
+    );
+
+    for (const sg of pendingSubgoals) {
+      for (const toolName of sg.linked_tool_names) {
+        // Check dependencies — skip if any dependency subgoal is not yet completed
+        if (sg.depends_on_subgoal_ids.length > 0) {
+          const depsComplete = sg.depends_on_subgoal_ids.every(depId => {
+            const dep = activeSubgoals.find(s => s.id === depId);
+            return dep && (dep.status === 'completed' || dep.status === 'skipped');
+          });
+          if (!depsComplete) continue;
+        }
+
+        const riskClass = toolName.startsWith('recompute_') || toolName === 'create_notification'
+          ? 'safe' as const
+          : toolName === 'suggest_stage_transition'
+            ? 'high_risk' as const
+            : 'medium_risk' as const;
+
+        actions.push({
+          tool_name: toolName,
+          params: {},
+          risk_class: riskClass,
+          confidence: 0.85,
+          reason: `Advance plan subgoal: ${sg.title}`,
+          prerequisites: sg.prerequisites,
+        });
+      }
+    }
   }
 
-  if (worldState.missing_docs.length > 0) {
-    actions.push({
-      tool_name: 'create_document_request',
-      params: { document_types: worldState.missing_docs },
-      risk_class: 'medium_risk',
-      confidence: 0.85,
-      reason: `Missing documents: ${worldState.missing_docs.join(', ')}`,
-      prerequisites: [],
-    });
-  }
+  // Fall back to reactive actions when no plan or subgoals generated no actions
+  if (actions.length === 0) {
+    if (worldState.completeness_score < 50) {
+      actions.push({
+        tool_name: 'recompute_completeness',
+        params: {},
+        risk_class: 'safe',
+        confidence: 0.95,
+        reason: 'Completeness score is low, recompute to check current state',
+        prerequisites: [],
+      });
+    }
 
-  if (worldState.unresolved_exceptions > 0) {
-    actions.push({
-      tool_name: 'recompute_exceptions',
-      params: {},
-      risk_class: 'safe',
-      confidence: 0.9,
-      reason: `${worldState.unresolved_exceptions} unresolved exceptions need attention`,
-      prerequisites: [],
-    });
-  }
+    if (worldState.missing_docs.length > 0) {
+      actions.push({
+        tool_name: 'create_document_request',
+        params: { document_types: worldState.missing_docs },
+        risk_class: 'medium_risk',
+        confidence: 0.85,
+        reason: `Missing documents: ${worldState.missing_docs.join(', ')}`,
+        prerequisites: [],
+      });
+    }
 
-  if (worldState.pending_approvals > 0) {
-    actions.push({
-      tool_name: 'create_notification',
-      params: { message: `${worldState.pending_approvals} approval(s) pending review` },
-      risk_class: 'safe',
-      confidence: 0.8,
-      reason: 'Notify about pending approvals',
-      prerequisites: [],
-    });
-  }
+    if (worldState.unresolved_exceptions > 0) {
+      actions.push({
+        tool_name: 'recompute_exceptions',
+        params: {},
+        risk_class: 'safe',
+        confidence: 0.9,
+        reason: `${worldState.unresolved_exceptions} unresolved exceptions need attention`,
+        prerequisites: [],
+      });
+    }
 
-  if (worldState.overdue_obligations > 0) {
-    actions.push({
-      tool_name: 'create_reminder_draft',
-      params: { reason: 'Overdue obligations need follow-up' },
-      risk_class: 'medium_risk',
-      confidence: 0.75,
-      reason: `${worldState.overdue_obligations} obligation(s) are overdue`,
-      prerequisites: [],
-    });
+    if (worldState.pending_approvals > 0) {
+      actions.push({
+        tool_name: 'create_notification',
+        params: { message: `${worldState.pending_approvals} approval(s) pending review` },
+        risk_class: 'safe',
+        confidence: 0.8,
+        reason: 'Notify about pending approvals',
+        prerequisites: [],
+      });
+    }
+
+    if (worldState.overdue_obligations > 0) {
+      actions.push({
+        tool_name: 'create_reminder_draft',
+        params: { reason: 'Overdue obligations need follow-up' },
+        risk_class: 'medium_risk',
+        confidence: 0.75,
+        reason: `${worldState.overdue_obligations} obligation(s) are overdue`,
+        prerequisites: [],
+      });
+    }
   }
 
   return {
-    reasoning_summary: `Deal is at ${worldState.stage} stage with ${worldState.completeness_score}% completeness. ${worldState.unresolved_exceptions} exceptions, ${worldState.missing_docs.length} missing docs.`,
+    reasoning_summary: `Deal is at ${worldState.stage} stage with ${worldState.completeness_score}% completeness. ${worldState.unresolved_exceptions} exceptions, ${worldState.missing_docs.length} missing docs.${activeSubgoals?.length ? ` Plan has ${activeSubgoals.filter(s => s.status === 'pending' || s.status === 'in_progress').length} pending subgoals.` : ''}`,
     world_state_assessment: worldState.completeness_score >= 70 ? 'Deal is progressing well' : 'Deal needs attention',
     blockers_identified: [
       ...worldState.missing_docs.map(d => `Missing document: ${d}`),

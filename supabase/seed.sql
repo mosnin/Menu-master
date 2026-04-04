@@ -2227,3 +2227,329 @@ INSERT INTO orchestrator_action_executions (
   'retry_success_001',
   '2026-04-04 10:30:00-06'
 );
+
+-- ===========================================================================
+-- Adaptive Planning Seed Data
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- Plan 1: TX1 multi-step plan progressing across cycles (active, v2, replanned once)
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, risk_summary, source_signals,
+  replan_count, last_replan_reason, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan v2 for transaction 10000000',
+  'In under_contract stage: collect 2 missing document(s), resolve 1 pending approval(s) (4 subgoals).',
+  'transaction', '10000000-0000-4000-8000-000000000001',
+  'active', 'high', 24,
+  '["stage_change", "document_upload", "blocker_resolved"]'::jsonb,
+  2,
+  '1 urgent deadline',
+  '[{"type": "missing_docs", "docs": ["seller_disclosure", "title_commitment"]}, {"type": "urgent_deadlines", "count": 1}]'::jsonb,
+  1, 'Replan needed: 2 recent uploads changed world state.',
+  'abc123def456'
+);
+
+-- Subgoals for Plan 1
+INSERT INTO orchestrator_subgoals (
+  id, plan_id, title, intent, status, urgency, owner_user_id, owner_role,
+  sort_order, prerequisites, completion_condition, linked_tool_names,
+  waiting_on_type, waiting_on_detail, waiting_expected_event, waiting_escalation_hours,
+  depends_on_subgoal_ids
+) VALUES
+-- Completed subgoal (doc was uploaded)
+(
+  'sg000000-0000-4000-8000-000000000001',
+  'p0000000-0000-4000-8000-000000000001',
+  'Obtain purchase_agreement', 'Obtain the missing document "purchase_agreement".',
+  'completed', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
+  1, '{}', 'Document "purchase_agreement" is uploaded and verified.',
+  '{"create_document_request"}',
+  'seller', 'Waiting for purchase_agreement to be uploaded', 'purchase_agreement document uploaded', 48,
+  '{}'
+),
+-- Waiting subgoal (waiting on seller)
+(
+  'sg000000-0000-4000-8000-000000000002',
+  'p0000000-0000-4000-8000-000000000001',
+  'Obtain seller_disclosure', 'Obtain the missing document "seller_disclosure".',
+  'waiting', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
+  2, '{}', 'Document "seller_disclosure" is uploaded and verified.',
+  '{"create_document_request"}',
+  'seller', 'Requested from seller on April 2nd', 'seller_disclosure document uploaded', 48,
+  '{}'
+),
+-- In-progress subgoal (waiting on title)
+(
+  'sg000000-0000-4000-8000-000000000003',
+  'p0000000-0000-4000-8000-000000000001',
+  'Obtain title_commitment', 'Obtain the missing document "title_commitment".',
+  'in_progress', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
+  3, '{}', 'Document "title_commitment" is uploaded and verified.',
+  '{"create_document_request"}',
+  'title', 'Title company processing', 'title_commitment document uploaded', 72,
+  '{}'
+),
+-- Pending approval subgoal
+(
+  'sg000000-0000-4000-8000-000000000004',
+  'p0000000-0000-4000-8000-000000000001',
+  'Resolve 1 pending approval(s)', 'Get all pending approvals reviewed and decided.',
+  'pending', 'high', NULL, NULL,
+  4, '{}', 'All pending approvals are resolved.',
+  '{"create_notification"}',
+  'approval', '1 approval(s) pending review', 'Approvals decided', 24,
+  '{}'
+);
+
+-- Revision history for Plan 1 (the v1 → v2 transition)
+INSERT INTO orchestrator_plan_revisions (
+  id, plan_id, revision_number, reason, changes_summary, previous_snapshot
+) VALUES (
+  'pr000000-0000-4000-8000-000000000001',
+  'p0000000-0000-4000-8000-000000000001',
+  1, 'Replan needed: 2 recent uploads changed world state.',
+  'Superseded due to replan: 2 recent uploads changed world state.',
+  '{"plan": {"version": 1, "status": "active", "objective": "In under_contract stage: collect 3 missing document(s)"}, "subgoals": [{"title": "Obtain purchase_agreement", "status": "pending"}, {"title": "Obtain seller_disclosure", "status": "pending"}, {"title": "Obtain title_commitment", "status": "pending"}], "progress": {"total_subgoals": 3, "completed": 0, "pending": 3, "completion_percentage": 0}}'::jsonb
+);
+
+-- ---------------------------------------------------------------------------
+-- Plan 2: Listing with launch blockers causing a blocked plan
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, blocked_reason, blocked_since,
+  risk_summary, source_signals, replan_count, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000002',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan for listing 10000000',
+  'In launch_prep stage: collect 3 missing document(s), resolve 2 compliance flag(s) (6 subgoals).',
+  'listing', '10000000-0000-4000-8000-000000000002',
+  'blocked', 'high', 24,
+  '["stage_change", "document_upload", "blocker_resolved"]'::jsonb,
+  1,
+  'Plan blocked: 3 unresolved blockers.',
+  '2026-04-03 16:00:00-06',
+  '2 compliance flags; very low completeness',
+  '[{"type": "missing_docs", "docs": ["photos", "listing_agreement", "lead_paint_disclosure"]}, {"type": "compliance_flags", "flags": ["missing_lead_paint", "incomplete_property_data"]}]'::jsonb,
+  0, 'blocked_hash_001'
+);
+
+INSERT INTO orchestrator_subgoals (
+  id, plan_id, title, intent, status, urgency, sort_order,
+  prerequisites, completion_condition, linked_tool_names,
+  blocked_reason, blocked_since, waiting_on_type, waiting_on_detail,
+  waiting_escalation_hours, depends_on_subgoal_ids
+) VALUES
+(
+  'sg000000-0000-4000-8000-000000000010',
+  'p0000000-0000-4000-8000-000000000002',
+  'Resolve compliance: missing_lead_paint', 'Address lead paint disclosure requirement.',
+  'blocked', 'critical', 1,
+  '{}', 'Compliance flag "missing_lead_paint" is cleared.',
+  '{"request_manual_review"}',
+  'Seller has not provided lead paint disclosure', '2026-04-03 16:00:00-06',
+  'compliance_review', 'Lead paint disclosure needs review', 24,
+  '{}'
+),
+(
+  'sg000000-0000-4000-8000-000000000011',
+  'p0000000-0000-4000-8000-000000000002',
+  'Obtain listing_agreement', 'Obtain signed listing agreement.',
+  'blocked', 'high', 2,
+  '{}', 'Document "listing_agreement" is uploaded.',
+  '{"create_document_request"}',
+  'Seller unreachable for signature', '2026-04-03 14:00:00-06',
+  'seller', 'Seller not responding to document requests', 72,
+  '{}'
+),
+(
+  'sg000000-0000-4000-8000-000000000012',
+  'p0000000-0000-4000-8000-000000000002',
+  'Obtain photos', 'Get property photos for listing.',
+  'pending', 'normal', 3,
+  '{}', 'Photos uploaded.',
+  '{"create_document_request"}',
+  NULL, NULL,
+  'internal', 'Photographer scheduling', 48,
+  '{}'
+);
+
+-- ---------------------------------------------------------------------------
+-- Plan 3: TX3 waiting on lender with clear dependency path
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, risk_summary, source_signals,
+  replan_count, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000003',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan for transaction 10000000',
+  'In under_contract stage: collect 1 missing document(s), raise completeness from 55% (3 subgoals).',
+  'transaction', '10000000-0000-4000-8000-000000000003',
+  'waiting', 'normal', 24,
+  '["stage_change", "document_upload"]'::jsonb,
+  1,
+  NULL,
+  '[{"type": "missing_docs", "docs": ["lender_commitment_letter"]}]'::jsonb,
+  0, 'waiting_hash_001'
+);
+
+INSERT INTO orchestrator_subgoals (
+  id, plan_id, title, intent, status, urgency, sort_order,
+  prerequisites, completion_condition, linked_tool_names,
+  waiting_on_type, waiting_on_detail, waiting_since, waiting_expected_event,
+  waiting_escalation_hours, depends_on_subgoal_ids
+) VALUES
+-- Waiting on lender for commitment letter
+(
+  'sg000000-0000-4000-8000-000000000020',
+  'p0000000-0000-4000-8000-000000000003',
+  'Obtain lender_commitment_letter', 'Obtain lender commitment letter for closing.',
+  'waiting', 'high', 1,
+  '{}', 'Document "lender_commitment_letter" is uploaded.',
+  '{"create_document_request"}',
+  'lender', 'Lender processing underwriting — expected 3-5 business days',
+  '2026-04-01 10:00:00-06', 'lender_commitment_letter document uploaded',
+  96, '{}'
+),
+-- Depends on lender letter: completeness improvement
+(
+  'sg000000-0000-4000-8000-000000000021',
+  'p0000000-0000-4000-8000-000000000003',
+  'Improve completeness', 'Raise completeness from 55% to at least 70%.',
+  'pending', 'high', 2,
+  '{"Lender commitment letter should be obtained first"}',
+  'Completeness score reaches 70% or higher.',
+  '{"recompute_completeness"}',
+  NULL, NULL, NULL, NULL,
+  NULL, '{"sg000000-0000-4000-8000-000000000020"}'
+),
+-- Closing readiness depends on completeness
+(
+  'sg000000-0000-4000-8000-000000000022',
+  'p0000000-0000-4000-8000-000000000003',
+  'Verify closing readiness', 'Ensure all closing prerequisites are met.',
+  'pending', 'normal', 3,
+  '{"Completeness must be >= 70%"}',
+  'Closing readiness confirmed.',
+  '{"recompute_closing_readiness"}',
+  NULL, NULL, NULL, NULL,
+  NULL, '{"sg000000-0000-4000-8000-000000000021"}'
+);
+
+-- ---------------------------------------------------------------------------
+-- Plan 4: TX4 partially completed plan that got updated
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, risk_summary, source_signals,
+  replan_count, last_replan_reason, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000004',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan v2 for transaction 10000000',
+  'In closing stage: address 1 overdue obligation(s), resolve 1 exception(s) (3 subgoals).',
+  'transaction', '10000000-0000-4000-8000-000000000004',
+  'active', 'critical', 12,
+  '["stage_change", "document_upload", "blocker_resolved"]'::jsonb,
+  2,
+  '1 overdue obligation; 1 urgent deadline',
+  '[{"type": "unresolved_exceptions", "count": 1}, {"type": "urgent_deadlines", "count": 1}]'::jsonb,
+  1, 'Replan needed: stage changed to "closing".',
+  'closing_hash_001'
+);
+
+INSERT INTO orchestrator_subgoals (
+  id, plan_id, title, intent, status, urgency, sort_order,
+  prerequisites, completion_condition, linked_tool_names,
+  waiting_on_type, depends_on_subgoal_ids
+) VALUES
+(
+  'sg000000-0000-4000-8000-000000000030',
+  'p0000000-0000-4000-8000-000000000004',
+  'Resolve 1 unresolved exception(s)', 'Clear open exception to proceed with closing.',
+  'completed', 'critical', 1,
+  '{}', 'All exceptions resolved.',
+  '{"recompute_exceptions"}',
+  NULL, '{}'
+),
+(
+  'sg000000-0000-4000-8000-000000000031',
+  'p0000000-0000-4000-8000-000000000004',
+  'Address 1 overdue obligation(s)', 'Resolve overdue obligation before closing.',
+  'in_progress', 'critical', 2,
+  '{}', 'No overdue obligations remain.',
+  '{"create_reminder_draft"}',
+  NULL, '{}'
+),
+(
+  'sg000000-0000-4000-8000-000000000032',
+  'p0000000-0000-4000-8000-000000000004',
+  'Complete before 2026-04-09: Closing date', 'Ensure closing is ready by deadline.',
+  'pending', 'critical', 3,
+  '{"Overdue obligations must be resolved first"}',
+  'Closing date met or extended.',
+  '{"recompute_closing_readiness"}',
+  NULL, '{"sg000000-0000-4000-8000-000000000031"}'
+);
+
+-- ---------------------------------------------------------------------------
+-- Plan 5: Completed plan (for TX5/org2) with approval-gated step history
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, completed_at,
+  risk_summary, source_signals, replan_count, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000005',
+  'f1000000-0000-4000-8000-000000000003',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan for transaction 10000000',
+  'In under_contract stage: resolve 1 pending approval(s) (2 subgoals).',
+  'transaction', '10000000-0000-4000-8000-000000000003',
+  'completed', 'normal', 24,
+  '["stage_change"]'::jsonb,
+  1, '2026-04-02 18:00:00-06',
+  NULL,
+  '[{"type": "pending_approvals", "count": 1}]'::jsonb,
+  0, 'completed_hash_001'
+);
+
+-- ---------------------------------------------------------------------------
+-- Plan 6: Superseded plan (TX1 original v1, before replan)
+-- ---------------------------------------------------------------------------
+INSERT INTO orchestrator_plans (
+  id, orchestrator_id, organization_id, title, objective,
+  entity_type, entity_id, status, priority, review_cadence_hours,
+  refresh_conditions, version, superseded_by,
+  risk_summary, source_signals, replan_count, world_state_hash
+) VALUES (
+  'p0000000-0000-4000-8000-000000000006',
+  'f1000000-0000-4000-8000-000000000001',
+  'e0000000-0000-4000-8000-000000000001',
+  'Plan for transaction 10000000',
+  'In under_contract stage: collect 3 missing document(s) (3 subgoals).',
+  'transaction', '10000000-0000-4000-8000-000000000001',
+  'superseded', 'normal', 24,
+  '["stage_change", "document_upload"]'::jsonb,
+  1, 'p0000000-0000-4000-8000-000000000001',
+  NULL,
+  '[{"type": "missing_docs", "docs": ["purchase_agreement", "seller_disclosure", "title_commitment"]}]'::jsonb,
+  0, 'original_hash_001'
+);

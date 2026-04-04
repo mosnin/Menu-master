@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/db/client';
-import type { OrchestratorSubgoal, PlanProgress } from '@/types';
+import type { OrchestratorSubgoal, PlanProgress, WaitingOnType } from '@/types';
 
 const TABLE = 'orchestrator_subgoals';
 
@@ -110,6 +110,68 @@ export async function skip(
 
   if (error) throw error;
   return data;
+}
+
+export async function markWaiting(
+  id: string,
+  waitingOn: {
+    type: WaitingOnType;
+    detail: string;
+    expectedEvent: string;
+    escalationHours?: number;
+  },
+): Promise<OrchestratorSubgoal> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      status: 'waiting' as const,
+      waiting_on_type: waitingOn.type,
+      waiting_on_detail: waitingOn.detail,
+      waiting_since: new Date().toISOString(),
+      waiting_expected_event: waitingOn.expectedEvent,
+      waiting_escalation_hours: waitingOn.escalationHours ?? 48,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function clearWaiting(
+  id: string,
+): Promise<OrchestratorSubgoal> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      status: 'in_progress' as const,
+      waiting_on_type: null,
+      waiting_on_detail: null,
+      waiting_since: null,
+      waiting_expected_event: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function findWaitingEscalations(
+  planId: string,
+): Promise<OrchestratorSubgoal[]> {
+  const subgoals = await findByPlan(planId);
+  const now = Date.now();
+  return subgoals.filter(sg => {
+    if (sg.status !== 'waiting' || !sg.waiting_since || !sg.waiting_escalation_hours) return false;
+    const waitingMs = now - new Date(sg.waiting_since).getTime();
+    const escalationMs = sg.waiting_escalation_hours * 60 * 60 * 1000;
+    return waitingMs >= escalationMs;
+  });
 }
 
 export async function computeProgress(

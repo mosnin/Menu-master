@@ -5,8 +5,19 @@ import type {
   CriticEvaluation,
   ActionRiskClass,
   LearningContext,
+  OrchestratorPlan,
+  OrchestratorSubgoal,
 } from '@/types';
 import { getToolContract, isToolAllowed } from './tool-registry';
+
+// ---------------------------------------------------------------------------
+// Plan coherence context (optional, used when a plan is active)
+// ---------------------------------------------------------------------------
+
+export interface CriticPlanContext {
+  activePlan: OrchestratorPlan;
+  activeSubgoals: OrchestratorSubgoal[];
+}
 
 // ---------------------------------------------------------------------------
 // Deterministic rules that always apply regardless of AI
@@ -106,10 +117,126 @@ function applyDeterministicRules(
 // AI-powered critic
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Plan coherence checks (deterministic)
+// ---------------------------------------------------------------------------
+
+interface PlanCoherenceResult {
+  concerns: string[];
+  contradictions: string[];
+  requiresReview: boolean;
+}
+
+function checkPlanCoherence(
+  plannerOutput: PlannerOutput,
+  worldState: WorldStateSnapshot,
+  planCtx: CriticPlanContext,
+): PlanCoherenceResult {
+  const concerns: string[] = [];
+  const contradictions: string[] = [];
+  let requiresReview = false;
+
+  const { activePlan, activeSubgoals } = planCtx;
+  const pendingSubgoals = activeSubgoals.filter(
+    sg => sg.status === 'pending' || sg.status === 'in_progress',
+  );
+  const blockedSubgoals = activeSubgoals.filter(sg => sg.status === 'blocked');
+  const waitingSubgoals = activeSubgoals.filter(sg => sg.status === 'waiting');
+
+  // PC1: Actions should relate to plan subgoals — flag orphaned actions
+  const planToolNames = new Set(activeSubgoals.flatMap(sg => sg.linked_tool_names));
+  const orphanedActions = plannerOutput.proposed_actions.filter(
+    a => !planToolNames.has(a.tool_name) && a.tool_name !== 'recompute_health_score',
+  );
+  if (orphanedActions.length > 0 && pendingSubgoals.length > 0) {
+    concerns.push(
+      `${orphanedActions.length} proposed action(s) not linked to any plan subgoal: ${orphanedActions.map(a => a.tool_name).join(', ')}`,
+    );
+  }
+
+  // PC2: Actions targeting blocked subgoals without addressing the blocker
+  for (const action of plannerOutput.proposed_actions) {
+    const linkedBlockedSg = blockedSubgoals.find(sg =>
+      sg.linked_tool_names.includes(action.tool_name),
+    );
+    if (linkedBlockedSg) {
+      concerns.push(
+        `Action "${action.tool_name}" targets blocked subgoal "${linkedBlockedSg.title}" — blocker: ${linkedBlockedSg.blocked_reason ?? 'unknown'}`,
+      );
+    }
+  }
+
+  // PC3: Dependency ordering — actions for subgoals whose dependencies aren't met
+  for (const action of plannerOutput.proposed_actions) {
+    for (const sg of pendingSubgoals) {
+      if (!sg.linked_tool_names.includes(action.tool_name)) continue;
+      if (sg.depends_on_subgoal_ids.length === 0) continue;
+
+      const unmetDeps = sg.depends_on_subgoal_ids.filter(depId => {
+        const dep = activeSubgoals.find(s => s.id === depId);
+        return dep && dep.status !== 'completed' && dep.status !== 'skipped';
+      });
+
+      if (unmetDeps.length > 0) {
+        concerns.push(
+          `Action "${action.tool_name}" for subgoal "${sg.title}" has ${unmetDeps.length} unmet dependency(ies)`,
+        );
+      }
+    }
+  }
+
+  // PC4: Excessive actions relative to pending subgoals
+  if (plannerOutput.proposed_actions.length > pendingSubgoals.length + 2) {
+    concerns.push(
+      `${plannerOutput.proposed_actions.length} actions proposed but only ${pendingSubgoals.length} pending subgoals — possible scope creep`,
+    );
+  }
+
+  // PC5: Plan is blocked but planner is still proposing non-safe actions
+  if (activePlan.status === 'blocked') {
+    const nonSafeActions = plannerOutput.proposed_actions.filter(a => a.risk_class !== 'safe');
+    if (nonSafeActions.length > 0) {
+      requiresReview = true;
+      concerns.push(
+        `Plan is blocked but ${nonSafeActions.length} non-safe action(s) proposed — requires human review`,
+      );
+    }
+  }
+
+  // PC6: Many waiting subgoals suggests the plan may need restructuring
+  if (waitingSubgoals.length >= 3) {
+    concerns.push(
+      `${waitingSubgoals.length} subgoals in waiting state — plan may need replanning`,
+    );
+  }
+
+  // PC7: Actions that contradict world state (e.g., requesting docs that exist)
+  for (const action of plannerOutput.proposed_actions) {
+    if (action.tool_name === 'create_document_request' && action.params?.document_types) {
+      const requestedDocs = action.params.document_types as string[];
+      const alreadyPresent = requestedDocs.filter(
+        d => !worldState.missing_docs.includes(d),
+      );
+      if (alreadyPresent.length > 0) {
+        contradictions.push(
+          `Requesting documents that already exist: ${alreadyPresent.join(', ')}`,
+        );
+      }
+    }
+  }
+
+  return { concerns, contradictions, requiresReview };
+}
+
+// ---------------------------------------------------------------------------
+// Main critic entry point
+// ---------------------------------------------------------------------------
+
 export async function runCritic(
   plannerOutput: PlannerOutput,
   worldState: WorldStateSnapshot,
   learningContext?: LearningContext,
+  planContext?: CriticPlanContext,
 ): Promise<CriticEvaluation> {
   // First, apply deterministic rules to all actions
   const deterministicReviews = plannerOutput.proposed_actions.map(action =>
@@ -143,6 +270,24 @@ export async function runCritic(
   // Gather deterministic compliance concerns
   for (const review of deterministicReviews) {
     allComplianceConcerns.push(...review.compliance_flags);
+  }
+
+  // Plan coherence checks (if an active plan exists)
+  if (planContext) {
+    const coherence = checkPlanCoherence(plannerOutput, worldState, planContext);
+    allContradictions.push(...coherence.contradictions);
+    // Distribute plan-level concerns to relevant action reviews
+    for (const concern of coherence.concerns) {
+      // Add to first action review as general plan concern
+      if (deterministicActionReviews.length > 0) {
+        deterministicActionReviews[0].concerns.push(`Plan: ${concern}`);
+      }
+    }
+    if (coherence.requiresReview) {
+      for (const review of deterministicActionReviews) {
+        review.requires_human_review = true;
+      }
+    }
   }
 
   // Learning-influenced rules (can add concerns and flag review, but NOT override safety rules)

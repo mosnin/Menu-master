@@ -28,6 +28,7 @@ import {
   evaluatePlanAction,
   generateSubgoals,
   computePlanProgress,
+  computeWorldStateHash,
   type PlanRefreshContext,
   type PlanAction,
 } from './plan-lifecycle';
@@ -209,6 +210,7 @@ export async function runOrchestrationCycle(
       entityType: orchestrator.entity_type,
       entityId: orchestrator.entity_id,
       currentPlan,
+      currentSubgoals,
       worldState: worldSnapshot,
       unresolvedBlockers,
       recentFailures,
@@ -236,11 +238,13 @@ export async function runOrchestrationCycle(
 
       case 'create_plan': {
         const newSubgoalDefs = generateSubgoals(planRefreshCtx);
+        const planObjective = buildPlanObjective(worldSnapshot, newSubgoalDefs.length);
+        const worldStateHash = computeWorldStateHash(worldSnapshot);
         const plan = await planRepo.create({
           orchestrator_id: orchestratorId,
           organization_id: orchestrator.organization_id,
           title: `Plan for ${orchestrator.entity_type} ${orchestrator.entity_id.slice(0, 8)}`,
-          objective: `Advance ${orchestrator.entity_type} through ${worldSnapshot.stage} stage to completion.`,
+          objective: planObjective,
           entity_type: orchestrator.entity_type,
           entity_id: orchestrator.entity_id,
           status: 'active',
@@ -254,6 +258,11 @@ export async function runOrchestrationCycle(
           blocked_since: null,
           completed_at: null,
           expires_at: null,
+          risk_summary: buildRiskSummary(worldSnapshot),
+          source_signals: buildSourceSignals(worldSnapshot),
+          replan_count: 0,
+          last_replan_reason: null,
+          world_state_hash: worldStateHash,
         });
 
         const createdSubgoals: OrchestratorSubgoal[] = [];
@@ -301,11 +310,13 @@ export async function runOrchestrationCycle(
         // Create new plan
         const newSubgoalDefs = generateSubgoals(planRefreshCtx);
         const newVersion = currentPlan ? currentPlan.version + 1 : 1;
+        const replanObjective = buildPlanObjective(worldSnapshot, newSubgoalDefs.length);
+        const replanWorldStateHash = computeWorldStateHash(worldSnapshot);
         const newPlan = await planRepo.create({
           orchestrator_id: orchestratorId,
           organization_id: orchestrator.organization_id,
           title: `Plan v${newVersion} for ${orchestrator.entity_type} ${orchestrator.entity_id.slice(0, 8)}`,
-          objective: `Advance ${orchestrator.entity_type} through ${worldSnapshot.stage} stage to completion.`,
+          objective: replanObjective,
           entity_type: orchestrator.entity_type,
           entity_id: orchestrator.entity_id,
           status: 'active',
@@ -319,6 +330,11 @@ export async function runOrchestrationCycle(
           blocked_since: null,
           completed_at: null,
           expires_at: null,
+          risk_summary: buildRiskSummary(worldSnapshot),
+          source_signals: buildSourceSignals(worldSnapshot),
+          replan_count: (currentPlan?.replan_count ?? 0) + 1,
+          last_replan_reason: planDecision.reason,
+          world_state_hash: replanWorldStateHash,
         });
 
         // Supersede old plan
@@ -558,14 +574,20 @@ export async function runOrchestrationCycle(
       specialistEscalations: arbitrationResult.escalations,
       specialistSummary: arbitrationResult.operator_summary,
       learningContext: learningContext ?? undefined,
+      activePlan: activePlan ?? undefined,
+      activeSubgoals: activeSubgoals.length > 0 ? activeSubgoals : undefined,
+      planAction: planDecision.action,
     });
 
     await cycleRepo.update(cycle.id, {
       planner_output: plannerOutput,
     });
 
-    // 6. Run critic (with learning context for additional rules)
-    const criticEvaluation = await runCritic(plannerOutput, worldSnapshot, learningContext ?? undefined);
+    // 6. Run critic (with learning context + plan context for coherence checks)
+    const criticPlanCtx = activePlan && activeSubgoals.length > 0
+      ? { activePlan, activeSubgoals }
+      : undefined;
+    const criticEvaluation = await runCritic(plannerOutput, worldSnapshot, learningContext ?? undefined, criticPlanCtx);
 
     await cycleRepo.update(cycle.id, {
       critic_evaluation: criticEvaluation,
@@ -784,12 +806,34 @@ export async function runOrchestrationCycle(
 
       for (const sg of activeSubgoals) {
         if (sg.status === 'pending' || sg.status === 'waiting') {
-          // If any of the subgoal's linked tools were executed, mark in_progress
           const hasLinkedExecution = sg.linked_tool_names.some(tn => executedToolNames.has(tn));
           if (hasLinkedExecution) {
-            await subgoalRepo.update(sg.id, { status: 'in_progress' });
+            // If it's a document request, transition to waiting (not just in_progress)
+            if (
+              sg.linked_tool_names.includes('create_document_request') &&
+              sg.waiting_on_type
+            ) {
+              await subgoalRepo.markWaiting(sg.id, {
+                type: sg.waiting_on_type,
+                detail: sg.waiting_on_detail ?? `Waiting for ${sg.title}`,
+                expectedEvent: sg.waiting_expected_event ?? 'Document uploaded',
+                escalationHours: sg.waiting_escalation_hours ?? 48,
+              });
+            } else {
+              await subgoalRepo.update(sg.id, { status: 'in_progress' });
+            }
           }
         }
+      }
+
+      // Check for escalated waiting subgoals and create notifications
+      const escalated = await subgoalRepo.findWaitingEscalations(activePlan.id);
+      for (const sg of escalated) {
+        // Block the subgoal if it has exceeded escalation threshold
+        await subgoalRepo.block(
+          sg.id,
+          `Waiting on ${sg.waiting_on_type ?? 'external input'} exceeded ${sg.waiting_escalation_hours ?? 48}h threshold`,
+        );
       }
 
       // Check if document-related subgoals can be completed
@@ -957,4 +1001,55 @@ export async function runOrchestrationCycle(
 
     return failedCycle;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Plan context helpers
+// ---------------------------------------------------------------------------
+
+function buildPlanObjective(ws: WorldStateSnapshot, subgoalCount: number): string {
+  const parts: string[] = [];
+
+  if (ws.missing_docs.length > 0) {
+    parts.push(`collect ${ws.missing_docs.length} missing document(s)`);
+  }
+  if (ws.completeness_score < 70) {
+    parts.push(`raise completeness from ${ws.completeness_score}%`);
+  }
+  if (ws.pending_approvals > 0) {
+    parts.push(`resolve ${ws.pending_approvals} pending approval(s)`);
+  }
+  if (ws.unresolved_exceptions > 0) {
+    parts.push(`clear ${ws.unresolved_exceptions} exception(s)`);
+  }
+  if (ws.overdue_obligations > 0) {
+    parts.push(`address ${ws.overdue_obligations} overdue obligation(s)`);
+  }
+  if (ws.compliance_flags.length > 0) {
+    parts.push(`resolve ${ws.compliance_flags.length} compliance flag(s)`);
+  }
+
+  if (parts.length === 0) {
+    return `Maintain ${ws.stage} stage health with ${subgoalCount} tracked item(s).`;
+  }
+
+  return `In ${ws.stage} stage: ${parts.join(', ')} (${subgoalCount} subgoals).`;
+}
+
+function buildRiskSummary(ws: WorldStateSnapshot): string | null {
+  const risks: string[] = [];
+  if (ws.compliance_flags.length > 0) risks.push(`${ws.compliance_flags.length} compliance flags`);
+  if (ws.overdue_obligations > 0) risks.push(`${ws.overdue_obligations} overdue obligations`);
+  if (ws.urgent_deadlines.length > 0) risks.push(`${ws.urgent_deadlines.length} urgent deadlines`);
+  if (ws.completeness_score < 40) risks.push('very low completeness');
+  return risks.length > 0 ? risks.join('; ') : null;
+}
+
+function buildSourceSignals(ws: WorldStateSnapshot): Record<string, unknown>[] {
+  const signals: Record<string, unknown>[] = [];
+  if (ws.missing_docs.length > 0) signals.push({ type: 'missing_docs', docs: ws.missing_docs });
+  if (ws.compliance_flags.length > 0) signals.push({ type: 'compliance_flags', flags: ws.compliance_flags });
+  if (ws.urgent_deadlines.length > 0) signals.push({ type: 'urgent_deadlines', count: ws.urgent_deadlines.length });
+  if (ws.unresolved_exceptions > 0) signals.push({ type: 'unresolved_exceptions', count: ws.unresolved_exceptions });
+  return signals;
 }

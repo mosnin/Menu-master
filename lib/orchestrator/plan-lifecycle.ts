@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import type {
   WorldStateSnapshot,
   OrchestratorPlan,
   OrchestratorSubgoal,
   PlanProgress,
   PlanStatus,
+  WaitingOnType,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -20,6 +22,8 @@ export interface PlanRefreshContext {
   entityType: 'transaction' | 'listing';
   entityId: string;
   currentPlan: OrchestratorPlan | null;
+  /** Current subgoals for the active plan (for dependency and waiting checks) */
+  currentSubgoals?: OrchestratorSubgoal[];
   worldState: WorldStateSnapshot;
   unresolvedBlockers: string[];
   recentFailures: string[];
@@ -160,28 +164,104 @@ function shouldReplan(ctx: PlanRefreshContext): boolean {
     return true;
   }
 
-  // A subgoal has been blocked for more than 24 hours (signalled via waitingStates)
-  if (ctx.waitingStates.length > 0) {
-    // waitingStates are subgoal descriptions that have been waiting — if any
-    // have been present across multiple cycles, treat as stale. For now, any
-    // waiting state signals potential need to replan.
+  // World state hash changed significantly since plan was created
+  // This replaces the old "any upload → replan" which was too aggressive
+  if (plan.world_state_hash) {
+    const currentHash = computeWorldStateHash(ctx.worldState);
+    if (currentHash !== plan.world_state_hash) {
+      // Only replan if the change is significant (score delta, stage change, doc count change)
+      if (hasSignificantStateChange(ctx, plan)) {
+        return true;
+      }
+    }
+  }
+
+  // Waiting subgoals that have exceeded their escalation threshold
+  if (ctx.currentSubgoals) {
+    const escalatedWaiters = ctx.currentSubgoals.filter(sg => {
+      if (sg.status !== 'waiting' || !sg.waiting_since) return false;
+      const waitingHours = (Date.now() - new Date(sg.waiting_since).getTime()) / (1000 * 60 * 60);
+      return waitingHours > (sg.waiting_escalation_hours ?? 48);
+    });
+    if (escalatedWaiters.length > 0) {
+      return true;
+    }
+  }
+
+  // Multiple recent failures suggest the current plan's actions are not working
+  if (ctx.recentFailures.length >= 3) {
     return true;
   }
 
-  // Major milestone reached — stage changed since plan was created
-  // We infer this if the world state stage differs from the plan's title/objective
-  // (a rough heuristic — the planner embeds the stage in the objective).
-  // More concretely: if recent uploads or corrections happened, the world changed.
-  if (ctx.worldState.recent_uploads > 0 || ctx.worldState.recent_corrections > 0) {
-    return true;
-  }
-
-  // Recent failures suggest the current plan's actions are not working
-  if (ctx.recentFailures.length >= 2) {
+  // A critical deadline emerged that wasn't in the plan
+  const criticalDeadlines = ctx.deadlines.filter(d => d.days_remaining <= 2);
+  if (criticalDeadlines.length > 0 && plan.risk_summary === null) {
     return true;
   }
 
   return false;
+}
+
+/**
+ * Determine if world state changes since plan creation are significant enough
+ * to warrant replanning. Prevents noisy replans from trivial changes.
+ */
+function hasSignificantStateChange(
+  ctx: PlanRefreshContext,
+  plan: OrchestratorPlan,
+): boolean {
+  const ws = ctx.worldState;
+
+  // Stage changed — always significant
+  if (plan.objective && !plan.objective.includes(ws.stage)) {
+    return true;
+  }
+
+  // Completeness changed by >= 15 points (meaningful progress or regression)
+  if (ctx.currentSubgoals) {
+    const completenessSubgoal = ctx.currentSubgoals.find(sg => sg.title === 'Improve completeness');
+    if (completenessSubgoal && completenessSubgoal.status !== 'completed' && ws.completeness_score >= 70) {
+      return true; // Significant progress made
+    }
+  }
+
+  // Missing docs changed (new docs uploaded or new docs required)
+  if (ws.recent_uploads >= 2) {
+    return true; // Multiple new uploads is significant
+  }
+
+  // Human corrections are always significant
+  if (ws.recent_corrections > 0) {
+    return true;
+  }
+
+  // New blocker appeared that wasn't there before
+  if (ctx.unresolvedBlockers.length > 0 && plan.blocked_reason === null) {
+    const planAge = (Date.now() - new Date(plan.created_at).getTime()) / (1000 * 60 * 60);
+    if (planAge > 1) {
+      return true; // Only if plan has been running for at least 1 hour
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Compute a hash of the world state fields that matter for plan relevance.
+ * Used to detect meaningful state changes between cycles.
+ */
+export function computeWorldStateHash(ws: WorldStateSnapshot): string {
+  const significantFields = {
+    stage: ws.stage,
+    missing_docs: ws.missing_docs.sort(),
+    completeness_score: Math.round(ws.completeness_score / 10) * 10, // Round to nearest 10
+    unresolved_exceptions: ws.unresolved_exceptions,
+    pending_approvals: ws.pending_approvals,
+    overdue_obligations: ws.overdue_obligations,
+    compliance_flags: ws.compliance_flags.sort(),
+    missing_signatures: ws.missing_signatures.sort(),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(significantFields)).digest('hex').slice(0, 16);
 }
 
 function shouldBlockPlan(ctx: PlanRefreshContext): boolean {
@@ -286,20 +366,38 @@ function buildReplanReason(ctx: PlanRefreshContext): string {
     parts.push(`plan is stale (${Math.round(planAgeHours)}h old, cadence is ${plan.review_cadence_hours}h)`);
   }
 
-  if (ctx.waitingStates.length > 0) {
-    parts.push(`${ctx.waitingStates.length} subgoal(s) in waiting state`);
+  // Escalated waiting subgoals
+  if (ctx.currentSubgoals) {
+    const escalated = ctx.currentSubgoals.filter(sg => {
+      if (sg.status !== 'waiting' || !sg.waiting_since) return false;
+      const waitingHours = (Date.now() - new Date(sg.waiting_since).getTime()) / (1000 * 60 * 60);
+      return waitingHours > (sg.waiting_escalation_hours ?? 48);
+    });
+    if (escalated.length > 0) {
+      parts.push(`${escalated.length} subgoal(s) exceeded waiting escalation threshold`);
+    }
   }
 
-  if (ctx.worldState.recent_uploads > 0) {
-    parts.push(`${ctx.worldState.recent_uploads} recent upload(s) changed world state`);
+  // State change detection
+  if (plan.objective && !plan.objective.includes(ctx.worldState.stage)) {
+    parts.push(`stage changed to "${ctx.worldState.stage}"`);
+  }
+
+  if (ctx.worldState.recent_uploads >= 2) {
+    parts.push(`${ctx.worldState.recent_uploads} recent uploads changed world state`);
   }
 
   if (ctx.worldState.recent_corrections > 0) {
-    parts.push(`${ctx.worldState.recent_corrections} recent human correction(s)`);
+    parts.push(`${ctx.worldState.recent_corrections} human correction(s)`);
   }
 
-  if (ctx.recentFailures.length >= 2) {
+  if (ctx.recentFailures.length >= 3) {
     parts.push(`${ctx.recentFailures.length} recent failures`);
+  }
+
+  const criticalDeadlines = ctx.deadlines.filter(d => d.days_remaining <= 2);
+  if (criticalDeadlines.length > 0) {
+    parts.push(`${criticalDeadlines.length} critical deadline(s) within 2 days`);
   }
 
   return `Replan needed: ${parts.join('; ')}.`;
@@ -322,6 +420,7 @@ export function generateSubgoals(
   // Missing docs -> one subgoal per document type
   for (const docType of ctx.worldState.missing_docs) {
     sortOrder++;
+    const waitingOnType = inferWaitingOnType(docType);
     subgoals.push({
       title: `Obtain ${docType}`,
       intent: `Obtain the missing document "${docType}" for the ${ctx.entityType}.`,
@@ -337,10 +436,16 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['create_document_request'],
       completed_at: null,
+      waiting_on_type: waitingOnType,
+      waiting_on_detail: `Waiting for ${docType} to be uploaded`,
+      waiting_since: null,
+      waiting_expected_event: `${docType} document uploaded`,
+      waiting_escalation_hours: 48,
+      depends_on_subgoal_ids: [],
     });
   }
 
-  // Missing signatures
+  // Missing signatures — depend on having the related document first
   for (const sig of ctx.worldState.missing_signatures) {
     sortOrder++;
     subgoals.push({
@@ -358,12 +463,21 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['create_notification'],
       completed_at: null,
+      waiting_on_type: 'counterparty',
+      waiting_on_detail: `Waiting for ${sig} signature`,
+      waiting_since: null,
+      waiting_expected_event: `${sig} signed`,
+      waiting_escalation_hours: 72,
+      depends_on_subgoal_ids: [],
     });
   }
 
-  // Low completeness
+  // Low completeness — depends on document subgoals being advanced
   if (ctx.worldState.completeness_score < 70) {
     sortOrder++;
+    const docSubgoalIndices = subgoals
+      .filter(sg => sg.title.startsWith('Obtain '))
+      .map((_, idx) => idx);
     subgoals.push({
       title: 'Improve completeness',
       intent: `Raise the completeness score from ${ctx.worldState.completeness_score}% to at least 70%.`,
@@ -372,13 +486,21 @@ export function generateSubgoals(
       owner_user_id: ctx.worldState.ownership.owner_id,
       owner_role: ctx.worldState.ownership.owner_role,
       sort_order: sortOrder,
-      prerequisites: [],
+      prerequisites: docSubgoalIndices.length > 0
+        ? ['Document subgoals should be initiated first']
+        : [],
       completion_condition: 'Completeness score reaches 70% or higher.',
       blocked_reason: null,
       blocked_since: null,
       linked_action_ids: [],
       linked_tool_names: ['recompute_completeness'],
       completed_at: null,
+      waiting_on_type: null,
+      waiting_on_detail: null,
+      waiting_since: null,
+      waiting_expected_event: null,
+      waiting_escalation_hours: null,
+      depends_on_subgoal_ids: [],
     });
   }
 
@@ -400,6 +522,12 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['create_notification'],
       completed_at: null,
+      waiting_on_type: 'approval',
+      waiting_on_detail: `${ctx.worldState.pending_approvals} approval(s) pending review`,
+      waiting_since: null,
+      waiting_expected_event: 'Approvals decided',
+      waiting_escalation_hours: 24,
+      depends_on_subgoal_ids: [],
     });
   }
 
@@ -421,6 +549,12 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['create_reminder_draft'],
       completed_at: null,
+      waiting_on_type: null,
+      waiting_on_detail: null,
+      waiting_since: null,
+      waiting_expected_event: null,
+      waiting_escalation_hours: null,
+      depends_on_subgoal_ids: [],
     });
   }
 
@@ -442,6 +576,12 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['recompute_exceptions'],
       completed_at: null,
+      waiting_on_type: null,
+      waiting_on_detail: null,
+      waiting_since: null,
+      waiting_expected_event: null,
+      waiting_escalation_hours: null,
+      depends_on_subgoal_ids: [],
     });
   }
 
@@ -463,6 +603,12 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: ['request_manual_review'],
       completed_at: null,
+      waiting_on_type: 'compliance_review',
+      waiting_on_detail: `Compliance flag "${flag}" needs review`,
+      waiting_since: null,
+      waiting_expected_event: `Compliance flag "${flag}" cleared`,
+      waiting_escalation_hours: 24,
+      depends_on_subgoal_ids: [],
     });
   }
 
@@ -485,6 +631,12 @@ export function generateSubgoals(
         linked_action_ids: [],
         linked_tool_names: [],
         completed_at: null,
+        waiting_on_type: null,
+        waiting_on_detail: null,
+        waiting_since: null,
+        waiting_expected_event: null,
+        waiting_escalation_hours: null,
+        depends_on_subgoal_ids: [],
       });
     }
   }
@@ -507,10 +659,35 @@ export function generateSubgoals(
       linked_action_ids: [],
       linked_tool_names: [],
       completed_at: null,
+      waiting_on_type: null,
+      waiting_on_detail: null,
+      waiting_since: null,
+      waiting_expected_event: null,
+      waiting_escalation_hours: null,
+      depends_on_subgoal_ids: [],
     });
   }
 
   return subgoals;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer what external party a document is typically waiting on based on type.
+ */
+function inferWaitingOnType(docType: string): WaitingOnType {
+  const lowerDoc = docType.toLowerCase();
+  // Check more specific patterns first to avoid false matches
+  if (lowerDoc.includes('title') || lowerDoc.includes('deed')) return 'title';
+  if (lowerDoc.includes('lender') || lowerDoc.includes('pre_approval') || lowerDoc.includes('commitment')) return 'lender';
+  if (lowerDoc.includes('appraisal')) return 'appraiser';
+  if (lowerDoc.includes('inspection')) return 'inspector';
+  if (lowerDoc.includes('seller') || lowerDoc.includes('disclosure')) return 'seller';
+  if (lowerDoc.includes('buyer') || lowerDoc.includes('earnest')) return 'buyer';
+  return 'document_upload';
 }
 
 // ---------------------------------------------------------------------------

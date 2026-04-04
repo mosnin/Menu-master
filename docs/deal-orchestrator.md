@@ -369,6 +369,90 @@ All sequences bounded to max 5 steps with inter-step delays (100ms between tool 
 - 100ms delay between consecutive tool executions within a cycle
 - Prevents overwhelming downstream services during multi-action execution
 
+## Adaptive Planning & Multi-Cycle Orchestration
+
+The orchestrator pursues bounded, goal-directed plans rather than purely reactive action selection. Each active deal can have one active plan with ordered subgoals, dependency tracking, and structured waiting states.
+
+### Plan Model
+
+Plans live in `orchestrator_plans` with:
+- **Objective** — Auto-generated from world state (stage, missing docs, blockers)
+- **Risk summary** — Describes key risks identified at plan creation
+- **Source signals** — Which world state signals informed the plan
+- **World state hash** — Enables efficient change-significance detection for replanning
+- **Version tracking** — Plans are versioned; old plans marked `superseded`
+- **Replan counter** — Tracks how many times the plan was replanned and why
+
+Plan statuses: `draft` → `active` → `waiting` / `blocked` → `completed` / `cancelled` / `superseded`
+
+### Subgoals & Dependencies
+
+Each plan has ordered subgoals with:
+- **Status**: `pending` → `in_progress` → `waiting` → `blocked` → `completed` / `skipped`
+- **Dependencies**: `depends_on_subgoal_ids` — subgoal cannot start until dependencies complete
+- **Urgency**: `low`, `normal`, `high`, `critical`
+- **Linked tool**: which orchestrator tool executes this subgoal
+
+The planner respects dependencies: subgoals with unmet dependencies are skipped during action selection.
+
+### Waiting State Semantics
+
+Subgoals can enter a structured waiting state with:
+- **waiting_on_type** — Who/what is being waited on: `seller`, `buyer`, `lender`, `title`, `appraiser`, `inspector`, `approval`, `document_upload`, `compliance_review`, `counterparty`, `internal`
+- **waiting_on_detail** — Free-text description of what's expected
+- **waiting_since** — When the wait began
+- **waiting_expected_event** — What event would resolve the wait
+- **waiting_escalation_hours** — Hours before auto-escalation to blocked
+
+After execution, document request subgoals automatically transition to waiting with the appropriate counterparty type inferred from the document type (e.g., title docs → `title`, lender docs → `lender`, disclosures → `seller`).
+
+### Replanning Sensitivity
+
+The orchestrator does **not** replan on every minor change. Replanning triggers only when:
+- **Stage change** — Entity moved to a different stage
+- **Completeness milestone** — Score crossed a 25-point threshold (25/50/75)
+- **Bulk uploads** — 2+ documents uploaded since last plan
+- **Corrections** — Data corrections detected
+- **New blockers** — Compliance flags appeared
+- **Escalated waiting** — A subgoal exceeded its escalation threshold
+- **Repeated failures** — 3+ consecutive failures
+
+Change detection uses a **world state hash** computed from significant fields (stage, doc count, rounded completeness, blockers). Identical hashes skip replanning entirely.
+
+### Plan-Aware Planner
+
+The planner receives the current plan and subgoals as context:
+- LLM prompt includes pending/waiting/blocked subgoals
+- Mock planner prioritizes subgoal-linked tools over reactive actions
+- Dependencies are checked: actions for subgoals with unmet dependencies are filtered out
+- Falls back to reactive action selection when no plan actions are available
+
+### Plan Coherence Critic
+
+Seven deterministic rules (PC1–PC7) check plan-level issues:
+1. **PC1** — Orphaned actions not linked to any plan subgoal
+2. **PC2** — Actions targeting blocked subgoals
+3. **PC3** — Dependency ordering violations
+4. **PC4** — Scope creep (too many actions relative to subgoals)
+5. **PC5** — Human review required when plan is blocked + non-safe actions
+6. **PC6** — Too many waiting subgoals (>50% of plan)
+7. **PC7** — Contradictions with world state
+
+### Plan Lifecycle
+
+- **Creation** — When work remains (missing docs, blockers, low completeness) and no active plan exists
+- **Completion** — When entity reaches terminal stage or completeness >= 95%
+- **Blocking** — When 3+ blockers exist or critical deadlines are imminent with unresolved blockers
+- **Superseding** — When replanning triggers, old plan is superseded and a new versioned plan is created
+
+### Plan UI
+
+- Plan header with status badge, version number, risk summary
+- Replan history with count and last replan reason
+- Subgoal list with status icons, urgency badges, waiting state details (counterparty type, duration)
+- Progress bar with completion percentage and status breakdown (done/active/waiting/blocked/pending)
+- Revision history panel
+
 ## Deferred Items
 
 1. **Listing-specific world state** — Currently simplified; needs listing completeness service

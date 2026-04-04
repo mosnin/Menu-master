@@ -2005,9 +2005,32 @@ export interface OrchestratorPlan {
   blocked_since: string | null;
   completed_at: string | null;
   expires_at: string | null;
+  /** Brief risk summary for the plan */
+  risk_summary: string | null;
+  /** World state signals that informed plan creation */
+  source_signals: Record<string, unknown>[];
+  /** How many times this plan lineage has been replanned */
+  replan_count: number;
+  /** Reason for the most recent replan */
+  last_replan_reason: string | null;
+  /** Hash of world state at plan creation for change detection */
+  world_state_hash: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type WaitingOnType =
+  | 'seller'
+  | 'buyer'
+  | 'lender'
+  | 'title'
+  | 'appraiser'
+  | 'inspector'
+  | 'approval'
+  | 'document_upload'
+  | 'compliance_review'
+  | 'counterparty'
+  | 'internal';
 
 export interface OrchestratorSubgoal {
   id: string;
@@ -2026,6 +2049,18 @@ export interface OrchestratorSubgoal {
   linked_action_ids: string[];
   linked_tool_names: string[];
   completed_at: string | null;
+  /** What external party or event this subgoal is waiting on */
+  waiting_on_type: WaitingOnType | null;
+  /** Human-readable detail about the waiting state */
+  waiting_on_detail: string | null;
+  /** When the waiting state began */
+  waiting_since: string | null;
+  /** What event would unblock this subgoal */
+  waiting_expected_event: string | null;
+  /** Hours before this waiting state should escalate */
+  waiting_escalation_hours: number | null;
+  /** IDs of subgoals that must complete before this one can start */
+  depends_on_subgoal_ids: string[];
   created_at: string;
   updated_at: string;
 }
