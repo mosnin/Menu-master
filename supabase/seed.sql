@@ -1668,3 +1668,52 @@ INSERT INTO workflow_run_steps (id, run_id, node_id, node_type, node_label, step
  '{"transaction_id": "e0000000-0000-4000-8000-000000000002"}'::jsonb, '{}'::jsonb,
  'transaction e0000000-...-000000000002 missing required closing_date field',
  '2026-03-30 15:00:00-06', '2026-03-30 15:00:03-06', 2500);
+
+-- ---------------------------------------------------------------------------
+-- Onboarding: Update existing user profiles with onboarding fields
+-- ---------------------------------------------------------------------------
+
+-- Maria (broker_admin) - fully onboarded
+UPDATE user_profiles SET
+  onboarding_status = 'completed',
+  onboarding_step = 3,
+  onboarding_completed_at = '2025-06-01T10:00:00Z',
+  phone = '(555) 123-4567',
+  preferences = '{"default_landing": "dashboard", "email_notifications": true}'::jsonb
+WHERE id = 'b0000000-0000-4000-8000-000000000001';
+
+-- James (agent) - fully onboarded
+UPDATE user_profiles SET
+  onboarding_status = 'completed',
+  onboarding_step = 3,
+  onboarding_completed_at = '2025-06-02T14:30:00Z',
+  phone = '(555) 234-5678',
+  preferences = '{"default_landing": "transactions"}'::jsonb
+WHERE id = 'b0000000-0000-4000-8000-000000000002';
+
+-- Sarah (coordinator) - fully onboarded
+UPDATE user_profiles SET
+  onboarding_status = 'completed',
+  onboarding_step = 3,
+  onboarding_completed_at = '2025-06-03T09:15:00Z',
+  preferences = '{}'::jsonb
+WHERE id = 'b0000000-0000-4000-8000-000000000003';
+
+-- ---------------------------------------------------------------------------
+-- New user profile (not yet onboarded, for testing)
+-- ---------------------------------------------------------------------------
+INSERT INTO user_profiles (id, auth0_user_id, email, full_name, onboarding_status, onboarding_step) VALUES
+  ('b0000000-0000-4000-8000-000000000004', 'auth0|usr_944d5f607182', 'alex.rivera@example.com', 'Alex Rivera', 'pending', 0);
+
+-- ---------------------------------------------------------------------------
+-- Team Invites
+-- ---------------------------------------------------------------------------
+
+-- Pending invite for a new user
+INSERT INTO team_invites (id, organization_id, invited_by_user_id, email, role, status, invite_token, expires_at) VALUES
+  ('f0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'alex.rivera@example.com', 'agent', 'pending', 'demo-invite-token-001', '2027-01-01T00:00:00Z'),
+  ('f0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'newuser@example.com', 'coordinator', 'pending', 'demo-invite-token-002', '2027-01-01T00:00:00Z');
+
+-- Expired invite (for testing)
+INSERT INTO team_invites (id, organization_id, invited_by_user_id, email, role, status, invite_token, expires_at) VALUES
+  ('f0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'expired@example.com', 'agent', 'pending', 'demo-invite-expired', '2024-01-01T00:00:00Z');
