@@ -14,11 +14,13 @@ const MAX_SPECIALISTS_PER_CYCLE = 3;
  * - Listing specialist: when entity_type is 'listing'
  * - Handoff specialist: when entity_type is 'listing' and an offer has been accepted
  * - Max 3 specialists per cycle to prevent fan-out
+ * - Learning-based priority adjustments are applied when provided (bounded -3 to +3)
  */
 export function routeToSpecialists(
   entityType: 'transaction' | 'listing',
   worldState: WorldStateSnapshot,
   trigger: string,
+  learningAdjustments?: Map<string, number>,
 ): SpecialistRole[] {
   const candidates: { role: SpecialistRole; priority: number }[] = [];
 
@@ -89,6 +91,15 @@ export function routeToSpecialists(
       role: 'handoff',
       priority: 9,
     });
+  }
+
+  // Apply learning-based priority adjustments (bounded -3 to +3)
+  if (learningAdjustments) {
+    for (const candidate of candidates) {
+      const adjustment = learningAdjustments.get(candidate.role) ?? 0;
+      const bounded = Math.max(-3, Math.min(3, adjustment));
+      candidate.priority += bounded;
+    }
   }
 
   // Sort by priority descending, then cap at max

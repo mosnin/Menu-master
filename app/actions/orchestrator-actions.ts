@@ -16,6 +16,10 @@ import type {
   OrchestratorCycle,
   OrchestratorActionExecution,
   OrchestratorEntityType,
+  OrchestratorOutcome,
+  OrchestratorOrgProfile,
+  OrchestratorMemorySummary,
+  LearningContext,
 } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -695,6 +699,146 @@ export async function getSpecialistTracesAction(
     return { data: traces };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get specialist traces';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Learning and Adaptation Actions
+// ---------------------------------------------------------------------------
+
+export async function getLearningContextAction(
+  orchestratorId: string,
+): Promise<ActionResult<{ learningContext: LearningContext }>> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    const orch = await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const { ContextBuilder } = await import('@/lib/orchestrator/learning');
+    const learningContext = await ContextBuilder.buildLearningContext(
+      orch.organization_id,
+      orchestratorId,
+    );
+    return { data: { learningContext } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get learning context';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+export async function getOutcomesAction(
+  orchestratorId: string,
+  limit = 50,
+): Promise<ActionResult<{ outcomes: OrchestratorOutcome[] }>> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const outcomeRepo = await import('@/lib/repositories/orchestrator-outcomes');
+    const outcomes = await outcomeRepo.findByOrchestrator(orchestratorId, limit);
+    return { data: { outcomes } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get outcomes';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+export async function getOrgAdaptationProfileAction(
+  orgId: string,
+): Promise<ActionResult<{ profile: OrchestratorOrgProfile | null }>> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orgId)) return { error: 'Invalid org ID format' };
+    await requireOrgMembership(orgId);
+
+    const profileRepo = await import('@/lib/repositories/orchestrator-org-profiles');
+    const profile = await profileRepo.findByOrg(orgId);
+    return { data: { profile } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get org profile';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+export async function getMemorySummariesAction(
+  orchestratorId: string,
+): Promise<ActionResult<{ summaries: OrchestratorMemorySummary[] }>> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const summaryRepo = await import('@/lib/repositories/orchestrator-memory-summaries');
+    const summaries = await summaryRepo.findByOrchestrator(orchestratorId, true, 20);
+    return { data: { summaries } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get memory summaries';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+export async function recordRecommendationFeedbackAction(
+  orchestratorId: string,
+  feedbackData: {
+    proposalId?: string;
+    nextActionId?: string;
+    toolName: string;
+    recommendationType: string;
+    feedbackType: 'accepted' | 'ignored' | 'dismissed' | 'superseded' | 'edited';
+    editSummary?: string;
+    entityType?: string;
+    stage?: string;
+  },
+): Promise<ActionResult> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    const orch = await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const feedbackRepo = await import('@/lib/repositories/orchestrator-recommendation-feedback');
+    await feedbackRepo.create({
+      organization_id: orch.organization_id,
+      orchestrator_id: orchestratorId,
+      proposal_id: feedbackData.proposalId ?? null,
+      next_action_id: feedbackData.nextActionId ?? null,
+      tool_name: feedbackData.toolName,
+      recommendation_type: feedbackData.recommendationType,
+      feedback_type: feedbackData.feedbackType,
+      edit_summary: feedbackData.editSummary ?? null,
+      entity_type: feedbackData.entityType ?? null,
+      stage: feedbackData.stage ?? null,
+    });
+    return {};
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to record feedback';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+export async function triggerMemoryCompactionAction(
+  orchestratorId: string,
+): Promise<ActionResult<{ summariesCreated: number; memoriesCompacted: number }>> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    const orch = await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    // Require at least coordinator role for compaction
+    await requireRole(orch.organization_id, ['coordinator', 'broker_admin']);
+
+    const { MemoryCompactor } = await import('@/lib/orchestrator/learning');
+    const result = await MemoryCompactor.compactMemory(orch.organization_id, orchestratorId);
+    return { data: result };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to compact memory';
     const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
     return { error: message, authError: isAuth };
   }

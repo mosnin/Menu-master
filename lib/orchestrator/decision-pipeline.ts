@@ -5,6 +5,8 @@ import type {
   OrchestratorActionProposal,
   OrchestratorPlan,
   OrchestratorSubgoal,
+  LearningContext,
+  WorldStateSnapshot,
 } from '@/types';
 import * as orchestratorRepo from '@/lib/repositories/deal-orchestrators';
 import * as worldStateService from '@/lib/services/orchestrator-world-state-service';
@@ -36,6 +38,10 @@ import { arbitrate } from './specialists/arbitrator';
 import * as specialistTraceRepo from '@/lib/repositories/orchestrator-specialist-traces';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
+
+// Learning and adaptation imports
+import { ContextBuilder, OutcomeTracker, SpecialistScorer } from './learning';
+import { getEnrichedMemory } from './learning/memory-compactor';
 
 // ---------------------------------------------------------------------------
 // Pipeline configuration
@@ -157,8 +163,28 @@ export async function runOrchestrationCycle(
       world_state_id: worldStateRecord.id,
     });
 
-    // 4. Load memory
+    // 4. Load memory and learning context
     const memory = await memoryRepo.findRecent(orchestratorId, PIPELINE_CONFIG.MAX_MEMORY_ENTRIES);
+
+    // 4-L. Build learning context (non-blocking, falls back to empty on error)
+    let learningContext: LearningContext | null = null;
+    try {
+      learningContext = await ContextBuilder.buildLearningContext(
+        orchestrator.organization_id,
+        orchestratorId,
+      );
+    } catch (err) {
+      console.error(`[orchestrator] Failed to build learning context: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+
+    // Capture pre-execution world state snapshot for outcome detection
+    const preExecutionState: Pick<WorldStateSnapshot, 'completeness_score' | 'missing_docs' | 'unresolved_exceptions' | 'pending_approvals' | 'overdue_obligations'> = {
+      completeness_score: worldSnapshot.completeness_score,
+      missing_docs: [...worldSnapshot.missing_docs],
+      unresolved_exceptions: worldSnapshot.unresolved_exceptions,
+      pending_approvals: worldSnapshot.pending_approvals,
+      overdue_obligations: worldSnapshot.overdue_obligations,
+    };
 
     // 4a. Evaluate plan lifecycle
     const currentPlan = await planRepo.findActivePlan(orchestratorId);
@@ -391,10 +417,21 @@ export async function runOrchestrationCycle(
       .slice(0, 5)
       .map(m => m.summary);
 
+    // Build specialist routing adjustments from learning
+    const routingAdjustments = new Map<string, number>();
+    if (learningContext?.specialistScores) {
+      for (const score of learningContext.specialistScores) {
+        if (score.priority_adjustment !== 0) {
+          routingAdjustments.set(score.role, score.priority_adjustment);
+        }
+      }
+    }
+
     const specialistRoles = routeToSpecialists(
       orchestrator.entity_type as 'transaction' | 'listing',
       worldSnapshot,
       triggerType,
+      routingAdjustments.size > 0 ? routingAdjustments : undefined,
     );
 
     // Import all specialists to ensure registration has happened
@@ -511,7 +548,7 @@ export async function runOrchestrationCycle(
     // Run arbitrator on specialist outputs
     const arbitrationResult = arbitrate(specialistOutputs);
 
-    // 5. Run planner (with plan context + specialist recommendations)
+    // 5. Run planner (with plan context + specialist recommendations + learning)
     const plannerOutput = await runPlanner(worldSnapshot, memory, {
       entityType: orchestrator.entity_type,
       entityId: orchestrator.entity_id,
@@ -519,14 +556,15 @@ export async function runOrchestrationCycle(
       specialistRecommendations: arbitrationResult.merged_recommendations,
       specialistEscalations: arbitrationResult.escalations,
       specialistSummary: arbitrationResult.operator_summary,
+      learningContext: learningContext ?? undefined,
     });
 
     await cycleRepo.update(cycle.id, {
       planner_output: plannerOutput,
     });
 
-    // 6. Run critic
-    const criticEvaluation = await runCritic(plannerOutput, worldSnapshot);
+    // 6. Run critic (with learning context for additional rules)
+    const criticEvaluation = await runCritic(plannerOutput, worldSnapshot, learningContext ?? undefined);
 
     await cycleRepo.update(cycle.id, {
       critic_evaluation: criticEvaluation,
@@ -633,6 +671,65 @@ export async function runOrchestrationCycle(
       total_failed: totalFailed,
       total_gated: gatedCount,
     };
+
+    // 8-L. Record outcomes by comparing pre/post execution state
+    try {
+      const postState = await worldStateService.aggregateWorldState(
+        orchestratorId,
+        orchestrator.entity_type,
+        orchestrator.entity_id,
+      );
+      if (postState) {
+        const detectedOutcomes = OutcomeTracker.detectOutcomes(preExecutionState, postState);
+        for (const outcome of detectedOutcomes) {
+          await OutcomeTracker.recordOutcome({
+            organizationId: orchestrator.organization_id,
+            orchestratorId,
+            cycleId: cycle.id,
+            planId: activePlan?.id,
+            outcomeType: outcome.outcomeType,
+            outcomeDetail: outcome.detail,
+            contextEntityType: orchestrator.entity_type,
+            contextEntityId: orchestrator.entity_id,
+            contextStage: worldSnapshot.stage,
+            contextCompletenessScore: postState.completeness_score,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`[orchestrator] Outcome tracking failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+
+    // 8-L2. Score specialist contributions based on whether actions were taken
+    try {
+      const executedToolNames = new Set(
+        executions.filter(e => e.success).map(e => {
+          const proposal = approvedProposals.find(p => p.id === e.proposal_id);
+          return proposal?.tool_name;
+        }).filter(Boolean) as string[],
+      );
+
+      for (const output of specialistOutputs) {
+        const allRecommendedTools = output.findings.flatMap(f =>
+          f.recommended_actions.map(r => r.tool_name),
+        );
+        const findingsLedToAction = allRecommendedTools.some(t => executedToolNames.has(t));
+        const wasUseful = output.findings.length > 0 && output.findings.some(f => f.severity !== 'warning' || f.confidence > 0.5);
+
+        await SpecialistScorer.scoreInvocation({
+          organizationId: orchestrator.organization_id,
+          specialistRole: output.role,
+          entityType: orchestrator.entity_type,
+          stage: worldSnapshot.stage,
+          triggerType: triggerType,
+          wasUseful,
+          findingsLedToAction,
+          findingsImprovedOutcome: false, // Will be updated by deferred outcome measurement
+        });
+      }
+    } catch (err) {
+      console.error(`[orchestrator] Specialist scoring failed: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
 
     // 8a. Update subgoal statuses based on executed actions
     if (activePlan && activePlan.status === 'active' && activeSubgoals.length > 0) {
@@ -787,7 +884,7 @@ export async function runOrchestrationCycle(
       });
     }
 
-    // 13. Audit log: cycle completed
+    // 13. Audit log: cycle completed (with learning influences)
     await logAction({
       organizationId: orchestrator.organization_id,
       transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
@@ -800,6 +897,7 @@ export async function runOrchestrationCycle(
         cycle_number: completedCycle.cycle_number,
         duration_ms: durationMs,
         ...executionSummary,
+        learning_influences: learningContext?.learningInfluences ?? [],
       },
     });
 

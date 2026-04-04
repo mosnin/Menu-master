@@ -168,7 +168,10 @@ export type AuditAction =
   | 'orchestrator.plan_replanned'
   | 'orchestrator.plan_blocked'
   | 'orchestrator.plan_completed'
-  | 'orchestrator.specialist_invoked';
+  | 'orchestrator.specialist_invoked'
+  | 'orchestrator.outcome_recorded'
+  | 'orchestrator.learning_updated'
+  | 'orchestrator.memory_compacted';
 
 interface LogActionParams {
   organizationId?: string;

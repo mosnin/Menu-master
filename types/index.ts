@@ -2063,3 +2063,277 @@ export interface PlanProgress {
   skipped: number;
   completion_percentage: number;
 }
+
+// =============================================================================
+// Learning and Adaptation Types
+// =============================================================================
+
+export type OutcomeType =
+  | 'blocker_resolved'
+  | 'deadline_protected'
+  | 'document_received'
+  | 'approval_completed'
+  | 'response_received'
+  | 'readiness_improved'
+  | 'plan_progressed'
+  | 'no_meaningful_effect'
+  | 'negative_effect';
+
+export type RecommendationFeedbackType =
+  | 'accepted'
+  | 'ignored'
+  | 'dismissed'
+  | 'superseded'
+  | 'edited';
+
+export type CorrectionCategory =
+  | 'extraction_field'
+  | 'checklist_item'
+  | 'timeline_date'
+  | 'document_type'
+  | 'contact_info'
+  | 'compliance_flag'
+  | 'approval_routing'
+  | 'risk_classification'
+  | 'urgency_assessment'
+  | 'specialist_routing'
+  | 'other';
+
+export type CorrectionSuggestedAction =
+  | 'lower_confidence'
+  | 'request_manual_review'
+  | 'add_specialist_review'
+  | 'flag_for_attention'
+  | 'adjust_gating'
+  | 'none';
+
+export type CounterpartyType =
+  | 'seller'
+  | 'buyer'
+  | 'lender'
+  | 'title'
+  | 'escrow'
+  | 'attorney'
+  | 'inspector'
+  | 'appraiser'
+  | 'other';
+
+export type CounterpartySignalType =
+  | 'response_time'
+  | 'missed_deadline'
+  | 'early_response'
+  | 'document_quality'
+  | 'requires_follow_up'
+  | 'escalation_needed';
+
+export type MemorySummaryType =
+  | 'action_pattern'
+  | 'blocker_pattern'
+  | 'recovery_pattern'
+  | 'counterparty_pattern'
+  | 'correction_pattern'
+  | 'ignored_action_pattern'
+  | 'successful_resolution';
+
+export type LearningEventType =
+  | 'outcome_recorded'
+  | 'score_updated'
+  | 'feedback_recorded'
+  | 'correction_learned'
+  | 'counterparty_signal'
+  | 'specialist_scored'
+  | 'profile_updated'
+  | 'memory_compacted'
+  | 'learning_influenced_plan'
+  | 'learning_influenced_routing'
+  | 'learning_influenced_priority';
+
+export type EscalationTiming = 'fast' | 'normal' | 'slow';
+export type ComplianceSensitivity = 'low' | 'normal' | 'high';
+export type UrgencyBias = 'conservative' | 'neutral' | 'aggressive';
+export type RoutingSensitivity = 'low' | 'normal' | 'high';
+
+export interface OrchestratorOutcome {
+  id: string;
+  organization_id: string;
+  orchestrator_id: string;
+  cycle_id: string | null;
+  proposal_id: string | null;
+  execution_id: string | null;
+  plan_id: string | null;
+  specialist_trace_id: string | null;
+  outcome_type: OutcomeType;
+  outcome_detail: string | null;
+  context_entity_type: string;
+  context_entity_id: string;
+  context_stage: string | null;
+  context_completeness_score: number | null;
+  action_at: string | null;
+  outcome_measured_at: string;
+  latency_hours: number | null;
+  impact_score: number;
+  created_at: string;
+}
+
+export interface OrchestratorActionScore {
+  id: string;
+  organization_id: string;
+  tool_name: string;
+  entity_type: string | null;
+  stage: string | null;
+  blocker_type: string | null;
+  counterparty_type: string | null;
+  total_executions: number;
+  successful_outcomes: number;
+  no_effect_outcomes: number;
+  negative_outcomes: number;
+  effectiveness_score: number;
+  last_updated_at: string;
+  sample_window_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorRecommendationFeedback {
+  id: string;
+  organization_id: string;
+  orchestrator_id: string;
+  proposal_id: string | null;
+  next_action_id: string | null;
+  tool_name: string;
+  recommendation_type: string;
+  feedback_type: RecommendationFeedbackType;
+  edit_summary: string | null;
+  entity_type: string | null;
+  stage: string | null;
+  time_to_response_hours: number | null;
+  created_at: string;
+}
+
+export interface OrchestratorCorrectionPattern {
+  id: string;
+  organization_id: string;
+  correction_category: CorrectionCategory;
+  correction_detail: string;
+  occurrence_count: number;
+  entity_type: string | null;
+  stage: string | null;
+  document_type: string | null;
+  suggested_action: CorrectionSuggestedAction;
+  confidence_adjustment: number;
+  is_active: boolean;
+  last_occurrence_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorCounterpartySignal {
+  id: string;
+  organization_id: string;
+  orchestrator_id: string;
+  counterparty_type: CounterpartyType;
+  counterparty_id: string | null;
+  signal_type: CounterpartySignalType;
+  expected_hours: number | null;
+  actual_hours: number | null;
+  deviation_hours: number | null;
+  entity_type: string | null;
+  stage: string | null;
+  obligation_type: string | null;
+  created_at: string;
+}
+
+export interface OrchestratorCounterpartyProfile {
+  id: string;
+  organization_id: string;
+  counterparty_type: string;
+  counterparty_id: string | null;
+  avg_response_hours: number | null;
+  median_response_hours: number | null;
+  p90_response_hours: number | null;
+  missed_deadline_rate: number;
+  follow_up_effectiveness: number;
+  total_interactions: number;
+  total_on_time: number;
+  total_late: number;
+  last_updated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorSpecialistScore {
+  id: string;
+  organization_id: string;
+  specialist_role: string;
+  entity_type: string | null;
+  stage: string | null;
+  trigger_type: string | null;
+  total_invocations: number;
+  useful_invocations: number;
+  findings_led_to_action: number;
+  findings_improved_outcome: number;
+  unnecessary_invocations: number;
+  usefulness_score: number;
+  priority_adjustment: number;
+  last_updated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorOrgProfile {
+  id: string;
+  organization_id: string;
+  preferred_escalation_timing: EscalationTiming;
+  common_blocker_types: string[];
+  commonly_ignored_actions: string[];
+  strict_manual_review: boolean;
+  compliance_sensitivity: ComplianceSensitivity;
+  confidence_threshold_adjustment: number;
+  urgency_bias: UrgencyBias;
+  specialist_routing_sensitivity: RoutingSensitivity;
+  common_successful_patterns: { tool_name: string; context: string; success_rate: number }[];
+  common_failure_patterns: { tool_name: string; context: string; failure_rate: number }[];
+  total_cycles_analyzed: number;
+  last_profile_update_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorMemorySummary {
+  id: string;
+  organization_id: string;
+  orchestrator_id: string;
+  summary_type: MemorySummaryType;
+  summary: string;
+  pattern_count: number;
+  source_memory_ids: string[];
+  relevance_score: number;
+  is_active: boolean;
+  covers_from: string | null;
+  covers_to: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorLearningEvent {
+  id: string;
+  organization_id: string;
+  orchestrator_id: string | null;
+  event_type: LearningEventType;
+  detail: Record<string, unknown>;
+  influenced_entity: string | null;
+  influenced_entity_id: string | null;
+  created_at: string;
+}
+
+// Learning context passed to planner/critic/router
+export interface LearningContext {
+  actionScores: { tool_name: string; effectiveness_score: number; total_executions: number }[];
+  ignoredActions: { tool_name: string; ignore_count: number; last_ignored: string }[];
+  correctionPatterns: { category: string; detail: string; suggested_action: string; occurrence_count: number }[];
+  counterpartyProfiles: { counterparty_type: string; avg_response_hours: number | null; missed_deadline_rate: number }[];
+  specialistScores: { role: string; usefulness_score: number; priority_adjustment: number }[];
+  orgProfile: OrchestratorOrgProfile | null;
+  memorySummaries: { type: string; summary: string; relevance_score: number }[];
+  learningInfluences: string[]; // human-readable explanations of how learning affected this cycle
+}

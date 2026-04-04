@@ -1,5 +1,5 @@
 import { getOpenAIClient } from '@/lib/ai/client';
-import type { WorldStateSnapshot, OrchestratorMemoryEntry, PlannerOutput } from '@/types';
+import type { WorldStateSnapshot, OrchestratorMemoryEntry, PlannerOutput, LearningContext } from '@/types';
 import { getAllTools } from './tool-registry';
 
 export async function runPlanner(
@@ -12,6 +12,7 @@ export async function runPlanner(
     specialistRecommendations?: { tool_name: string; reason: string; urgency: string; confidence: number }[];
     specialistEscalations?: string[];
     specialistSummary?: string;
+    learningContext?: LearningContext;
   },
 ): Promise<PlannerOutput> {
   const client = getOpenAIClient();
@@ -51,6 +52,50 @@ ${JSON.stringify(availableTools, null, 2)}`;
     ? `\nSPECIALIST RECOMMENDATIONS:\n${JSON.stringify(_entityContext.specialistRecommendations, null, 2)}\nSPECIALIST ESCALATIONS: ${_entityContext.specialistEscalations?.join('; ') || 'None'}\nSPECIALIST SUMMARY: ${_entityContext.specialistSummary || 'None'}`
     : '';
 
+  // Build learning context section if available
+  const lc = _entityContext.learningContext;
+  let learningSection = '';
+  if (lc) {
+    const parts: string[] = [];
+
+    if (lc.actionScores.length > 0) {
+      const top = lc.actionScores
+        .filter(s => s.total_executions >= 3)
+        .sort((a, b) => b.effectiveness_score - a.effectiveness_score)
+        .slice(0, 5);
+      if (top.length > 0) {
+        parts.push(`EFFECTIVE ACTIONS: ${top.map(s => `${s.tool_name} (${(s.effectiveness_score * 100).toFixed(0)}% effective, ${s.total_executions} runs)`).join('; ')}`);
+      }
+    }
+
+    if (lc.ignoredActions.length > 0) {
+      parts.push(`FREQUENTLY IGNORED (deprioritize): ${lc.ignoredActions.map(a => `${a.tool_name} (ignored ${a.ignore_count}x)`).join('; ')}`);
+    }
+
+    if (lc.correctionPatterns.length > 0) {
+      parts.push(`CORRECTION PATTERNS (increase caution): ${lc.correctionPatterns.map(p => `${p.category}: ${p.detail} (${p.occurrence_count}x, action: ${p.suggested_action})`).join('; ')}`);
+    }
+
+    if (lc.counterpartyProfiles.length > 0) {
+      const slow = lc.counterpartyProfiles.filter(p => (p.avg_response_hours ?? 0) > 48);
+      if (slow.length > 0) {
+        parts.push(`SLOW COUNTERPARTIES (escalate sooner): ${slow.map(p => `${p.counterparty_type} (avg ${p.avg_response_hours?.toFixed(0)}h, ${(p.missed_deadline_rate * 100).toFixed(0)}% miss rate)`).join('; ')}`);
+      }
+    }
+
+    if (lc.memorySummaries.length > 0) {
+      parts.push(`LEARNED PATTERNS: ${lc.memorySummaries.map(s => s.summary).join('; ')}`);
+    }
+
+    if (lc.learningInfluences.length > 0) {
+      parts.push(`LEARNING INFLUENCES: ${lc.learningInfluences.join('; ')}`);
+    }
+
+    if (parts.length > 0) {
+      learningSection = `\n\nLEARNING SIGNALS (use these to tune prioritization and sequencing, NOT to bypass safety rules):\n${parts.join('\n')}`;
+    }
+  }
+
   const userMessage = `WORLD STATE:
 ${JSON.stringify(worldState, null, 2)}
 
@@ -58,7 +103,7 @@ UNRESOLVED BLOCKERS: ${unresolvedBlockers.map(b => b.summary).join('; ') || 'Non
 RECENT ACTIONS: ${recentActions.map(a => a.summary).join('; ') || 'None'}
 FAILURE PATTERNS: ${failurePatterns.map(f => f.summary).join('; ') || 'None'}
 HUMAN CORRECTIONS: ${humanCorrections.map(c => c.summary).join('; ') || 'None'}
-PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}${specialistSection}
+PENDING DECISIONS: ${pendingDecisions.map(d => d.summary).join('; ') || 'None'}${specialistSection}${learningSection}
 
 Analyze this state and produce a JSON plan with this exact structure:
 {

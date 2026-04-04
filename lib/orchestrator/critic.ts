@@ -4,6 +4,7 @@ import type {
   PlannerOutput,
   CriticEvaluation,
   ActionRiskClass,
+  LearningContext,
 } from '@/types';
 import { getToolContract, isToolAllowed } from './tool-registry';
 
@@ -108,6 +109,7 @@ function applyDeterministicRules(
 export async function runCritic(
   plannerOutput: PlannerOutput,
   worldState: WorldStateSnapshot,
+  learningContext?: LearningContext,
 ): Promise<CriticEvaluation> {
   // First, apply deterministic rules to all actions
   const deterministicReviews = plannerOutput.proposed_actions.map(action =>
@@ -141,6 +143,56 @@ export async function runCritic(
   // Gather deterministic compliance concerns
   for (const review of deterministicReviews) {
     allComplianceConcerns.push(...review.compliance_flags);
+  }
+
+  // Learning-influenced rules (can add concerns and flag review, but NOT override safety rules)
+  if (learningContext) {
+    for (let i = 0; i < plannerOutput.proposed_actions.length; i++) {
+      const action = plannerOutput.proposed_actions[i];
+      const review = deterministicActionReviews[i];
+
+      // Rule L1: Correction patterns suggest manual review for this action type
+      const matchingCorrections = learningContext.correctionPatterns.filter(
+        p => p.suggested_action === 'request_manual_review' && p.occurrence_count >= 3,
+      );
+      if (matchingCorrections.length > 0) {
+        review.requires_human_review = true;
+        review.concerns.push(
+          `Learning: correction patterns suggest manual review (${matchingCorrections.map(c => c.detail).join('; ')})`,
+        );
+      }
+
+      // Rule L2: Org profile says strict manual review
+      if (learningContext.orgProfile?.strict_manual_review && action.risk_class !== 'safe') {
+        review.requires_human_review = true;
+        review.concerns.push('Learning: organization prefers strict manual review for non-safe actions');
+      }
+
+      // Rule L3: High compliance sensitivity org + any compliance concern
+      if (
+        learningContext.orgProfile?.compliance_sensitivity === 'high' &&
+        worldState.compliance_flags.length > 0
+      ) {
+        review.requires_human_review = true;
+        review.compliance_flags.push('Learning: high compliance sensitivity org with active compliance flags');
+      }
+
+      // Rule L4: Low effectiveness score — add concern (does NOT reject, just flags)
+      const actionScore = learningContext.actionScores.find(s => s.tool_name === action.tool_name);
+      if (actionScore && actionScore.effectiveness_score < 0.3 && actionScore.total_executions >= 5) {
+        review.concerns.push(
+          `Learning: "${action.tool_name}" has low historical effectiveness (${(actionScore.effectiveness_score * 100).toFixed(0)}% over ${actionScore.total_executions} executions)`,
+        );
+      }
+
+      // Rule L5: Frequently ignored action — add concern
+      const ignoredAction = learningContext.ignoredActions.find(a => a.tool_name === action.tool_name);
+      if (ignoredAction && ignoredAction.ignore_count >= 5) {
+        review.concerns.push(
+          `Learning: "${action.tool_name}" has been ignored ${ignoredAction.ignore_count} times by humans`,
+        );
+      }
+    }
   }
 
   // Try AI-powered review for additional insight

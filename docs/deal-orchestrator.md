@@ -237,11 +237,106 @@ Total tools: **21** (14 safe, 6 medium-risk, 1 high-risk)
 - **Follow-Through Panel** — Sequence progress with step tracking
 - **Disposition Badges** — Green (auto), amber (draft), red (blocked) on all surfaces
 
+## Learning and Adaptation Layer
+
+The orchestrator learns from outcomes, corrections, ignored actions, counterparty behavior, and specialist effectiveness to improve over time.
+
+### Core Principles
+- Learn from outcomes, not vibes
+- Hard policy and safety rules are always stronger than learned preferences
+- Learning tunes prioritization and routing, never silently rewrites governance
+- Every learned signal is inspectable
+- Organization-scoped learning only — no cross-org leakage
+
+### Outcome Tracking
+- Records structured outcomes after each execution cycle
+- Outcome types: blocker_resolved, deadline_protected, document_received, approval_completed, response_received, readiness_improved, plan_progressed, no_meaningful_effect, negative_effect
+- Pre/post world state comparison for automatic outcome detection
+- Links outcomes to proposals, executions, plans, and specialist traces
+
+### Action Effectiveness Scoring
+- Aggregated scores per tool, per context (entity type, stage, blocker type, counterparty type)
+- Weighted formula: (successful - negative) / total, with decay factor
+- Low-effectiveness actions get deprioritized in planner context
+- Frequently ignored actions penalized in planning
+
+### Recommendation Feedback
+- Tracks human responses: accepted, ignored, dismissed, superseded, edited
+- Repeatedly ignored tools get noted in planner and critic context
+- Edited recommendations inform future confidence levels
+
+### Correction Pattern Learning
+- Tracks correction categories: extraction fields, checklist items, timeline dates, document types, risk classifications, urgency assessments, specialist routing
+- Patterns require 2+ occurrences before influencing decisions (no overgeneralization)
+- Suggested actions: lower_confidence, request_manual_review, add_specialist_review, flag_for_attention
+- Organization-scoped, bounded confidence adjustments (-0.5 to 0)
+
+### Counterparty Behavior Learning
+- Tracks response times, missed deadlines, early responses for each counterparty type
+- Aggregated profiles: avg/median/p90 response hours, missed deadline rate
+- Adjusts escalation timing: -24h for unreliable, +12h for reliable counterparties
+- Urgency boost: +1 to +3 for slow/unreliable counterparties
+
+### Specialist Contribution Scoring
+- Tracks usefulness per specialist role and context
+- Metrics: useful invocations, findings-led-to-action, findings-improved-outcome
+- Priority adjustments (-3 to +3) applied to specialist routing
+- Low-usefulness specialists can be skipped (< 0.2 score, >= 10 invocations)
+
+### Organization Adaptation Profiles
+- Per-org learning profiles with: escalation timing, compliance sensitivity, urgency bias
+- Common blocker types, commonly ignored actions, successful/failure patterns
+- Confidence threshold adjustments, specialist routing sensitivity
+- All profiles inspectable and org-isolated
+
+### Memory Summarization
+- Compacts repeated patterns into summaries (action patterns, blocker patterns, recovery patterns, etc.)
+- Minimum 3 occurrences to form a pattern
+- Relevance scoring with decay over time
+- Active summaries capped at 20 per orchestrator
+- Enriched memory combines raw recent entries with summarized patterns
+
+### Pipeline Integration
+- Learning context built at cycle start and passed to planner, critic, and router
+- Planner receives: effective/ineffective tools, ignored actions, correction patterns, counterparty profiles, learned memory patterns
+- Critic adds concerns for low-effectiveness tools, ignored actions, correction patterns
+- Critic flags human review for strict-review orgs and high-compliance sensitivity
+- Specialist router applies learned priority adjustments (bounded -3 to +3)
+- Outcome detection runs after each execution cycle
+
+### Hard Policy vs Learned Heuristics
+- Risk classification (safe/medium/high) cannot be changed by learning
+- Compliance rules always override learned preferences
+- Approval requirements cannot be bypassed
+- Permission boundaries are unaffected
+- Learning only tunes: ranking, sequencing, timing, urgency, routing
+
+### Inspection Surfaces
+- **Learning Insights** — Shows active learning signals influencing the current cycle
+- **Org Adaptation Profile** — Displays learned org preferences and patterns
+- **Memory Patterns** — Shows compacted memory summaries with relevance scores
+- Human-readable explanations: "prioritized because similar actions resolved this before"
+
+### Data Model
+- `orchestrator_outcomes` — Structured outcome records with impact scores
+- `orchestrator_action_scores` — Aggregated effectiveness per tool per context
+- `orchestrator_recommendation_feedback` — Human response tracking
+- `orchestrator_correction_patterns` — Learned correction patterns
+- `orchestrator_counterparty_signals` — Raw counterparty behavior signals
+- `orchestrator_counterparty_profiles` — Aggregated counterparty profiles
+- `orchestrator_specialist_scores` — Specialist usefulness scoring
+- `orchestrator_org_profiles` — Organization adaptation profiles
+- `orchestrator_memory_summaries` — Compacted memory patterns
+- `orchestrator_learning_events` — Audit trail for all learning updates
+
 ## Deferred Items
 
 1. **Listing-specific world state** — Currently simplified; needs listing completeness service
-2. **Memory compaction automation** — Manual thresholds defined; automated cleanup TBD
-3. **Cross-deal pattern learning** — Single-deal orchestrators only; no cross-deal intelligence yet
-4. **Orchestrator configuration UI** — Config stored but no admin UI for tuning
-5. **Observation frequency tuning** — Fixed schedules; adaptive frequency deferred
-6. **Tool chain composition** — Tools execute independently; multi-step tool chains deferred
+2. **Cross-deal pattern learning** — Single-deal orchestrators only; no cross-deal intelligence yet
+3. **Orchestrator configuration UI** — Config stored but no admin UI for tuning
+4. **Observation frequency tuning** — Fixed schedules; adaptive frequency deferred
+5. **Tool chain composition** — Tools execute independently; multi-step tool chains deferred
+6. **Deferred outcome measurement** — Currently measures outcomes immediately; T+1h / T+24h deferred measurement would improve accuracy
+7. **Counterparty identity resolution** — Counterparty profiles keyed by type, not individual identity; per-individual tracking deferred
+8. **Automated profile refresh** — Org profiles updated on demand; automated batch aggregation deferred
+9. **Learning confidence intervals** — Scores are point estimates; confidence intervals deferred
