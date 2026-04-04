@@ -920,3 +920,312 @@ INSERT INTO close_forecast_snapshots (
   '[{"transaction_id": "e0000000-0000-4000-8000-000000000004", "gross_commission": 14437.50, "close_probability": 90, "weighted_amount": 12993.75, "status": "pending_closing", "expected_close_date": "2026-04-10"}]'::jsonb,
   '2026-04-04 08:30:00-06'
 );
+
+-- =============================================================================
+-- Platform Completeness & Import/Diagnostics Seed Data
+-- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Backfill stage column on transactions
+-- ---------------------------------------------------------------------------
+UPDATE transactions SET stage = 'due_diligence' WHERE id = 'e0000000-0000-4000-8000-000000000001';
+UPDATE transactions SET stage = 'intake' WHERE id = 'e0000000-0000-4000-8000-000000000002';
+UPDATE transactions SET stage = 'closed' WHERE id = 'e0000000-0000-4000-8000-000000000003';
+UPDATE transactions SET stage = 'closing_prep' WHERE id = 'e0000000-0000-4000-8000-000000000004';
+
+-- ---------------------------------------------------------------------------
+-- Stage Transitions (audit trail for TX1 and TX4)
+-- ---------------------------------------------------------------------------
+INSERT INTO stage_transitions (id, transaction_id, organization_id, from_stage, to_stage, triggered_by_user_id, trigger_type, reason) VALUES
+  ('c1000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'intake', 'under_contract', 'b0000000-0000-4000-8000-000000000003', 'manual',
+   'Offer accepted by seller'),
+  ('c1000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   'under_contract', 'due_diligence', 'b0000000-0000-4000-8000-000000000003', 'manual',
+   'Inspection period started'),
+  ('c1000000-0000-4000-8000-000000000003',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'intake', 'under_contract', 'b0000000-0000-4000-8000-000000000003', 'manual', NULL),
+  ('c1000000-0000-4000-8000-000000000004',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'under_contract', 'due_diligence', 'b0000000-0000-4000-8000-000000000003', 'manual', NULL),
+  ('c1000000-0000-4000-8000-000000000005',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'due_diligence', 'financing', 'b0000000-0000-4000-8000-000000000003', 'manual', NULL),
+  ('c1000000-0000-4000-8000-000000000006',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'financing', 'appraisal', 'b0000000-0000-4000-8000-000000000003', 'manual', NULL),
+  ('c1000000-0000-4000-8000-000000000007',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'appraisal', 'title_and_escrow', 'b0000000-0000-4000-8000-000000000003', 'manual', NULL),
+  ('c1000000-0000-4000-8000-000000000008',
+   'e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
+   'title_and_escrow', 'closing_prep', 'b0000000-0000-4000-8000-000000000003', 'manual',
+   'Clear to close received from lender');
+
+-- ---------------------------------------------------------------------------
+-- Transaction Assignments
+-- ---------------------------------------------------------------------------
+INSERT INTO transaction_assignments (id, transaction_id, primary_agent_id, coordinator_owner_id, broker_reviewer_id) VALUES
+  ('c2000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   'b0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001'),
+  ('c2000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000002',
+   'b0000000-0000-4000-8000-000000000002', NULL, NULL),
+  ('c2000000-0000-4000-8000-000000000003',
+   'e0000000-0000-4000-8000-000000000003',
+   'b0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001'),
+  ('c2000000-0000-4000-8000-000000000004',
+   'e0000000-0000-4000-8000-000000000004',
+   'b0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001');
+
+-- ---------------------------------------------------------------------------
+-- Deal Health Scores for TX1, TX2, TX3 (TX4 already seeded)
+-- ---------------------------------------------------------------------------
+INSERT INTO deal_health_scores (
+  id, transaction_id, organization_id, overall_score, rating,
+  completeness_factor, timeliness_factor, responsiveness_factor,
+  compliance_factor, financing_factor,
+  risk_factors, positive_signals,
+  previous_score, score_trend, computed_at
+) VALUES
+  -- TX1: 742 Evergreen — watch (overdue item, failed extraction)
+  ('c3000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
+   68, 'watch',
+   75, 70, 60, 80, 55,
+   '[{"type": "overdue_checklist_item", "description": "Home inspection report overdue"}, {"type": "failed_extraction", "description": "Disclosure document extraction failed"}]'::jsonb,
+   '[{"type": "active_agent", "description": "Agent responding within 24h"}]'::jsonb,
+   72, 'declining', '2026-04-04 08:00:00-06'),
+  -- TX2: Canyon Blvd — at_risk (draft with minimal data)
+  ('c3000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001',
+   42, 'at_risk',
+   30, 50, 40, 60, 30,
+   '[{"type": "missing_documents", "description": "No documents uploaded"}, {"type": "missing_economics", "description": "Economics not configured"}]'::jsonb,
+   '[]'::jsonb,
+   NULL, NULL, '2026-04-04 08:00:00-06'),
+  -- TX3: Pearl St — healthy (closed deal)
+  ('c3000000-0000-4000-8000-000000000003',
+   'e0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
+   95, 'healthy',
+   100, 100, 90, 95, 90,
+   '[]'::jsonb,
+   '[{"type": "deal_closed", "description": "Successfully closed"}, {"type": "all_documents_complete", "description": "All required documents on file"}]'::jsonb,
+   92, 'improving', '2026-04-04 08:00:00-06');
+
+-- ---------------------------------------------------------------------------
+-- Closing Readiness for TX1, TX2 (TX3 closed, TX4 already seeded)
+-- ---------------------------------------------------------------------------
+INSERT INTO closing_readiness (
+  id, transaction_id, readiness_state, overall_score,
+  document_score, financing_score, title_score, checklist_score, approval_score,
+  unresolved_blockers, missing_documents, pending_items,
+  target_closing_date, days_until_closing, computed_at
+) VALUES
+  -- TX1: 742 Evergreen — at_risk
+  ('c4000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   'at_risk', 52,
+   60, 40, 30, 65, 70,
+   '[{"type": "missing_financing", "description": "Appraisal not yet ordered"}]'::jsonb,
+   '[{"type": "seller_disclosures"}, {"type": "preliminary_title_report"}]'::jsonb,
+   '[{"type": "home_inspection", "due_date": "2026-04-01"}]'::jsonb,
+   '2026-05-15', 41, '2026-04-04 08:00:00-06'),
+  -- TX2: Canyon Blvd — not_ready (draft)
+  ('c4000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000002',
+   'not_ready', 15,
+   0, 0, 0, 20, 50,
+   '[{"type": "no_documents", "description": "No documents uploaded yet"}]'::jsonb,
+   '[{"type": "purchase_agreement"}, {"type": "seller_disclosures"}, {"type": "pre_approval_letter"}]'::jsonb,
+   '[]'::jsonb,
+   NULL, NULL, '2026-04-04 08:00:00-06');
+
+-- ---------------------------------------------------------------------------
+-- Comments (team collaboration)
+-- ---------------------------------------------------------------------------
+INSERT INTO comments (
+  id, organization_id, transaction_id, parent_comment_id,
+  author_user_id, body, is_resolved, entity_type, entity_id
+) VALUES
+  -- TX1: Discussion about overdue inspection
+  ('c5000000-0000-4000-8000-000000000001',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001', NULL,
+   'b0000000-0000-4000-8000-000000000003',
+   'The home inspection report is overdue by 3 days. @James, can you follow up with the inspector?',
+   false, 'transaction', 'e0000000-0000-4000-8000-000000000001'),
+  -- Reply from James
+  ('c5000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001',
+   'c5000000-0000-4000-8000-000000000001',
+   'b0000000-0000-4000-8000-000000000002',
+   'Just spoke with Robert Tanaka — he had a scheduling conflict. Report will be delivered by EOD tomorrow.',
+   false, 'transaction', 'e0000000-0000-4000-8000-000000000001'),
+  -- TX1: Note on failed extraction
+  ('c5000000-0000-4000-8000-000000000003',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001', NULL,
+   'b0000000-0000-4000-8000-000000000003',
+   'AI extraction failed on the seller disclosure. The PDF appears to be a scanned image. Flagging for manual review.',
+   false, 'document', '20000000-0000-4000-8000-000000000002'),
+  -- TX4: Closing coordination
+  ('c5000000-0000-4000-8000-000000000004',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000004', NULL,
+   'b0000000-0000-4000-8000-000000000001',
+   'Clear to close received from First National. @Sarah, please schedule the closing for next week and send closing disclosure to all parties.',
+   false, 'transaction', 'e0000000-0000-4000-8000-000000000004'),
+  ('c5000000-0000-4000-8000-000000000005',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000004',
+   'c5000000-0000-4000-8000-000000000004',
+   'b0000000-0000-4000-8000-000000000003',
+   'Closing scheduled for April 10 at 2pm. Sending disclosure now. Still waiting on final title commitment.',
+   false, 'transaction', 'e0000000-0000-4000-8000-000000000004'),
+  -- TX3: Resolved note on closed deal
+  ('c5000000-0000-4000-8000-000000000006',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000003', NULL,
+   'b0000000-0000-4000-8000-000000000001',
+   'Commission disbursement confirmed. Deal fully closed. Great work team.',
+   true, 'transaction', 'e0000000-0000-4000-8000-000000000003');
+
+-- ---------------------------------------------------------------------------
+-- Mentions (from comments above)
+-- ---------------------------------------------------------------------------
+INSERT INTO mentions (id, comment_id, mentioned_user_id, is_read) VALUES
+  ('c6000000-0000-4000-8000-000000000001',
+   'c5000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002', false),
+  ('c6000000-0000-4000-8000-000000000002',
+   'c5000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000003', true);
+
+-- ---------------------------------------------------------------------------
+-- Notifications (sample notifications for demo)
+-- ---------------------------------------------------------------------------
+INSERT INTO notifications (
+  id, organization_id, user_id, category, title, body,
+  entity_type, entity_id, transaction_id, action_url,
+  is_read, priority, actor_user_id, actor_name
+) VALUES
+  -- Unread: Overdue item for Sarah
+  ('c7000000-0000-4000-8000-000000000001',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003',
+   'overdue_item', 'Checklist item overdue',
+   'Home inspection report is 3 days past due on 742 Evergreen Terrace.',
+   'checklist_item', '30000000-0000-4000-8000-000000000004',
+   'e0000000-0000-4000-8000-000000000001',
+   '/transactions/e0000000-0000-4000-8000-000000000001/checklist',
+   false, 'high', NULL, NULL),
+  -- Unread: Approval needed for Maria
+  ('c7000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
+   'approval_assigned', 'Approval pending',
+   'Outbound email to Daniel Kowalski requires your review.',
+   'approval', '40000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   '/transactions/e0000000-0000-4000-8000-000000000001/approvals',
+   false, 'high', 'b0000000-0000-4000-8000-000000000003', 'Sarah Chen'),
+  -- Unread: Stage changed for James
+  ('c7000000-0000-4000-8000-000000000003',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002',
+   'stage_changed', '900 Baseline Rd moved to Closing Prep',
+   'Transaction moved from Title & Escrow to Closing Prep by Sarah Chen.',
+   'transaction', 'e0000000-0000-4000-8000-000000000004',
+   'e0000000-0000-4000-8000-000000000004',
+   '/transactions/e0000000-0000-4000-8000-000000000004/overview',
+   false, 'normal', 'b0000000-0000-4000-8000-000000000003', 'Sarah Chen'),
+  -- Unread: Closing approaching for Sarah
+  ('c7000000-0000-4000-8000-000000000004',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003',
+   'closing_approaching', 'Closing in 6 days',
+   '900 Baseline Rd closing scheduled for April 10. Missing: closing disclosure.',
+   'transaction', 'e0000000-0000-4000-8000-000000000004',
+   'e0000000-0000-4000-8000-000000000004',
+   '/transactions/e0000000-0000-4000-8000-000000000004/closing',
+   false, 'urgent', NULL, NULL),
+  -- Read: Processing failure for Sarah
+  ('c7000000-0000-4000-8000-000000000005',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000003',
+   'processing_failure', 'Document extraction failed',
+   'AI extraction failed on seller_disclosure_742.pdf. Manual review required.',
+   'document', '20000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000001',
+   '/transactions/e0000000-0000-4000-8000-000000000001/documents',
+   true, 'normal', NULL, NULL),
+  -- Read: Mention notification for James
+  ('c7000000-0000-4000-8000-000000000006',
+   'a0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002',
+   'mention', 'Sarah Chen mentioned you',
+   'The home inspection report is overdue by 3 days. @James, can you follow up...',
+   'comment', 'c5000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   '/transactions/e0000000-0000-4000-8000-000000000001/overview',
+   false, 'normal', 'b0000000-0000-4000-8000-000000000003', 'Sarah Chen');
+
+-- ---------------------------------------------------------------------------
+-- Transaction Completeness for TX1, TX2
+-- ---------------------------------------------------------------------------
+INSERT INTO transaction_completeness (
+  id, transaction_id, readiness_state, completeness_score,
+  missing_documents, missing_signatures, missing_dates,
+  missing_financing, unresolved_reviews, blockers, computed_at
+) VALUES
+  ('c8000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   'needs_attention', 55,
+   '[{"type": "seller_disclosures"}, {"type": "preliminary_title_report"}]'::jsonb,
+   '[{"party": "seller", "document": "purchase_agreement"}]'::jsonb,
+   '[{"date_type": "inspection_deadline", "status": "overdue"}]'::jsonb,
+   '[{"type": "appraisal", "status": "not_ordered"}]'::jsonb,
+   1,
+   '[{"type": "overdue_inspection", "severity": "warning"}]'::jsonb,
+   '2026-04-04 08:00:00-06'),
+  ('c8000000-0000-4000-8000-000000000002',
+   'e0000000-0000-4000-8000-000000000002',
+   'not_ready', 10,
+   '[{"type": "purchase_agreement"}, {"type": "seller_disclosures"}, {"type": "pre_approval_letter"}]'::jsonb,
+   '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+   0,
+   '[{"type": "no_documents", "severity": "critical"}]'::jsonb,
+   '2026-04-04 08:00:00-06');
+
+-- ---------------------------------------------------------------------------
+-- Transaction Exceptions (one for TX1)
+-- ---------------------------------------------------------------------------
+INSERT INTO transaction_exceptions (
+  id, transaction_id, exception_type, severity, title, description,
+  resolution_status, metadata
+) VALUES
+  ('c9000000-0000-4000-8000-000000000001',
+   'e0000000-0000-4000-8000-000000000001',
+   'counterparty_unresponsive', 'warning',
+   'Inspector not responding',
+   'Robert Tanaka has not delivered the inspection report. Report was due April 1.',
+   'open',
+   '{"contact_name": "Robert Tanaka", "days_overdue": 3}'::jsonb);
+
+-- ---------------------------------------------------------------------------
+-- Additional Collaborator Invites (pending + expired)
+-- ---------------------------------------------------------------------------
+INSERT INTO collaborator_invites (
+  id, organization_id, transaction_id, invited_by_user_id,
+  email, full_name, role, status, access_token, expires_at, permissions
+) VALUES
+  -- Pending invite for title company on TX4
+  ('ca000000-0000-4000-8000-000000000002',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000004',
+   'b0000000-0000-4000-8000-000000000003',
+   'escrow@mountainescrow.com', 'Mountain Escrow Services',
+   'escrow_officer', 'pending',
+   'tkn_pending_escrow_900baseline',
+   '2026-04-15 00:00:00-06',
+   '{"view_documents": true, "upload_documents": true, "view_checklist": false}'::jsonb),
+  -- Expired invite for appraiser on TX1
+  ('ca000000-0000-4000-8000-000000000003',
+   'a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001',
+   'b0000000-0000-4000-8000-000000000003',
+   'appraisals@rockymtn.com', 'Rocky Mountain Appraisals',
+   'appraiser', 'expired',
+   'tkn_expired_appraiser_742',
+   '2026-03-20 00:00:00-06',
+   '{"view_documents": true, "upload_documents": true, "view_checklist": false}'::jsonb);
