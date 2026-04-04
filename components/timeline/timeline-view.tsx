@@ -69,17 +69,17 @@ const sourceConfig: Record<string, { label: string; icon: React.ReactNode; class
   system: {
     label: 'System',
     icon: <Monitor className="h-3 w-3" />,
-    className: 'text-gray-600 bg-gray-50 border-gray-200',
+    className: 'text-gray-600 bg-gray-100/60',
   },
   ai_generated: {
     label: 'AI',
     icon: <Bot className="h-3 w-3" />,
-    className: 'text-violet-600 bg-violet-50 border-violet-200',
+    className: 'text-violet-600 bg-violet-50/70',
   },
   manual: {
     label: 'Manual',
     icon: <User className="h-3 w-3" />,
-    className: 'text-blue-600 bg-blue-50 border-blue-200',
+    className: 'text-blue-600 bg-blue-50/70',
   },
 };
 
@@ -106,10 +106,10 @@ function formatEventDate(dateStr: string) {
 export function TimelineView({ events, transactionId }: TimelineViewProps) {
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-        <Calendar className="h-10 w-10 text-muted-foreground/60 mb-4" />
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
+        <Calendar className="h-10 w-10 text-muted-foreground/40 mb-5" />
         <h3 className="text-lg font-semibold tracking-tight">No timeline events yet</h3>
-        <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
+        <p className="text-sm text-muted-foreground/80 mt-2 max-w-md leading-relaxed">
           Events will appear as documents are processed and milestones are reached.
         </p>
       </div>

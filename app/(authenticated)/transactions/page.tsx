@@ -26,38 +26,38 @@ const statusColors: Record<string, 'default' | 'secondary' | 'success' | 'warnin
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 px-6 text-center">
-      <div className="rounded-full bg-muted/60 p-5 mb-5">
-        <FileText className="h-8 w-8 text-muted-foreground" />
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-24 px-8 text-center">
+      <div className="rounded-full bg-muted/50 p-6 mb-6">
+        <FileText className="h-8 w-8 text-muted-foreground/70" />
       </div>
-      <h3 className="text-lg font-semibold tracking-tight">No transactions yet</h3>
-      <p className="text-sm text-muted-foreground mt-2.5 mb-8 max-w-md leading-relaxed">
+      <h3 className="text-xl font-semibold tracking-tight">No transactions yet</h3>
+      <p className="text-sm text-muted-foreground mt-3 mb-10 max-w-md leading-relaxed">
         Transactions are the core of Deal Desk. Create one to start managing
         documents, tracking deadlines, and using AI-powered extraction.
       </p>
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button asChild className="rounded-lg">
+        <Button asChild className="rounded-lg px-5 py-2.5">
           <Link href="/transactions/new" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Create Your First Transaction
           </Link>
         </Button>
       </div>
-      <div className="mt-10 grid gap-5 sm:grid-cols-3 w-full max-w-lg">
-        <div className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/40">
-          <Upload className="h-5 w-5 text-muted-foreground mb-2.5" />
-          <p className="text-xs font-medium">Upload Documents</p>
-          <p className="text-xs text-muted-foreground mt-1">PDFs, images, contracts</p>
+      <div className="mt-12 grid gap-6 sm:grid-cols-3 w-full max-w-lg">
+        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
+          <Upload className="h-5 w-5 text-muted-foreground/70 mb-3" />
+          <p className="text-xs font-semibold">Upload Documents</p>
+          <p className="text-xs text-muted-foreground mt-1.5">PDFs, images, contracts</p>
         </div>
-        <div className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/40">
-          <Search className="h-5 w-5 text-muted-foreground mb-2.5" />
-          <p className="text-xs font-medium">AI Extraction</p>
-          <p className="text-xs text-muted-foreground mt-1">Auto-extract key data</p>
+        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
+          <Search className="h-5 w-5 text-muted-foreground/70 mb-3" />
+          <p className="text-xs font-semibold">AI Extraction</p>
+          <p className="text-xs text-muted-foreground mt-1.5">Auto-extract key data</p>
         </div>
-        <div className="flex flex-col items-center text-center p-4 rounded-xl bg-muted/40">
-          <Calendar className="h-5 w-5 text-muted-foreground mb-2.5" />
-          <p className="text-xs font-medium">Track Deadlines</p>
-          <p className="text-xs text-muted-foreground mt-1">Never miss a date</p>
+        <div className="flex flex-col items-center text-center p-5 rounded-xl bg-muted/30">
+          <Calendar className="h-5 w-5 text-muted-foreground/70 mb-3" />
+          <p className="text-xs font-semibold">Track Deadlines</p>
+          <p className="text-xs text-muted-foreground mt-1.5">Never miss a date</p>
         </div>
       </div>
     </div>
@@ -81,28 +81,28 @@ function TransactionCard({
 }) {
   return (
     <Link href={`/transactions/${id}/overview`} className="group block">
-      <Card className="rounded-xl transition-all duration-200 hover:shadow-md">
-        <CardContent className="p-5">
+      <Card className="rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-px">
+        <CardContent className="p-6">
           <div className="flex items-start justify-between">
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="flex items-center gap-2.5">
+            <div className="space-y-2 flex-1 min-w-0">
+              <div className="flex items-center gap-3">
                 <Home className="h-4 w-4 text-muted-foreground shrink-0" />
-                <p className="font-semibold truncate tracking-tight">{address}</p>
+                <p className="font-semibold truncate tracking-tight text-base">{address}</p>
               </div>
-              <div className="flex items-center gap-5 text-sm text-muted-foreground">
-                <span>{price}</span>
+              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                <span className="font-medium">{price}</span>
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="h-3 w-3" />
+                  <Calendar className="h-3.5 w-3.5" />
                   {closingDate}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <FileText className="h-3 w-3" />
+                  <FileText className="h-3.5 w-3.5" />
                   {documentsCount} docs
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-3 ml-4 shrink-0">
-              <Badge variant={statusColors[status] || 'secondary'} className="px-2.5 py-0.5">
+            <div className="flex items-center gap-4 ml-6 shrink-0">
+              <Badge variant={statusColors[status] || 'secondary'} className="px-3 py-1 text-xs font-medium">
                 {status.replace('_', ' ')}
               </Badge>
               <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -128,13 +128,13 @@ export default function TransactionsPage() {
   }> = [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground mt-1">Manage your real estate transactions</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Transactions</h1>
+          <p className="text-muted-foreground mt-2 text-base">Manage your real estate transactions</p>
         </div>
-        <Button asChild className="rounded-lg">
+        <Button asChild className="rounded-lg px-5 py-2.5">
           <Link href="/transactions/new" className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             New Transaction
@@ -143,31 +143,31 @@ export default function TransactionsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all" className="px-5 py-2">All</TabsTrigger>
-          <TabsTrigger value="active" className="px-5 py-2">Active</TabsTrigger>
-          <TabsTrigger value="draft" className="px-5 py-2">Draft</TabsTrigger>
-          <TabsTrigger value="closed" className="px-5 py-2">Closed</TabsTrigger>
+        <TabsList className="p-1">
+          <TabsTrigger value="all" className="px-6 py-2.5 text-sm">All</TabsTrigger>
+          <TabsTrigger value="active" className="px-6 py-2.5 text-sm">Active</TabsTrigger>
+          <TabsTrigger value="draft" className="px-6 py-2.5 text-sm">Draft</TabsTrigger>
+          <TabsTrigger value="closed" className="px-6 py-2.5 text-sm">Closed</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-6">
+        <TabsContent value="all" className="mt-8">
           {transactions.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {transactions.map((tx) => (
                 <TransactionCard key={tx.id} {...tx} />
               ))}
             </div>
           )}
         </TabsContent>
-        <TabsContent value="active" className="mt-6">
+        <TabsContent value="active" className="mt-8">
           <EmptyState />
         </TabsContent>
-        <TabsContent value="draft" className="mt-6">
+        <TabsContent value="draft" className="mt-8">
           <EmptyState />
         </TabsContent>
-        <TabsContent value="closed" className="mt-6">
+        <TabsContent value="closed" className="mt-8">
           <EmptyState />
         </TabsContent>
       </Tabs>

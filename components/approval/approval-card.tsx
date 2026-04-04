@@ -125,28 +125,28 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
   }
 
   return (
-    <Card className={approval.status === 'pending' ? 'border-amber-200 shadow-sm' : ''}>
-      <CardHeader className="p-6 pb-0">
+    <Card className={`rounded-2xl transition-shadow duration-300 ${approval.status === 'pending' ? 'border-l-4 border-l-amber-400 border-amber-200/50 shadow-sm hover:shadow-md' : 'shadow-sm'}`}>
+      <CardHeader className="p-7 pb-0">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground">
               {typeIcon}
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 flex-wrap">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2.5 flex-wrap">
                 {typeLabels[approval.approval_type] ?? approval.approval_type}
-                <Badge variant="secondary" className="text-xs gap-1">
+                <Badge variant="secondary" className="text-xs gap-1.5 bg-violet-100/80 text-violet-700 border-violet-200/50">
                   <Bot className="h-3 w-3" />
                   AI Generated
                 </Badge>
                 {approval.status === 'approved' && (
-                  <Badge variant="success" className="text-xs gap-1">
+                  <Badge variant="success" className="text-xs gap-1.5 bg-emerald-100/80 text-emerald-700 border-emerald-200/50">
                     <ShieldCheck className="h-3 w-3" />
                     Human Approved
                   </Badge>
                 )}
                 {confidenceInfo && (
-                  <Badge variant={confidenceInfo.variant} className="text-xs gap-1">
+                  <Badge variant={confidenceInfo.variant} className="text-xs gap-1.5">
                     {confidenceInfo.variant === 'destructive' && <AlertTriangle className="h-3 w-3" />}
                     {confidenceInfo.variant === 'success' && <Sparkles className="h-3 w-3" />}
                     {confidenceInfo.level}
@@ -156,7 +156,7 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
               {transactionTitle && (
                 <Link
                   href={`/transactions/${approval.transaction_id}`}
-                  className="text-xs text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1 mt-1"
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1.5 mt-1.5"
                 >
                   {transactionTitle}
                   <ExternalLink className="h-3 w-3" />
@@ -164,22 +164,22 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {getRelativeTime(approval.created_at)}
             </span>
-            <Badge variant={config.variant} className="flex items-center gap-1">
+            <Badge variant={config.variant} className="flex items-center gap-1.5 px-2.5 py-1">
               {config.icon}
               {config.label}
             </Badge>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6 space-y-4">
+      <CardContent className="p-7 pt-5 space-y-5">
         {/* Email payload preview */}
         {payload && approval.approval_type === 'outbound_email' && (
-          <div className="rounded-lg border bg-muted/50 p-4 space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="rounded-xl border bg-muted/30 p-5 space-y-2.5 text-sm">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
               <MessageSquare className="h-3 w-3" />
               Email Preview
             </div>
@@ -190,15 +190,15 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
               <div><span className="font-medium text-muted-foreground">Subject:</span> {payload.subject}</div>
             )}
             {payload.body && (
-              <div className="mt-3 whitespace-pre-wrap text-xs border-t pt-3 text-muted-foreground leading-relaxed">{payload.body}</div>
+              <div className="mt-4 whitespace-pre-wrap text-xs border-t pt-4 text-muted-foreground leading-relaxed">{payload.body}</div>
             )}
           </div>
         )}
 
         {/* Generic payload preview */}
         {payload && approval.approval_type !== 'outbound_email' && (
-          <div className="rounded-lg border bg-muted/50 p-4 text-xs">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="rounded-xl border bg-muted/30 p-5 text-xs">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
               <FileSearch className="h-3 w-3" />
               Payload
             </div>
@@ -207,15 +207,15 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
         )}
 
         {/* Timestamps */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
             <Clock className="h-3 w-3" />
             Created {getRelativeTime(approval.created_at)}
           </span>
           {approval.decided_at && (
             <>
               <span>&middot;</span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 {approval.status === 'approved' ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <XCircle className="h-3 w-3 text-red-600" />}
                 Decided {getRelativeTime(approval.decided_at)}
               </span>
@@ -225,9 +225,9 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
 
         {/* Decision notes */}
         {approval.decision_notes && (
-          <div className="rounded-lg bg-muted/50 border p-3 text-sm">
+          <div className="rounded-xl bg-muted/30 border p-4 text-sm">
             <span className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Decision Notes</span>
-            <p className="mt-1 text-sm">{approval.decision_notes}</p>
+            <p className="mt-1.5 text-sm leading-relaxed">{approval.decision_notes}</p>
           </div>
         )}
 
@@ -237,17 +237,17 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
             placeholder="Add decision notes (optional) - explain your reasoning for the audit trail"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="text-sm"
+            className="text-sm rounded-xl"
             rows={3}
           />
         )}
       </CardContent>
 
       {approval.status === 'pending' && (
-        <CardFooter className="p-6 pt-0 gap-2">
+        <CardFooter className="p-7 pt-0 gap-3">
           {!showNotes && (
-            <Button variant="ghost" size="sm" onClick={() => setShowNotes(true)}>
-              <Eye className="h-4 w-4 mr-1" />
+            <Button variant="ghost" size="sm" onClick={() => setShowNotes(true)} className="rounded-lg">
+              <Eye className="h-4 w-4 mr-1.5" />
               Add Notes
             </Button>
           )}
@@ -257,18 +257,18 @@ export function ApprovalCard({ approval, transactionTitle }: ApprovalCardProps) 
             size="sm"
             onClick={() => handleDecision('rejected')}
             disabled={isSubmitting}
-            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+            className="rounded-lg px-5 py-2 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors duration-200"
           >
-            <XCircle className="h-4 w-4 mr-1" />
+            <XCircle className="h-4 w-4 mr-1.5" />
             Reject
           </Button>
           <Button
             size="sm"
             onClick={() => handleDecision('approved')}
             disabled={isSubmitting}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="rounded-lg px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white transition-colors duration-200"
           >
-            <CheckCircle2 className="h-4 w-4 mr-1" />
+            <CheckCircle2 className="h-4 w-4 mr-1.5" />
             Approve
           </Button>
         </CardFooter>

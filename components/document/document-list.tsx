@@ -51,13 +51,13 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; class
 };
 
 const docTypeConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  purchase_agreement: { label: 'Purchase Agreement', icon: <FileBadge className="h-3 w-3" />, className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  addendum: { label: 'Addendum', icon: <FileText className="h-3 w-3" />, className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  inspection_report: { label: 'Inspection', icon: <FileCheck className="h-3 w-3" />, className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  disclosure: { label: 'Disclosure', icon: <FileText className="h-3 w-3" />, className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  title_report: { label: 'Title Report', icon: <FileBadge className="h-3 w-3" />, className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  loan_document: { label: 'Loan Document', icon: <FileText className="h-3 w-3" />, className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  closing_statement: { label: 'Closing Statement', icon: <FileCheck className="h-3 w-3" />, className: 'bg-green-50 text-green-700 border-green-200' },
+  purchase_agreement: { label: 'Purchase Agreement', icon: <FileBadge className="h-3 w-3" />, className: 'bg-blue-50/70 text-blue-600' },
+  addendum: { label: 'Addendum', icon: <FileText className="h-3 w-3" />, className: 'bg-purple-50/70 text-purple-600' },
+  inspection_report: { label: 'Inspection', icon: <FileCheck className="h-3 w-3" />, className: 'bg-emerald-50/70 text-emerald-600' },
+  disclosure: { label: 'Disclosure', icon: <FileText className="h-3 w-3" />, className: 'bg-amber-50/70 text-amber-600' },
+  title_report: { label: 'Title Report', icon: <FileBadge className="h-3 w-3" />, className: 'bg-cyan-50/70 text-cyan-600' },
+  loan_document: { label: 'Loan Document', icon: <FileText className="h-3 w-3" />, className: 'bg-indigo-50/70 text-indigo-600' },
+  closing_statement: { label: 'Closing Statement', icon: <FileCheck className="h-3 w-3" />, className: 'bg-green-50/70 text-green-600' },
 };
 
 function ConfidenceBadge({ score }: { score: number }) {
@@ -76,7 +76,7 @@ function ConfidenceBadge({ score }: { score: number }) {
 function DocumentTypeBadge({ type }: { type: string | null }) {
   if (!type) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs text-muted-foreground bg-muted/50">
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground/80 bg-muted/40">
         <FileX className="h-3 w-3" />
         Unclassified
       </span>
@@ -85,14 +85,14 @@ function DocumentTypeBadge({ type }: { type: string | null }) {
   const config = docTypeConfig[type];
   if (!config) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs text-muted-foreground bg-muted/50">
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground/80 bg-muted/40">
         <FileText className="h-3 w-3" />
         {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${config.className}`}>
       {config.icon}
       {config.label}
     </span>
@@ -104,10 +104,10 @@ export function DocumentList({ documents }: DocumentListProps) {
 
   if (documents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
-        <FileText className="h-10 w-10 text-muted-foreground/60 mb-4" />
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
+        <FileText className="h-10 w-10 text-muted-foreground/40 mb-5" />
         <h3 className="text-lg font-semibold tracking-tight">No documents uploaded yet</h3>
-        <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
+        <p className="text-sm text-muted-foreground/80 mt-2 max-w-md leading-relaxed">
           Upload PDF documents to trigger AI extraction, checklist generation, and timeline events.
         </p>
       </div>
@@ -115,7 +115,7 @@ export function DocumentList({ documents }: DocumentListProps) {
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {documents.map((doc) => {
         const status = statusConfig[doc.processing_status] ?? statusConfig.pending;
         const isExpanded = expandedId === doc.id;
@@ -123,23 +123,25 @@ export function DocumentList({ documents }: DocumentListProps) {
         const hasDetails = doc.extraction_results || hasMissingSigs || doc.has_addenda;
 
         return (
-          <div key={doc.id} className="rounded-xl border overflow-hidden transition-shadow duration-200 hover:shadow-sm">
+          <div key={doc.id} className="rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-md hover:shadow-black/[0.04]">
             <div
-              className={`flex items-center justify-between px-5 py-4 ${hasDetails ? 'cursor-pointer hover:bg-muted/20 transition-colors duration-200' : ''}`}
+              className={`flex items-center justify-between px-5 py-[18px] transition-colors duration-200 ${hasDetails ? 'cursor-pointer hover:bg-muted/20' : ''}`}
               onClick={() => hasDetails && setExpandedId(isExpanded ? null : doc.id)}
             >
-              <div className="flex items-center gap-3.5 min-w-0">
+              <div className="flex items-center gap-4 min-w-0">
                 {hasDetails && (
-                  <span className="shrink-0 text-muted-foreground/70">
+                  <span className="shrink-0 text-muted-foreground/50">
                     {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </span>
                 )}
-                <FileText className="h-5 w-5 text-muted-foreground/60 shrink-0" />
+                <div className="shrink-0 rounded-lg bg-muted/30 p-2">
+                  <FileText className="h-4 w-4 text-muted-foreground/60" />
+                </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold tracking-tight truncate">{doc.file_name}</p>
-                  <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                  <div className="flex items-center gap-2.5 mt-2 flex-wrap">
                     <DocumentTypeBadge type={doc.document_type} />
-                    <span className="text-xs text-muted-foreground/70">
+                    <span className="text-[11px] text-muted-foreground/60">
                       {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                     {doc.confidence_score != null && (
@@ -170,15 +172,15 @@ export function DocumentList({ documents }: DocumentListProps) {
             </div>
 
             {isExpanded && hasDetails && (
-              <div className="border-t bg-muted/10 px-6 py-5 space-y-5">
+              <div className="border-t bg-muted/[0.04] px-7 py-6 space-y-6">
                 {doc.extraction_results && doc.extraction_results.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-3.5">
                       Extraction Results
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {doc.extraction_results.map((result, i) => (
-                        <div key={i} className="flex items-center justify-between rounded-lg bg-background border px-3.5 py-2.5 text-xs">
+                        <div key={i} className="flex items-center justify-between rounded-lg bg-background border border-border/60 px-4 py-3 text-xs">
                           <span className="text-muted-foreground">{result.field}</span>
                           <div className="flex items-center gap-2.5">
                             <span className="font-medium">{result.value}</span>
@@ -192,7 +194,7 @@ export function DocumentList({ documents }: DocumentListProps) {
 
                 {hasMissingSigs && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-3.5">
                       Missing Signatures
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -208,7 +210,7 @@ export function DocumentList({ documents }: DocumentListProps) {
 
                 {doc.has_addenda && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-widest mb-2.5">
                       Addenda
                     </p>
                     <p className="text-sm text-muted-foreground">

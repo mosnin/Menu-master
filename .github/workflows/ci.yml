@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, claude/**]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Test
+        run: pnpm run test
+        env:
+          NODE_ENV: test
+
+      - name: Build
+        run: pnpm run build
+        env:
+          # Provide dummy env vars so next build succeeds without real secrets
+          AUTH0_SECRET: ci-placeholder
+          AUTH0_BASE_URL: http://localhost:3000
+          AUTH0_ISSUER_BASE_URL: https://placeholder.auth0.com
+          AUTH0_CLIENT_ID: ci-placeholder
+          AUTH0_CLIENT_SECRET: ci-placeholder
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
