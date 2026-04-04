@@ -66,6 +66,9 @@ const breadcrumbLabels: Record<string, string> = {
   seller: 'Seller Portal',
   launch: 'Launch',
   'seller-portal': 'Seller Portal',
+  ops: 'Operations',
+  workflows: 'Workflows',
+  'workflow-runs': 'Workflow Runs',
 };
 
 function Breadcrumbs() {

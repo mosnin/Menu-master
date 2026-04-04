@@ -20,6 +20,9 @@ import {
   InboxIcon,
   Wrench,
   Home,
+  Cpu,
+  GitBranch,
+  Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,6 +43,12 @@ const navigation = [
 const brokerNavigation = [
   { name: 'Broker Overview', href: '/broker', icon: Building2 },
   { name: 'Forecast', href: '/broker/forecast', icon: TrendingUp, indent: true },
+];
+
+const opsNavigation = [
+  { name: 'Operations', href: '/ops', icon: Cpu, adminOnly: true },
+  { name: 'Workflows', href: '/ops/workflows', icon: GitBranch, indent: true, adminOnly: true },
+  { name: 'Workflow Runs', href: '/ops/workflow-runs', icon: Play, indent: true, adminOnly: true },
 ];
 
 const secondaryNavigation = [
@@ -202,6 +211,23 @@ function SidebarContent({ onNavigate, userRole }: { onNavigate?: () => void; use
 
             <nav className="space-y-0.5 px-3">
               {brokerNavigation.map(renderNavItem)}
+            </nav>
+          </>
+        )}
+
+        {/* Operations section */}
+        {userRole === 'broker_admin' && (
+          <>
+            <div className="mt-8 mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
+
+            <div className="mt-5 px-5 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
+                Operations
+              </span>
+            </div>
+
+            <nav className="space-y-0.5 px-3">
+              {opsNavigation.map(renderNavItem)}
             </nav>
           </>
         )}

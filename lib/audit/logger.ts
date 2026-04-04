@@ -125,7 +125,17 @@ export type AuditAction =
   | 'seller_portal.revoked'
   | 'seller_portal.accessed'
   | 'seller_doc_request.created'
-  | 'seller_doc_request.uploaded';
+  | 'seller_doc_request.uploaded'
+  | 'workflow.run_started'
+  | 'workflow.run_completed'
+  | 'workflow.run_failed'
+  | 'workflow.run_cancelled'
+  | 'workflow.step_completed'
+  | 'workflow.step_failed'
+  | 'workflow.version_created'
+  | 'workflow.version_validated'
+  | 'workflow.version_published'
+  | 'workflow.version_archived';
 
 interface LogActionParams {
   organizationId?: string;
