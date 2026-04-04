@@ -1,9 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAuth, getCurrentUserProfile } from '@/lib/auth/session';
+import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { updateChecklistItem, getChecklistSummary } from '@/lib/services/checklist-service';
 import * as checklistItemRepo from '@/lib/repositories/checklist-items';
+import { supabase } from '@/lib/db/client';
 import type { ChecklistItemStatus } from '@/types';
 
 export async function updateChecklistItemAction(
@@ -18,6 +19,19 @@ export async function updateChecklistItemAction(
   const session = await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
+
+  // Verify org membership via the checklist item's transaction
+  const existing = await checklistItemRepo.findById(itemId);
+  if (!existing) throw new Error('Checklist item not found');
+
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('organization_id')
+    .eq('id', existing.transaction_id)
+    .single();
+  if (!transaction) throw new Error('Transaction not found');
+
+  await requireOrgMembership(transaction.organization_id);
 
   const item = await updateChecklistItem(itemId, updates, profile.id);
 
@@ -38,6 +52,16 @@ export async function addChecklistItemAction(data: {
   const session = await requireAuth();
   const profile = await getCurrentUserProfile();
   if (!profile) throw new Error('User profile not found');
+
+  // Verify org membership via the transaction
+  const { data: transaction } = await supabase
+    .from('transactions')
+    .select('organization_id')
+    .eq('id', data.transactionId)
+    .single();
+  if (!transaction) throw new Error('Transaction not found');
+
+  await requireOrgMembership(transaction.organization_id);
 
   const item = await checklistItemRepo.create({
     transaction_id: data.transactionId,

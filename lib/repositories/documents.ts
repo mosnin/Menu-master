@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/db/client';
+import { validateDocumentProcessingTransition } from '@/lib/services/status-transitions';
 import type { Document, ProcessingStatus } from '@/types';
 
 const TABLE = 'documents';
@@ -45,6 +46,11 @@ export async function updateProcessingStatus(
   status: ProcessingStatus,
   documentType?: string,
 ): Promise<Document> {
+  // Fetch current status to validate transition
+  const current = await findById(id);
+  if (!current) throw new Error(`Document ${id} not found`);
+  validateDocumentProcessingTransition(current.processing_status, status);
+
   const updateData: Record<string, unknown> = { processing_status: status };
   if (documentType !== undefined) {
     updateData.document_type = documentType;

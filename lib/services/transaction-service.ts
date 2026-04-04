@@ -5,6 +5,7 @@ import * as contactRepo from '@/lib/repositories/contacts';
 import * as transactionPartyRepo from '@/lib/repositories/transaction-parties';
 import * as documentRepo from '@/lib/repositories/documents';
 import { logAction } from '@/lib/audit/logger';
+import { validateTransactionTransition } from '@/lib/services/status-transitions';
 import { generateDefaultChecklist } from './checklist-service';
 import type { CreateTransactionInput } from '@/lib/validation/schemas';
 import type { Transaction, TransactionStatus } from '@/types';
@@ -144,6 +145,12 @@ export async function updateTransactionStatus(
   status: string,
   userId: string,
 ): Promise<Transaction> {
+  // Validate transition from current status
+  const existing = await transactionRepo.findById(id);
+  if (!existing) throw new Error('Transaction not found');
+
+  validateTransactionTransition(existing.status, status as TransactionStatus);
+
   const transaction = await transactionRepo.update(id, {
     status: status as TransactionStatus,
   });

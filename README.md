@@ -218,3 +218,78 @@ All AI responses validated with Zod schemas. Both raw model output and normalize
 - Manual extraction correction UI
 - Command palette for quick navigation
 - Role-based UI visibility (show/hide based on role)
+
+## Demo Walkthrough
+
+After running `supabase/seed.sql`, the app is pre-loaded with realistic demo data for **Realty Partners Group**. Follow this script to walk through every major feature.
+
+### 1. Sign in and land on the Dashboard
+
+After signing in via Auth0, you arrive at the Dashboard. Point out:
+- **Transactions needing attention** (the active purchase at 742 Evergreen Terrace)
+- **Upcoming deadlines** pulled from the checklist (earnest money due April 18, inspection by April 22)
+- **Pending approvals count** in both the dashboard cards and the sidebar badge
+- **Documents with extraction issues** if any are flagged
+
+### 2. Open the seeded active transaction
+
+Click into **"Purchase - 742 Evergreen Terrace"** (status: `active`). This is the transaction with the most complete data. It has:
+- Two uploaded documents (purchase agreement and pre-approval letter)
+- Eight checklist items across multiple statuses
+- Six timeline events spanning offer through closing
+- Transaction parties (buyer, seller, lender, inspector)
+- One pending approval and one already-approved approval
+
+### 3. Show the document extraction flow
+
+Navigate to the **Documents** tab within the transaction:
+- Two PDFs are listed: `purchase_agreement_742_evergreen.pdf` and `pre_approval_letter_kowalski.pdf`
+- Both are in `pending` processing status (ready for Inngest to pick up)
+- Explain that uploading a PDF triggers: text extraction, AI classification, structured field extraction, checklist generation, and timeline creation
+- If Inngest is running (`pnpm inngest:dev`), upload a new PDF to show the live processing flow
+- Point out the document type badges and confidence scores that appear after extraction
+
+### 4. Demonstrate the approval queue
+
+Click **Approvals** in the sidebar (note the red badge showing 1 pending):
+- **Summary stats** at the top show pending count, approved today, and rejected today
+- The **Pending tab** shows the "Earnest Money Reminder" outbound email awaiting approval
+- Each card shows: AI Generated label, approval type, transaction link, timestamp
+- Click into the email preview to show the full draft content
+- Demonstrate the Approve/Reject flow with the option to add decision notes
+- Switch to the **Approved tab** to see the extraction review that was already approved by Maria Gonzalez, complete with the "Human Approved" badge and her decision notes
+
+### 5. Show the checklist and timeline
+
+Back in the 742 Evergreen Terrace transaction:
+- **Checklist tab**: 5 items at various stages. Point out:
+  - Progress bar showing completion percentage
+  - Color-coded statuses (completed, in-progress, pending)
+  - "AI Generated" badge on the appraisal item (source: `ai_generated`, `requires_review: true`)
+  - "Needs Review" warning on AI-generated items
+  - Due dates and overdue detection
+  - Filter buttons to show only pending or overdue items
+- **Timeline tab**: 6 events grouped by month. Point out:
+  - Color-coded dots (green for completed, gray for upcoming)
+  - Relative date formatting ("today", "in 3 days", etc.)
+  - Source badges distinguishing system, AI, and manual events
+  - The closing date on May 15 as a future milestone
+
+### 6. Show the audit trail
+
+The audit log (accessible from the database) captures every significant action:
+- Transaction creation by James Whitfield (agent)
+- Document upload
+- AI checklist item generation (with model and confidence metadata)
+- Approval decision by Maria Gonzalez (broker_admin)
+- Each entry records: actor type (user/system/AI), actor ID, action, target, and metadata
+
+### 7. Edge cases to highlight
+
+These demonstrate robustness and where human judgment is needed:
+- **Missing documents**: The 742 Evergreen Terrace transaction is missing several standard documents (inspection report, title report, closing statement). The dashboard flags these.
+- **Low confidence extractions**: AI extractions include confidence scores. Items below 90% are flagged for manual review. Point out the `requires_review` flag on AI-generated checklist items.
+- **Overdue items**: Checklist items with past due dates are highlighted in red with an "Overdue" badge. Filter the checklist to "Overdue" to show this.
+- **Draft vs. active transactions**: The Canyon Blvd transaction is in `draft` status with minimal data, showing the contrast with a fully active transaction.
+- **OCR-required documents**: Documents that cannot be text-extracted are marked `ocr_required`, indicating they need an OCR pipeline (deferred feature).
+- **No outbound email without approval**: Even AI-drafted emails sit in `pending_approval` status until a coordinator or admin explicitly approves them.

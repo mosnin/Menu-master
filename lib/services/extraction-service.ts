@@ -24,8 +24,19 @@ export async function processDocument(documentId: string) {
   const document = await documentRepo.findById(documentId);
   if (!document) throw new Error(`Document ${documentId} not found`);
 
-  // Update status to processing
+  // Update status to processing (transition validated in repository)
   await documentRepo.updateProcessingStatus(documentId, 'processing');
+
+  // Audit log: processing started
+  await logAction({
+    organizationId: document.organization_id,
+    transactionId: document.transaction_id,
+    actorType: 'system',
+    action: 'document.processing_started',
+    targetType: 'document',
+    targetId: documentId,
+    metadata: { file_name: document.file_name },
+  });
 
   // Download file from storage
   const { data: fileData, error: downloadError } = await supabase.storage
@@ -34,6 +45,20 @@ export async function processDocument(documentId: string) {
 
   if (downloadError || !fileData) {
     await documentRepo.updateProcessingStatus(documentId, 'failed');
+
+    await logAction({
+      organizationId: document.organization_id,
+      transactionId: document.transaction_id,
+      actorType: 'system',
+      action: 'document.processing_failed',
+      targetType: 'document',
+      targetId: documentId,
+      metadata: {
+        file_name: document.file_name,
+        reason: `Failed to download: ${downloadError?.message}`,
+      },
+    });
+
     throw new Error(`Failed to download document: ${downloadError?.message}`);
   }
 

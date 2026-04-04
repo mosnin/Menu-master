@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/db/client';
 import { sendEmail } from '@/lib/email/send';
 import { logAction } from '@/lib/audit/logger';
+import { validateMessageTransition } from '@/lib/services/status-transitions';
 import type { OutboundMessage, MessageStatus } from '@/types';
 
 const TABLE = 'outbound_messages';
@@ -108,18 +109,36 @@ export async function sendApprovedMessage(
     );
   }
 
-  // Check that an approval exists and is approved
-  if (message.approval_id) {
-    const { data: approval } = await supabase
-      .from('approvals')
-      .select('status')
-      .eq('id', message.approval_id)
-      .single();
-
-    if (!approval || approval.status !== 'approved') {
-      throw new Error('Message has not been approved');
-    }
+  // Prevent double-send: only allow sending from 'approved' status
+  const currentStatus = message.status as MessageStatus;
+  if (currentStatus === 'sent') {
+    throw new Error('Message has already been sent');
   }
+  if (currentStatus === 'sending') {
+    throw new Error('Message is currently being sent');
+  }
+
+  // Require an approved approval record — no sending without one
+  if (!message.approval_id) {
+    throw new Error('Message has no approval record and cannot be sent');
+  }
+
+  const { data: approval } = await supabase
+    .from('approvals')
+    .select('status')
+    .eq('id', message.approval_id)
+    .single();
+
+  if (!approval || approval.status !== 'approved') {
+    throw new Error(
+      approval
+        ? `Message approval is "${approval.status}", not approved`
+        : 'Approval record not found',
+    );
+  }
+
+  // Validate status transition
+  validateMessageTransition(currentStatus, 'sending');
 
   // Update status to sending
   await supabase

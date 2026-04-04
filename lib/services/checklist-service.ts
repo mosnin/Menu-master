@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/db/client';
 import { generateChecklist } from '@/lib/ai/checklist-generator';
 import { logAction } from '@/lib/audit/logger';
+import { validateChecklistItemTransition } from '@/lib/services/status-transitions';
 import type { ChecklistItem, ChecklistItemStatus } from '@/types';
 
 const DEFAULT_BUYER_PURCHASE_ITEMS = [
@@ -151,6 +152,22 @@ export async function updateChecklistItem(
   },
   userId: string,
 ): Promise<ChecklistItem> {
+  // If status is changing, validate the transition
+  if (updates.status) {
+    const { data: current } = await supabase
+      .from('checklist_items')
+      .select('status')
+      .eq('id', itemId)
+      .single();
+
+    if (!current) throw new Error('Checklist item not found');
+
+    validateChecklistItemTransition(
+      current.status as ChecklistItemStatus,
+      updates.status,
+    );
+  }
+
   const updateData: Record<string, unknown> = { ...updates };
 
   // If completing, set completed_at

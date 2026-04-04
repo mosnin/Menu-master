@@ -1,4 +1,4 @@
-import { auth0 } from '@/lib/auth/session';
+import { auth0, getCurrentUserProfile } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { syncUserProfile } from '@/app/actions/auth-actions';
@@ -15,8 +15,11 @@ export default async function AuthenticatedLayout({
   }
 
   // Sync user profile on each authenticated page load
+  let userRole: string | undefined;
   try {
     await syncUserProfile();
+    const profile = await getCurrentUserProfile();
+    userRole = profile?.memberships?.[0]?.role;
   } catch {
     // Profile sync is best-effort; don't block page load
   }
@@ -25,6 +28,7 @@ export default async function AuthenticatedLayout({
     <AppShell
       userEmail={session.user.email}
       userName={session.user.name}
+      userRole={userRole}
     >
       {children}
     </AppShell>

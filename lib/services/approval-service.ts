@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/db/client';
 import * as approvalRepo from '@/lib/repositories/approvals';
 import { logAction } from '@/lib/audit/logger';
+import { validateApprovalTransition } from '@/lib/services/status-transitions';
 import { sendApprovedMessage } from './message-service';
-import type { Approval, ApprovalType } from '@/types';
+import type { Approval, ApprovalType, ApprovalStatus } from '@/types';
 
 interface CreateApprovalParams {
   orgId: string;
@@ -49,9 +50,12 @@ export async function decideApproval(
 ): Promise<Approval> {
   const existing = await approvalRepo.findById(approvalId);
   if (!existing) throw new Error('Approval not found');
-  if (existing.status !== 'pending') {
-    throw new Error(`Approval is already ${existing.status}`);
-  }
+
+  // Validate status transition
+  validateApprovalTransition(
+    existing.status as ApprovalStatus,
+    decision as ApprovalStatus,
+  );
 
   const approval = await approvalRepo.update(approvalId, {
     status: decision,

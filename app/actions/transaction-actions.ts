@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth, requireOrgMembership, getCurrentUserProfile } from '@/lib/auth/session';
 import { CreateTransactionSchema, UpdateTransactionSchema } from '@/lib/validation/schemas';
 import * as transactionService from '@/lib/services/transaction-service';
+import { logAction } from '@/lib/audit/logger';
 
 export async function createTransactionAction(formData: FormData): Promise<{ id?: string; error?: string }> {
   try {
@@ -61,6 +62,18 @@ export async function updateTransactionAction(id: string, data: Record<string, u
     // For non-status updates, use the repository directly
     const { update } = await import('@/lib/repositories/transactions');
     transaction = await update(id, parsed);
+
+    // Audit log for non-status updates
+    await logAction({
+      organizationId: existing.organization_id,
+      transactionId: id,
+      actorType: 'user',
+      actorUserId: profile.id,
+      action: 'transaction.updated',
+      targetType: 'transaction',
+      targetId: id,
+      metadata: parsed,
+    });
   }
 
   revalidatePath('/transactions');
@@ -70,6 +83,7 @@ export async function updateTransactionAction(id: string, data: Record<string, u
 }
 
 export async function getTransactionsAction(orgId: string) {
+  await requireAuth();
   await requireOrgMembership(orgId);
 
   const transactions = await transactionService.getTransactionsByOrg(orgId);
