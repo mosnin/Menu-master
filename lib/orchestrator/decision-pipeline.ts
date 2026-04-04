@@ -1,5 +1,6 @@
 import type {
   OrchestratorCycle,
+  OrchestratorCycleStatus,
   OrchestratorCycleTrigger,
   OrchestratorActionProposal,
 } from '@/types';
@@ -17,6 +18,19 @@ import { runCritic } from './critic';
 import { executeApprovedActions } from './executor';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
+
+// ---------------------------------------------------------------------------
+// Pipeline configuration
+// ---------------------------------------------------------------------------
+
+const PIPELINE_CONFIG = {
+  /** Hours after which a next-action card is considered stale */
+  STALE_ACTION_HOURS: 48,
+  /** Maximum number of recent memory entries to feed to the planner */
+  MAX_MEMORY_ENTRIES: 30,
+  /** Minimum minutes between observations for scheduled triggers */
+  MIN_OBSERVATION_INTERVAL_MINUTES: 20,
+} as const;
 
 export async function runOrchestrationCycle(
   orchestratorId: string,
@@ -78,6 +92,20 @@ export async function runOrchestrationCycle(
       orchestrator.entity_id,
     );
 
+    if (!worldSnapshot) {
+      console.error(
+        `[orchestrator] Failed to capture world state for orchestrator ${orchestratorId}`,
+      );
+      const failedCycle = await cycleRepo.update(cycle.id, {
+        status: 'failed',
+        skip_reason: 'World state capture returned null',
+        duration_ms: Date.now() - startTime,
+        completed_at: new Date().toISOString(),
+        execution_summary: { error: 'World state capture returned null' },
+      });
+      return failedCycle;
+    }
+
     const stateHash = crypto
       .createHash('sha256')
       .update(JSON.stringify(worldSnapshot))
@@ -112,7 +140,7 @@ export async function runOrchestrationCycle(
     });
 
     // 4. Load memory
-    const memory = await memoryRepo.findRecent(orchestratorId, 30);
+    const memory = await memoryRepo.findRecent(orchestratorId, PIPELINE_CONFIG.MAX_MEMORY_ENTRIES);
 
     // 5. Run planner
     const plannerOutput = await runPlanner(worldSnapshot, memory, {
@@ -192,14 +220,19 @@ export async function runOrchestrationCycle(
 
     const executions = await executeApprovedActions(approvedProposals, executionContext);
 
+    // Count gated actions by checking proposal status rather than string-matching error messages
+    const allProposals = await actionRepo.findProposalsByCycle(cycle.id);
+    const gatedCount = allProposals.filter(p => p.status === 'gated').length;
+
+    const totalExecuted = executions.filter(e => e.success).length;
+    const totalFailed = executions.filter(e => !e.success && !allProposals.find(p => p.id === e.proposal_id && (p.status === 'gated' || p.status === 'rejected'))).length;
+
     const executionSummary = {
       total_proposed: plannerOutput.proposed_actions.length,
       total_approved: approvedProposals.length,
-      total_executed: executions.filter(e => e.success).length,
-      total_failed: executions.filter(e => !e.success).length,
-      total_gated: executions.filter(
-        e => e.error_message?.includes('gated') || e.error_message?.includes('High-risk'),
-      ).length,
+      total_executed: totalExecuted,
+      total_failed: totalFailed,
+      total_gated: gatedCount,
     };
 
     // 9. Update next action cards
@@ -224,7 +257,7 @@ export async function runOrchestrationCycle(
         tool_params: plannerOutput.proposed_actions[0]?.params ?? null,
         is_primary: true,
         status: 'active',
-        stale_after: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+        stale_after: new Date(Date.now() + PIPELINE_CONFIG.STALE_ACTION_HOURS * 60 * 60 * 1000).toISOString(),
         resolved_at: null,
         cycle_id: cycle.id,
       });
@@ -233,10 +266,14 @@ export async function runOrchestrationCycle(
     // 10. Store cycle record
     const durationMs = Date.now() - startTime;
 
+    // Use 'completed_with_errors' if some actions failed but the cycle itself succeeded
+    const cycleStatus: OrchestratorCycleStatus =
+      totalFailed > 0 ? 'completed_with_errors' : 'completed';
+
     const completedCycle = await cycleRepo.update(cycle.id, {
       execution_summary: executionSummary,
       duration_ms: durationMs,
-      status: 'completed',
+      status: cycleStatus,
       completed_at: new Date().toISOString(),
     });
 

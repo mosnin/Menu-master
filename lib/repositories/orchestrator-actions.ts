@@ -72,3 +72,17 @@ export async function findExecutionsByOrchestrator(
   if (error) throw error;
   return data ?? [];
 }
+
+export async function findByIdempotencyKey(
+  key: string,
+): Promise<OrchestratorActionExecution | null> {
+  const { data, error } = await supabase
+    .from(EXECUTIONS_TABLE)
+    .select('*')
+    .eq('idempotency_key', key)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}

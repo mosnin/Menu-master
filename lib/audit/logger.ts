@@ -160,7 +160,10 @@ export type AuditAction =
   | 'orchestrator.action_proposed'
   | 'orchestrator.action_executed'
   | 'orchestrator.action_gated'
-  | 'orchestrator.escalation_created';
+  | 'orchestrator.action_rejected'
+  | 'orchestrator.escalation_created'
+  | 'orchestrator.paused'
+  | 'orchestrator.resumed';
 
 interface LogActionParams {
   organizationId?: string;

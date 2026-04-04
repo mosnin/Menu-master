@@ -5,7 +5,7 @@ import type {
   CriticEvaluation,
   ActionRiskClass,
 } from '@/types';
-import { getToolContract } from './tool-registry';
+import { getToolContract, isToolAllowed } from './tool-registry';
 
 // ---------------------------------------------------------------------------
 // Deterministic rules that always apply regardless of AI
@@ -77,6 +77,19 @@ function applyDeterministicRules(
   if (!contract) {
     approved = false;
     concerns.push(`Unknown tool: ${action.tool_name}`);
+  }
+
+  // Rule 8: Reject tools that require a higher role than the acting user's role.
+  // The worldState.ownership.owner_role carries the current user's role; fall
+  // back to 'agent' (lowest privilege) when it is unavailable.
+  if (contract) {
+    const actingRole = (worldState.ownership?.owner_role as import('@/types').UserRole) ?? 'agent';
+    if (!isToolAllowed(action.tool_name, actingRole)) {
+      approved = false;
+      concerns.push(
+        `Tool "${action.tool_name}" requires role "${contract.required_role}" but acting user role is "${actingRole}"`,
+      );
+    }
   }
 
   return {

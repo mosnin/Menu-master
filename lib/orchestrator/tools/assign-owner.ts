@@ -19,6 +19,14 @@ const execute: ToolExecutor = async (params, context) => {
   const userId = params.user_id as string;
   const role = params.role as 'primary_agent' | 'coordinator_owner' | 'broker_reviewer';
 
+  if (!params.user_id) {
+    return {
+      success: false,
+      result: { error: 'Missing required parameter: user_id' },
+      side_effects: [],
+    };
+  }
+
   if (!userId || !role) {
     return {
       success: false,
@@ -27,11 +35,19 @@ const execute: ToolExecutor = async (params, context) => {
     };
   }
 
+  if (!context.actorUserId) {
+    return {
+      success: false,
+      result: { error: 'Missing actorUserId in execution context' },
+      side_effects: [],
+    };
+  }
+
   const assignment = await assignTransaction(
     context.entityId,
     userId,
     role,
-    context.actorUserId || context.orchestratorId,
+    context.actorUserId,
   );
 
   return {

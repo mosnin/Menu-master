@@ -20,18 +20,25 @@ const contract: ToolContract = {
   side_effects: ['Creates or updates orchestrator_next_action record'],
 };
 
+const VALID_RISK_CLASSES: readonly ActionRiskClass[] = ['safe', 'medium_risk', 'high_risk'];
+
 const execute: ToolExecutor = async (params, context) => {
   const title = params.title as string;
   const reason = params.reason as string;
   const urgency = (params.urgency as NextActionUrgency) || 'normal';
   const isPrimary = (params.is_primary as boolean) ?? true;
 
+  const rawRiskClass = params.risk_class as ActionRiskClass | undefined;
+  const riskClass: ActionRiskClass = rawRiskClass && VALID_RISK_CLASSES.includes(rawRiskClass)
+    ? rawRiskClass
+    : 'safe';
+
   const nextAction = await nextActionRepo.create({
     orchestrator_id: context.orchestratorId,
     title,
     reason,
     urgency,
-    risk_class: 'safe' as ActionRiskClass,
+    risk_class: riskClass,
     owner_user_id: (params.owner_user_id as string) ?? null,
     owner_role: (params.owner_role as string) ?? null,
     prerequisites: [],

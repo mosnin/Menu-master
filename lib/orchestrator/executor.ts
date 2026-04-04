@@ -1,9 +1,25 @@
+import crypto from 'crypto';
 import { getTool } from './tool-registry';
 import type { ToolExecutionContext } from './tool-registry';
 import type { OrchestratorActionProposal, OrchestratorActionExecution, ActionRiskClass } from '@/types';
 import * as actionRepo from '@/lib/repositories/orchestrator-actions';
 import * as memoryRepo from '@/lib/repositories/orchestrator-memory';
 import { logAction } from '@/lib/audit/logger';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const INTER_TOOL_DELAY_MS = 100;
+
+function generateIdempotencyKey(cycleId: string, toolName: string, params: unknown): string {
+  const raw = `${cycleId}-${toolName}-${JSON.stringify(params)}`;
+  return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // ---------------------------------------------------------------------------
 // Risk gating rules
@@ -53,13 +69,27 @@ export async function executeApprovedActions(
 ): Promise<OrchestratorActionExecution[]> {
   const executions: OrchestratorActionExecution[] = [];
 
-  for (const proposal of proposals) {
+  for (let i = 0; i < proposals.length; i++) {
+    const proposal = proposals[i];
     const startTime = Date.now();
 
-    // 1. Get tool from registry
+    // Add delay between tool executions to avoid overwhelming downstream services
+    if (i > 0) {
+      await delay(INTER_TOOL_DELAY_MS);
+    }
+
+    // 1. Check idempotency – skip if already executed
+    const idempotencyKey = generateIdempotencyKey(proposal.cycle_id, proposal.tool_name, proposal.tool_params);
+    const existingExecution = await actionRepo.findByIdempotencyKey(idempotencyKey);
+    if (existingExecution) {
+      executions.push(existingExecution);
+      continue;
+    }
+
+    // 2. Get tool from registry
     const tool = getTool(proposal.tool_name);
     if (!tool) {
-      const execution = await recordFailedExecution(proposal, context, startTime, `Tool not found: ${proposal.tool_name}`);
+      const execution = await recordFailedExecution(proposal, context, startTime, `Tool not found: ${proposal.tool_name}`, idempotencyKey);
       executions.push(execution);
       continue;
     }
@@ -67,7 +97,7 @@ export async function executeApprovedActions(
     // 2. Check risk gating
     const gating = checkRiskGating(proposal.risk_class, proposal.critic_approved);
 
-    if (!gating.allowed) {
+    if (gating.allowed === false) {
       // Update proposal status
       await actionRepo.updateProposal(proposal.id, {
         status: gating.gated_as,
@@ -76,7 +106,7 @@ export async function executeApprovedActions(
 
       const auditAction = gating.gated_as === 'gated'
         ? 'orchestrator.action_gated' as const
-        : 'orchestrator.action_gated' as const;
+        : 'orchestrator.action_rejected' as const;
 
       await logAction({
         organizationId: context.organizationId,
@@ -104,7 +134,7 @@ export async function executeApprovedActions(
         error_message: gating.reason,
         duration_ms: Date.now() - startTime,
         side_effects: [],
-        idempotency_key: null,
+        idempotency_key: idempotencyKey,
       });
       executions.push(execution);
       continue;
@@ -126,7 +156,7 @@ export async function executeApprovedActions(
         error_message: null,
         duration_ms: durationMs,
         side_effects: toolResult.side_effects,
-        idempotency_key: null,
+        idempotency_key: idempotencyKey,
       });
 
       // 5. Update proposal status
@@ -175,6 +205,7 @@ export async function executeApprovedActions(
         context,
         startTime,
         error instanceof Error ? error.message : 'Unknown execution error',
+        idempotencyKey,
       );
       executions.push(execution);
     }
@@ -188,6 +219,7 @@ async function recordFailedExecution(
   context: ToolExecutionContext,
   startTime: number,
   errorMessage: string,
+  idempotencyKey: string,
 ): Promise<OrchestratorActionExecution> {
   const durationMs = Date.now() - startTime;
 
@@ -218,6 +250,6 @@ async function recordFailedExecution(
     error_message: errorMessage,
     duration_ms: durationMs,
     side_effects: [],
-    idempotency_key: null,
+    idempotency_key: idempotencyKey,
   });
 }

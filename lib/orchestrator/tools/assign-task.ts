@@ -30,6 +30,14 @@ const execute: ToolExecutor = async (params, context) => {
     };
   }
 
+  if (!context.actorUserId) {
+    return {
+      success: false,
+      result: { error: 'Missing actorUserId in execution context' },
+      side_effects: [],
+    };
+  }
+
   const { data, error } = await supabase
     .from('checklist_items')
     .insert({

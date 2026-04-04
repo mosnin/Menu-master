@@ -1,5 +1,6 @@
 import * as orchestratorRepo from '@/lib/repositories/deal-orchestrators';
 import { logAction } from '@/lib/audit/logger';
+import { requireRole } from '@/lib/auth/session';
 import type { DealOrchestrator, OrchestratorEntityType } from '@/types';
 
 export async function ensureOrchestrator(
@@ -26,12 +27,20 @@ export async function ensureOrchestrator(
 }
 
 export async function pauseOrchestrator(id: string, userId: string): Promise<DealOrchestrator> {
+  // Fetch current orchestrator to get org ID for role check
+  const existing = await orchestratorRepo.findById(id);
+  if (!existing) throw new Error('Orchestrator not found');
+
+  // Only coordinator+ can pause orchestrators — check BEFORE mutating
+  await requireRole(existing.organization_id, ['coordinator', 'broker_admin']);
+
   const orch = await orchestratorRepo.update(id, { status: 'paused' });
+
   await logAction({
     organizationId: orch.organization_id,
     actorType: 'user',
     actorUserId: userId,
-    action: 'orchestrator.cycle_completed',
+    action: 'orchestrator.paused',
     targetType: 'deal_orchestrator',
     targetId: id,
     metadata: { action: 'paused' },
@@ -40,12 +49,20 @@ export async function pauseOrchestrator(id: string, userId: string): Promise<Dea
 }
 
 export async function resumeOrchestrator(id: string, userId: string): Promise<DealOrchestrator> {
+  // Fetch current orchestrator to get org ID for role check
+  const existing = await orchestratorRepo.findById(id);
+  if (!existing) throw new Error('Orchestrator not found');
+
+  // Only coordinator+ can resume orchestrators — check BEFORE mutating
+  await requireRole(existing.organization_id, ['coordinator', 'broker_admin']);
+
   const orch = await orchestratorRepo.update(id, { status: 'active' });
+
   await logAction({
     organizationId: orch.organization_id,
     actorType: 'user',
     actorUserId: userId,
-    action: 'orchestrator.cycle_started',
+    action: 'orchestrator.resumed',
     targetType: 'deal_orchestrator',
     targetId: id,
     metadata: { action: 'resumed' },

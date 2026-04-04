@@ -22,10 +22,10 @@ const execute: ToolExecutor = async (params, context) => {
     approvalType: 'extraction_review',
     requestedByUserId: context.actorUserId || context.orchestratorId,
     payload: {
+      ...(params.payload as Record<string, unknown> || {}),
       reason: params.reason ?? 'Orchestrator requested manual review',
       source: 'orchestrator',
       orchestrator_id: context.orchestratorId,
-      ...(params.payload as Record<string, unknown> || {}),
     },
   });
 

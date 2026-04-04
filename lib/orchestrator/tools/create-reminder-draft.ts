@@ -20,7 +20,11 @@ const contract: ToolContract = {
 
 const execute: ToolExecutor = async (params, context) => {
   const reminderType = (params.reminder_type as string) || 'follow_up';
-  // Default to 24 hours from now if not specified
+  // Default scheduling: 24 hours from now.
+  // This gives a reasonable follow-up window for most transaction-related reminders
+  // (e.g., document submissions, signature requests) without being so far out that
+  // urgent items are missed. Callers can override via the `scheduled_for` param
+  // with an ISO 8601 datetime string.
   const scheduledFor = (params.scheduled_for as string) || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   const reminder = await scheduleReminder({

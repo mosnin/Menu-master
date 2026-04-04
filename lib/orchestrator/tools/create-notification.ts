@@ -19,6 +19,14 @@ const contract: ToolContract = {
 };
 
 const execute: ToolExecutor = async (params, context) => {
+  if (!params.message && !params.title) {
+    return {
+      success: false,
+      result: { error: 'At least one of title or message must be provided' },
+      side_effects: [],
+    };
+  }
+
   const userId = params.user_id as string;
   const title = params.title as string || params.message as string || 'Deal update';
   const body = params.message as string | undefined;

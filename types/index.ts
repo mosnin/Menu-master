@@ -1672,7 +1672,7 @@ export type OrchestratorCycleTrigger =
   | 'exception_detected'
   | 'obligation_overdue';
 
-export type OrchestratorCycleStatus = 'running' | 'completed' | 'failed' | 'skipped';
+export type OrchestratorCycleStatus = 'running' | 'completed' | 'completed_with_errors' | 'failed' | 'skipped';
 
 export type ActionRiskClass = 'safe' | 'medium_risk' | 'high_risk';
 
