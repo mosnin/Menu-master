@@ -93,7 +93,7 @@ export async function acceptInvite(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to accept invite: ${error.message}`);
+  if (error) throw new Error('Failed to accept invite');
 
   await logAction({
     organizationId: invite.organization_id,
@@ -122,7 +122,7 @@ export async function revokeInvite(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to revoke invite: ${error.message}`);
+  if (error) throw new Error('Failed to revoke invite');
 
   const invite = data as CollaboratorInvite;
 
@@ -150,7 +150,7 @@ export async function getCollaboratorsForTransaction(
     .eq('status', 'accepted')
     .order('created_at', { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch collaborators: ${error.message}`);
+  if (error) throw new Error('Failed to fetch collaborators');
   return (data ?? []) as CollaboratorInvite[];
 }
 
@@ -175,7 +175,7 @@ export async function getInvite(
     .eq('id', inviteId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch invite: ${error.message}`);
+  if (error) throw new Error('Failed to fetch invite');
   return data as CollaboratorInvite | null;
 }
 

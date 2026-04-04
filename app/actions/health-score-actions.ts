@@ -22,7 +22,7 @@ export async function computeHealthScoreAction(
     const orgId = await getTransactionOrgId(transactionId);
     await requireRole(orgId, ['agent', 'coordinator', 'broker_admin']);
 
-    const score = await healthScoreService.computeHealthScore(transactionId, profile.id);
+    const score = await healthScoreService.computeHealthScore(transactionId, orgId);
 
     revalidatePath(`/transactions/${transactionId}`);
 

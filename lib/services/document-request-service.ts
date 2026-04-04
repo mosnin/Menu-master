@@ -77,6 +77,9 @@ export async function markViewed(
   if (request.status === 'cancelled' || request.status === 'expired') {
     throw new Error(`Request is ${request.status}`);
   }
+  if (new Date(request.expires_at) < new Date()) {
+    throw new Error('Request has expired');
+  }
 
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -89,7 +92,7 @@ export async function markViewed(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to mark as viewed: ${error.message}`);
+  if (error) throw new Error('Failed to mark as viewed');
 
   await logAction({
     organizationId: request.organization_id,
@@ -117,6 +120,9 @@ export async function handleUpload(
 
   if (request.status === 'cancelled' || request.status === 'expired') {
     throw new Error(`Request is ${request.status}`);
+  }
+  if (new Date(request.expires_at) < new Date()) {
+    throw new Error('Request has expired');
   }
 
   const upload = await uploadRepo.create({
@@ -170,7 +176,7 @@ export async function cancelRequest(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to cancel request: ${error.message}`);
+  if (error) throw new Error('Failed to cancel request');
 
   const request = data as DocumentRequest;
 
@@ -221,7 +227,7 @@ export async function getDocumentRequest(
     .eq('id', requestId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch document request: ${error.message}`);
+  if (error) throw new Error('Failed to fetch document request');
   return data as DocumentRequest | null;
 }
 

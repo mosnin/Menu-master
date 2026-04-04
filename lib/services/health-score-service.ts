@@ -1,9 +1,17 @@
 import { supabase } from '@/lib/db/client';
 import * as lenderRepo from '@/lib/repositories/lender-status-updates';
 import { logAction } from '@/lib/audit/logger';
-import type { DealHealthScore, HealthRating, ScoreTrend } from '@/types';
+import type { DealHealthScore, HealthRating, LenderMilestone, ScoreTrend } from '@/types';
 
-const LENDER_MILESTONE_COUNT = 7; // total possible lender milestones
+const FINANCING_FACTOR_MAP: Record<string, number> = {
+  pre_approval_received: 15,
+  underwriting_started: 30,
+  appraisal_ordered: 40,
+  appraisal_received: 55,
+  conditional_approval: 70,
+  clear_to_close: 90,
+  funding_confirmed: 100,
+};
 
 function deriveRating(score: number): HealthRating {
   if (score >= 80) return 'healthy';
@@ -103,7 +111,7 @@ export async function computeHealthScore(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to insert health score: ${error.message}`);
+  if (error) throw new Error('Failed to insert health score');
 
   const record = data as DealHealthScore;
 
@@ -138,7 +146,7 @@ export async function getLatestHealthScore(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch health score: ${error.message}`);
+  if (error) throw new Error('Failed to fetch health score');
   return data as DealHealthScore | null;
 }
 
@@ -153,7 +161,7 @@ export async function getHealthScoreHistory(
     .order('computed_at', { ascending: false })
     .limit(limit);
 
-  if (error) throw new Error(`Failed to fetch health score history: ${error.message}`);
+  if (error) throw new Error('Failed to fetch health score history');
   return (data ?? []) as DealHealthScore[];
 }
 
@@ -220,6 +228,16 @@ async function computeComplianceFactor(transactionId: string): Promise<number> {
 
 async function computeFinancingFactor(transactionId: string): Promise<number> {
   const updates = await lenderRepo.findByTransactionId(transactionId);
-  const uniqueMilestones = new Set(updates.map((u) => u.milestone));
-  return Math.round((uniqueMilestones.size / LENDER_MILESTONE_COUNT) * 100);
+  if (updates.length === 0) return 0;
+
+  const milestones = new Set(updates.map((u) => u.milestone));
+
+  let best = 0;
+  for (const [milestone, score] of Object.entries(FINANCING_FACTOR_MAP)) {
+    if (milestones.has(milestone as LenderMilestone) && score > best) {
+      best = score;
+    }
+  }
+
+  return best;
 }

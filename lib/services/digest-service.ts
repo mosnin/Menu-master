@@ -84,7 +84,7 @@ export async function getDigest(
     .eq('digest_date', date)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch digest: ${error.message}`);
+  if (error) throw new Error('Failed to fetch digest');
   return data as DailyDigest | null;
 }
 
@@ -106,7 +106,7 @@ export async function updatePreferences(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to update preferences: ${error.message}`);
+  if (error) throw new Error('Failed to update preferences');
   return data as DailyDigestPreference;
 }
 
@@ -119,7 +119,7 @@ export async function getPreferences(
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch preferences: ${error.message}`);
+  if (error) throw new Error('Failed to fetch preferences');
   return data as DailyDigestPreference | null;
 }
 
@@ -193,7 +193,7 @@ async function saveDigest(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to save digest: ${error.message}`);
+  if (error) throw new Error('Failed to save digest');
   return data as DailyDigest;
 }
 

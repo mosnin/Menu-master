@@ -69,7 +69,7 @@ export async function getExportsForTransactionAction(
     const orgId = await getTransactionOrgId(transactionId);
     await requireRole(orgId, ['broker_admin']);
 
-    const exports = await auditExportService.getExportsForTransaction(transactionId);
+    const exports = await auditExportService.getExportsForTransaction(transactionId, orgId);
     return { data: exports };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to get exports' };

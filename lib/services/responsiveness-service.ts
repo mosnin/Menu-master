@@ -50,7 +50,7 @@ export async function createObligation(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to create obligation: ${error.message}`);
+  if (error) throw new Error('Failed to create obligation');
 
   const obligation = data as ResponseObligation;
 
@@ -88,7 +88,7 @@ export async function markResponded(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to mark responded: ${error.message}`);
+  if (error) throw new Error('Failed to mark responded');
 
   const obligation = data as ResponseObligation;
 
@@ -117,7 +117,7 @@ export async function markEscalated(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to escalate obligation: ${error.message}`);
+  if (error) throw new Error('Failed to escalate obligation');
 
   const obligation = data as ResponseObligation;
 
@@ -144,7 +144,7 @@ export async function getObligation(
     .eq('id', obligationId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch obligation: ${error.message}`);
+  if (error) throw new Error('Failed to fetch obligation');
   return data as ResponseObligation | null;
 }
 
@@ -155,10 +155,10 @@ export async function getOpenObligations(
     .from('response_obligations')
     .select('*')
     .eq('transaction_id', transactionId)
-    .in('status', ['waiting', 'overdue'])
+    .in('status', ['waiting', 'overdue', 'escalated'])
     .order('expected_by', { ascending: true });
 
-  if (error) throw new Error(`Failed to fetch obligations: ${error.message}`);
+  if (error) throw new Error('Failed to fetch obligations');
   return (data ?? []) as ResponseObligation[];
 }
 
@@ -180,7 +180,7 @@ export async function getResponsivenessReport(
     .eq('transaction_id', transactionId)
     .order('created_at', { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch obligations: ${error.message}`);
+  if (error) throw new Error('Failed to fetch obligations');
 
   const obligations = (data ?? []) as ResponseObligation[];
 

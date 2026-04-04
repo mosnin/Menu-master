@@ -45,7 +45,7 @@ export async function requestExport(
     .select('*')
     .single();
 
-  if (error) throw new Error(`Failed to create export job: ${error.message}`);
+  if (error) throw new Error('Failed to create export job');
 
   const job = data as AuditExportJob;
 
@@ -74,7 +74,7 @@ export async function generateExport(
     .select('*')
     .single();
 
-  if (fetchError) throw new Error(`Failed to fetch export job: ${fetchError.message}`);
+  if (fetchError) throw new Error('Failed to fetch export job');
 
   const job = jobData as AuditExportJob;
   const sections = job.include_sections;
@@ -130,7 +130,7 @@ export async function generateExport(
       .select('*')
       .single();
 
-    if (updateError) throw new Error(`Failed to update export job: ${updateError.message}`);
+    if (updateError) throw new Error('Failed to update export job');
 
     await logAction({
       organizationId: job.organization_id,
@@ -178,20 +178,22 @@ export async function getExportJob(
     .eq('id', jobId)
     .maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch export job: ${error.message}`);
+  if (error) throw new Error('Failed to fetch export job');
   return data as AuditExportJob | null;
 }
 
 export async function getExportsForTransaction(
   transactionId: string,
+  orgId: string,
 ): Promise<AuditExportJob[]> {
   const { data, error } = await supabase
     .from('audit_export_jobs')
     .select('*')
     .eq('transaction_id', transactionId)
+    .eq('organization_id', orgId)
     .order('created_at', { ascending: false });
 
-  if (error) throw new Error(`Failed to fetch export jobs: ${error.message}`);
+  if (error) throw new Error('Failed to fetch export jobs');
   return (data ?? []) as AuditExportJob[];
 }
 
