@@ -44,6 +44,36 @@ export async function findByOrgId(
   return data ?? [];
 }
 
+export async function findActiveByOrgAndUser(
+  organizationId: string,
+  userProfileId: string,
+): Promise<Membership | null> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('organization_id', organizationId)
+    .eq('user_profile_id', userProfileId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function findActiveByUserId(
+  userProfileId: string,
+): Promise<Membership[]> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('user_profile_id', userProfileId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function create(
   input: Omit<Membership, 'id' | 'created_at' | 'updated_at'>,
 ): Promise<Membership> {
@@ -55,4 +85,31 @@ export async function create(
 
   if (error) throw error;
   return data;
+}
+
+export async function update(
+  id: string,
+  updates: Partial<Pick<Membership, 'status' | 'role'>>,
+): Promise<Membership> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function suspend(id: string): Promise<Membership> {
+  return update(id, { status: 'suspended' });
+}
+
+export async function remove(id: string): Promise<Membership> {
+  return update(id, { status: 'removed' });
+}
+
+export async function reactivate(id: string): Promise<Membership> {
+  return update(id, { status: 'active' });
 }

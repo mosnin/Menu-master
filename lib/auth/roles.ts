@@ -29,3 +29,23 @@ export function canCreateTransaction(role: string): boolean {
 export function canViewTransaction(role: string): boolean {
   return hasMinimumRole(role, 'agent');
 }
+
+export function canInviteMembers(role: string): boolean {
+  return hasMinimumRole(role, 'coordinator');
+}
+
+export function canRemoveMembers(role: string): boolean {
+  return role === 'broker_admin';
+}
+
+export function canSuspendMembers(role: string): boolean {
+  return role === 'broker_admin';
+}
+
+export function canManageWorkflows(role: string): boolean {
+  return hasMinimumRole(role, 'coordinator');
+}
+
+export function canViewAuditLog(role: string): boolean {
+  return hasMinimumRole(role, 'coordinator');
+}

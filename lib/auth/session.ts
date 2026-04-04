@@ -37,6 +37,10 @@ export async function requireOrgMembership(orgId: string) {
 
   if (!membership) throw new Error('Not a member of this organization');
 
+  if (membership.status && membership.status !== 'active') {
+    throw new Error('Membership is not active');
+  }
+
   return { session, profile, membership };
 }
 
@@ -46,6 +50,12 @@ export async function requireRole(orgId: string, allowedRoles: string[]) {
     throw new Error('Insufficient permissions');
   }
   return result;
+}
+
+export async function getActiveOrgId(): Promise<string | null> {
+  const { cookies } = await import('next/headers');
+  const cookieStore = await cookies();
+  return cookieStore.get('active_org_id')?.value ?? null;
 }
 
 export async function getCurrentUserProfile() {
@@ -59,4 +69,18 @@ export async function getCurrentUserProfile() {
     .single();
 
   return profile;
+}
+
+export async function requireAuthWithProfile() {
+  const session = await requireAuth();
+  const { supabase } = await import('@/lib/db/client');
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('*, memberships(*)')
+    .eq('auth0_user_id', session.user.sub)
+    .single();
+
+  if (!profile) throw new Error('User profile not found');
+  return { session, profile };
 }

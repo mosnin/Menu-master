@@ -76,6 +76,8 @@ export type ContactType =
 
 export type UserRole = 'agent' | 'coordinator' | 'broker_admin';
 
+export type MembershipStatus = 'active' | 'suspended' | 'removed';
+
 export type ActorType = 'user' | 'system' | 'ai';
 
 export type DocumentType = string; // Free-form; no fixed set of values
@@ -144,6 +146,7 @@ export interface Membership {
   organization_id: string;
   user_profile_id: string;
   role: UserRole;
+  status: MembershipStatus;
   created_at: string;
   updated_at: string;
 }

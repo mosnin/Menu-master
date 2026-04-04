@@ -2,6 +2,7 @@
 
 import { getServerSession, getCurrentUserProfile } from '@/lib/auth/session';
 import * as userProfileRepo from '@/lib/repositories/user-profiles';
+import { logAction } from '@/lib/audit/logger';
 import type { UserProfile } from '@/types';
 
 export async function syncUserProfile(): Promise<UserProfile> {
@@ -42,4 +43,21 @@ export async function getPostAuthRoute(): Promise<string> {
   }
 
   return '/dashboard';
+}
+
+export async function logSignInAction() {
+  const session = await getServerSession();
+  if (!session) return;
+
+  const profile = await getCurrentUserProfile();
+  if (!profile) return;
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: profile.id,
+    action: 'user.signed_in',
+    targetType: 'user_profile',
+    targetId: profile.id,
+    metadata: { email: session.user.email },
+  });
 }

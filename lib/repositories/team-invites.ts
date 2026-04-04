@@ -84,3 +84,23 @@ export async function update(
   if (error) throw error;
   return data;
 }
+
+export async function revoke(id: string): Promise<TeamInvite> {
+  return update(id, { status: 'revoked' });
+}
+
+export async function findPendingByOrgAndEmail(
+  orgId: string,
+  email: string,
+): Promise<TeamInvite | null> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('organization_id', orgId)
+    .eq('email', email)
+    .eq('status', 'pending')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}

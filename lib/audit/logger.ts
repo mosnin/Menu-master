@@ -48,6 +48,12 @@ export type AuditAction =
   | 'collaborator.invited'
   | 'collaborator.accepted'
   | 'collaborator.revoked'
+  | 'membership.suspended'
+  | 'membership.removed'
+  | 'membership.reactivated'
+  | 'invite.revoked'
+  | 'invite.re_sent'
+  | 'invite.email_mismatch'
   | 'document_request.created'
   | 'document_request.viewed'
   | 'document_request.uploaded'
@@ -142,7 +148,13 @@ export type AuditAction =
   | 'agent_node.executed'
   | 'agent_node.failed'
   | 'agent_node.circuit_opened'
-  | 'agent_node.safety_violation';
+  | 'agent_node.safety_violation'
+  | 'user.onboarding_started'
+  | 'user.onboarding_completed'
+  | 'user.onboarding_skipped'
+  | 'user.profile_updated'
+  | 'org.created'
+  | 'org.workspace_joined';
 
 interface LogActionParams {
   organizationId?: string;

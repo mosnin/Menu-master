@@ -3,6 +3,7 @@ import * as userProfileRepo from '@/lib/repositories/user-profiles';
 import * as membershipRepo from '@/lib/repositories/memberships';
 import * as orgRepo from '@/lib/repositories/organizations';
 import * as teamInviteRepo from '@/lib/repositories/team-invites';
+import { logAction } from '@/lib/audit/logger';
 import type { UserProfile, TeamInvite, UserRole } from '@/types';
 
 export const ONBOARDING_STEPS = [
@@ -33,6 +34,16 @@ export async function startOnboarding(
     .single();
 
   if (error) throw error;
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: userProfileId,
+    action: 'user.onboarding_started',
+    targetType: 'user_profile',
+    targetId: userProfileId,
+    metadata: { step: 0 },
+  });
+
   return data;
 }
 
@@ -70,6 +81,16 @@ export async function completeOnboarding(
     .single();
 
   if (error) throw error;
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: userProfileId,
+    action: 'user.onboarding_completed',
+    targetType: 'user_profile',
+    targetId: userProfileId,
+    metadata: {},
+  });
+
   return data;
 }
 
@@ -87,6 +108,16 @@ export async function skipOnboarding(
     .single();
 
   if (error) throw error;
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: userProfileId,
+    action: 'user.onboarding_skipped',
+    targetType: 'user_profile',
+    targetId: userProfileId,
+    metadata: {},
+  });
+
   return data;
 }
 
@@ -111,6 +142,16 @@ export async function updateProfileStep(
     .single();
 
   if (error) throw error;
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: userProfileId,
+    action: 'user.profile_updated',
+    targetType: 'user_profile',
+    targetId: userProfileId,
+    metadata: { full_name: data.full_name, phone: data.phone },
+  });
+
   return profile;
 }
 
@@ -134,6 +175,16 @@ export async function createOrJoinWorkspace(
       organization_id: org.id,
       user_profile_id: userProfileId,
       role,
+      status: 'active',
+    });
+
+    await logAction({
+      actorType: 'user',
+      actorUserId: userProfileId,
+      action: 'org.created',
+      targetType: 'organization',
+      targetId: org.id,
+      metadata: { org_name: data.org_name, role },
     });
 
     return { organization_name: org.name };
@@ -142,6 +193,15 @@ export async function createOrJoinWorkspace(
   // Join via invite
   if (!data.invite_token) throw new Error('Invite token is required');
   const result = await acceptTeamInvite(userProfileId, data.invite_token);
+
+  await logAction({
+    actorType: 'user',
+    actorUserId: userProfileId,
+    action: 'org.workspace_joined',
+    targetType: 'organization',
+    metadata: { invite_token: data.invite_token, organization_name: result.organization_name },
+  });
+
   return { organization_name: result.organization_name };
 }
 
@@ -161,11 +221,44 @@ export async function acceptTeamInvite(
   if (invite.status !== 'pending') throw new Error('Invite is no longer valid');
   if (new Date(invite.expires_at) < new Date()) throw new Error('Invite has expired');
 
+  // Email mismatch guard — look up user profile and compare email
+  const userProfile = await userProfileRepo.findById(userProfileId);
+  if (!userProfile) throw new Error('User profile not found');
+  if (userProfile.email.toLowerCase() !== invite.email.toLowerCase()) {
+    await logAction({
+      organizationId: invite.organization_id,
+      actorUserId: userProfileId,
+      action: 'invite.email_mismatch',
+      targetType: 'team_invite',
+      targetId: invite.id,
+      metadata: { invite_email: invite.email, user_email: userProfile.email },
+    });
+    throw new Error('Invite email does not match your account email');
+  }
+
+  // Duplicate accept guard — check if user already has an active membership
+  const existingMembership = await membershipRepo.findActiveByOrgAndUser(
+    invite.organization_id,
+    userProfileId,
+  );
+
+  if (existingMembership) {
+    // Already a member — just mark the invite accepted, don't create duplicate
+    await teamInviteRepo.update(invite.id, {
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+    });
+
+    const org = await orgRepo.findById(invite.organization_id);
+    return { organization_name: org?.name ?? 'Unknown' };
+  }
+
   // Create membership
   await membershipRepo.create({
     organization_id: invite.organization_id,
     user_profile_id: userProfileId,
     role: invite.role,
+    status: 'active',
   });
 
   // Mark invite as accepted
@@ -174,7 +267,70 @@ export async function acceptTeamInvite(
     accepted_at: new Date().toISOString(),
   });
 
+  // Audit log acceptance
+  await logAction({
+    organizationId: invite.organization_id,
+    actorUserId: userProfileId,
+    action: 'collaborator.accepted',
+    targetType: 'team_invite',
+    targetId: invite.id,
+    metadata: { role: invite.role },
+  });
+
   // Get org name for display
   const org = await orgRepo.findById(invite.organization_id);
   return { organization_name: org?.name ?? 'Unknown' };
+}
+
+export async function revokeInvite(
+  inviteId: string,
+  revokedByUserId: string,
+): Promise<void> {
+  // Revoke the invite (sets status to 'revoked')
+  const updatedInvite = await teamInviteRepo.revoke(inviteId);
+
+  await logAction({
+    organizationId: updatedInvite.organization_id,
+    actorUserId: revokedByUserId,
+    action: 'invite.revoked',
+    targetType: 'team_invite',
+    targetId: inviteId,
+    metadata: { email: updatedInvite.email },
+  });
+}
+
+export async function reInvite(
+  orgId: string,
+  email: string,
+  role: UserRole,
+  invitedByUserId: string,
+): Promise<TeamInvite> {
+  // Revoke any existing pending invite for the same email + org
+  const existingInvite = await teamInviteRepo.findPendingByOrgAndEmail(orgId, email);
+  if (existingInvite) {
+    await teamInviteRepo.revoke(existingInvite.id);
+  }
+
+  // Create a new invite
+  const newInvite = await teamInviteRepo.create({
+    organization_id: orgId,
+    email,
+    role,
+    status: 'pending',
+    invited_by_user_id: invitedByUserId,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    accepted_at: null,
+  });
+
+  // Audit log the re-invite
+  await logAction({
+    organizationId: orgId,
+    actorUserId: invitedByUserId,
+    action: 'invite.re_sent',
+    targetType: 'team_invite',
+    targetId: newInvite.id,
+    metadata: { email, role },
+  });
+
+  return newInvite;
 }
