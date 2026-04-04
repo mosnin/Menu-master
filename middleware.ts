@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { auth0 } from '@/lib/auth/session';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Auth0 v4 handles /auth/login, /auth/callback, /auth/logout automatically
+  const authResponse = await auth0.middleware(request);
+
+  // If Auth0 handled the request (login/callback/logout routes), return its response
+  if (pathname.startsWith('/auth/login') || pathname.startsWith('/auth/callback') || pathname.startsWith('/auth/logout')) {
+    return authResponse;
+  }
 
   // Public paths that never need auth
   const publicPaths = ['/signin', '/signup', '/auth', '/api/inngest', '/invite'];

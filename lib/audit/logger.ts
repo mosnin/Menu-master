@@ -154,7 +154,13 @@ export type AuditAction =
   | 'user.onboarding_skipped'
   | 'user.profile_updated'
   | 'org.created'
-  | 'org.workspace_joined';
+  | 'org.workspace_joined'
+  | 'orchestrator.cycle_started'
+  | 'orchestrator.cycle_completed'
+  | 'orchestrator.action_proposed'
+  | 'orchestrator.action_executed'
+  | 'orchestrator.action_gated'
+  | 'orchestrator.escalation_created';
 
 interface LogActionParams {
   organizationId?: string;

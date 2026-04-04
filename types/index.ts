@@ -1649,3 +1649,258 @@ export interface WorkflowRunStep {
   duration_ms: number | null;
   created_at: string;
 }
+
+// =============================================================================
+// Deal Orchestrator Types
+// =============================================================================
+
+export type OrchestratorEntityType = 'transaction' | 'listing';
+
+export type OrchestratorStatus = 'active' | 'paused' | 'completed' | 'archived';
+
+export type OrchestratorPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type OrchestratorCycleTrigger =
+  | 'scheduled'
+  | 'document_uploaded'
+  | 'approval_changed'
+  | 'stage_changed'
+  | 'communication_received'
+  | 'deadline_approaching'
+  | 'manual'
+  | 'entity_updated'
+  | 'exception_detected'
+  | 'obligation_overdue';
+
+export type OrchestratorCycleStatus = 'running' | 'completed' | 'failed' | 'skipped';
+
+export type ActionRiskClass = 'safe' | 'medium_risk' | 'high_risk';
+
+export type ActionProposalStatus =
+  | 'proposed'
+  | 'approved'
+  | 'rejected'
+  | 'executed'
+  | 'failed'
+  | 'gated'
+  | 'expired';
+
+export type NextActionStatus = 'active' | 'stale' | 'resolved' | 'dismissed';
+
+export type NextActionUrgency = 'low' | 'normal' | 'high' | 'critical';
+
+export type MemoryEntryType =
+  | 'blocker'
+  | 'action_taken'
+  | 'recommendation_given'
+  | 'recommendation_outcome'
+  | 'failure_pattern'
+  | 'counterparty_signal'
+  | 'human_correction'
+  | 'pending_decision'
+  | 'obligation'
+  | 'escalation';
+
+export type ObligationType =
+  | 'document_needed'
+  | 'signature_needed'
+  | 'approval_pending'
+  | 'response_waiting'
+  | 'counterparty_action'
+  | 'deadline_approaching'
+  | 'review_required'
+  | 'manual_step';
+
+export type ObligationOwnerType = 'internal' | 'counterparty' | 'system';
+
+export type OrchestratorObligationStatus = 'open' | 'fulfilled' | 'overdue' | 'cancelled';
+
+export interface DealOrchestrator {
+  id: string;
+  organization_id: string;
+  entity_type: OrchestratorEntityType;
+  entity_id: string;
+  status: OrchestratorStatus;
+  priority: OrchestratorPriority;
+  risk_summary: Record<string, unknown>;
+  priority_summary: Record<string, unknown>;
+  last_observed_at: string | null;
+  last_planned_at: string | null;
+  last_executed_at: string | null;
+  last_human_escalation_at: string | null;
+  last_human_escalation_status: 'pending' | 'resolved' | 'dismissed' | null;
+  cycle_count: number;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorWorldState {
+  id: string;
+  orchestrator_id: string;
+  snapshot: WorldStateSnapshot;
+  state_hash: string;
+  changed_since_last: boolean;
+  created_at: string;
+}
+
+export interface WorldStateSnapshot {
+  entity_type: OrchestratorEntityType;
+  entity_id: string;
+  stage: string;
+  readiness: ReadinessState;
+  completeness_score: number;
+  unresolved_exceptions: number;
+  missing_docs: string[];
+  missing_signatures: string[];
+  pending_approvals: number;
+  recent_communications: number;
+  open_obligations: number;
+  overdue_obligations: number;
+  response_latency_signals: { waiting_on: string; days_waiting: number }[];
+  ownership: { owner_id: string | null; owner_role: string | null };
+  assignments: { user_id: string; role: string }[];
+  urgent_deadlines: { description: string; due_at: string; days_remaining: number }[];
+  recent_corrections: number;
+  recent_uploads: number;
+  compliance_flags: string[];
+  economics_summary: Record<string, unknown> | null;
+  health_rating: string | null;
+  health_score: number | null;
+}
+
+export interface OrchestratorMemoryEntry {
+  id: string;
+  orchestrator_id: string;
+  memory_type: MemoryEntryType;
+  summary: string;
+  details: Record<string, unknown>;
+  resolved: boolean;
+  resolved_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface OrchestratorCycle {
+  id: string;
+  orchestrator_id: string;
+  cycle_number: number;
+  trigger_type: OrchestratorCycleTrigger;
+  trigger_metadata: Record<string, unknown>;
+  world_state_id: string | null;
+  planner_output: PlannerOutput | null;
+  critic_evaluation: CriticEvaluation | null;
+  selected_actions: string[];
+  execution_summary: Record<string, unknown> | null;
+  duration_ms: number | null;
+  status: OrchestratorCycleStatus;
+  skip_reason: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface PlannerOutput {
+  reasoning_summary: string;
+  proposed_actions: {
+    tool_name: string;
+    params: Record<string, unknown>;
+    risk_class: ActionRiskClass;
+    confidence: number;
+    reason: string;
+    prerequisites: string[];
+  }[];
+  primary_recommendation: string | null;
+  world_state_assessment: string;
+  blockers_identified: string[];
+  urgency_assessment: NextActionUrgency;
+}
+
+export interface CriticEvaluation {
+  overall_approval: boolean;
+  reasoning_summary: string;
+  action_reviews: {
+    tool_name: string;
+    approved: boolean;
+    risk_class_appropriate: boolean;
+    confidence_assessment: number;
+    concerns: string[];
+    compliance_flags: string[];
+    requires_human_review: boolean;
+    suggested_risk_class: ActionRiskClass | null;
+  }[];
+  contradictions_detected: string[];
+  compliance_concerns: string[];
+  escalation_needed: boolean;
+  escalation_reason: string | null;
+}
+
+export interface OrchestratorActionProposal {
+  id: string;
+  cycle_id: string;
+  orchestrator_id: string;
+  tool_name: string;
+  tool_params: Record<string, unknown>;
+  risk_class: ActionRiskClass;
+  confidence: number;
+  reason: string;
+  critic_approved: boolean | null;
+  critic_notes: string | null;
+  prerequisites: string[];
+  status: ActionProposalStatus;
+  gated_reason: string | null;
+  created_at: string;
+}
+
+export interface OrchestratorActionExecution {
+  id: string;
+  proposal_id: string;
+  orchestrator_id: string;
+  tool_name: string;
+  tool_params: Record<string, unknown>;
+  result: Record<string, unknown>;
+  success: boolean;
+  error_message: string | null;
+  duration_ms: number | null;
+  side_effects: { type: string; description: string; target_id?: string }[];
+  idempotency_key: string | null;
+  created_at: string;
+}
+
+export interface OrchestratorNextAction {
+  id: string;
+  orchestrator_id: string;
+  title: string;
+  reason: string;
+  urgency: NextActionUrgency;
+  risk_class: ActionRiskClass;
+  owner_user_id: string | null;
+  owner_role: string | null;
+  prerequisites: string[];
+  source_signals: { type: string; detail: string }[];
+  auto_executable: boolean;
+  tool_name: string | null;
+  tool_params: Record<string, unknown> | null;
+  is_primary: boolean;
+  status: NextActionStatus;
+  stale_after: string | null;
+  resolved_at: string | null;
+  cycle_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrchestratorObligation {
+  id: string;
+  orchestrator_id: string;
+  obligation_type: ObligationType;
+  description: string;
+  owner_type: ObligationOwnerType;
+  owner_user_id: string | null;
+  due_at: string | null;
+  priority: OrchestratorPriority;
+  status: OrchestratorObligationStatus;
+  fulfilled_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
