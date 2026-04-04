@@ -624,3 +624,56 @@ export async function getWorldStateAction(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 18. Get active plan with subgoals and progress
+// ---------------------------------------------------------------------------
+
+export async function getActivePlanAction(
+  orchestratorId: string,
+): Promise<{ data?: { plan: unknown; subgoals: unknown[]; progress: unknown; revisions: unknown[] } | null; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const planRepo = await import('@/lib/repositories/orchestrator-plans');
+    const subgoalRepo = await import('@/lib/repositories/orchestrator-subgoals');
+    const revisionRepo = await import('@/lib/repositories/orchestrator-plan-revisions');
+
+    const plan = await planRepo.findActivePlan(orchestratorId);
+    if (!plan) return { data: null };
+
+    const subgoals = await subgoalRepo.findByPlan(plan.id);
+    const progress = await subgoalRepo.computeProgress(plan.id);
+    const revisions = await revisionRepo.findByPlan(plan.id);
+
+    return { data: { plan, subgoals, progress, revisions: revisions.slice(0, 5) } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get active plan';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 19. Get plan history
+// ---------------------------------------------------------------------------
+
+export async function getPlanHistoryAction(
+  orchestratorId: string,
+): Promise<{ data?: unknown[]; error?: string; authError?: boolean }> {
+  try {
+    await requireAuth();
+    if (!isValidUUID(orchestratorId)) return { error: 'Invalid orchestrator ID format' };
+    await fetchAndAuthorizeOrchestrator(orchestratorId);
+
+    const planRepo = await import('@/lib/repositories/orchestrator-plans');
+    const plans = await planRepo.findByOrchestrator(orchestratorId);
+    return { data: plans };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get plan history';
+    const isAuth = message === 'Unauthorized' || message === 'Not a member of this organization' || message === 'Membership is not active';
+    return { error: message, authError: isAuth };
+  }
+}
+
