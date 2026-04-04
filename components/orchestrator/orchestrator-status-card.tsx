@@ -4,14 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Brain, Clock, Play, Pause, Shield, AlertTriangle, Eye, Zap } from 'lucide-react';
+import { Brain, Clock, Play, Pause, Shield, AlertTriangle, Eye, Zap, Map } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { DealOrchestrator, OrchestratorPriority } from '@/types';
+import type { DealOrchestrator, OrchestratorPriority, PlanStatus } from '@/types';
+
+interface PlanSummary {
+  objective: string;
+  status: PlanStatus;
+  completionPercentage: number;
+}
 
 interface OrchestratorStatusCardProps {
   orchestrator: DealOrchestrator | null;
   onPauseResume?: (id: string, action: 'pause' | 'resume') => void;
+  planSummary?: PlanSummary | null;
 }
 
 const priorityConfig: Record<OrchestratorPriority, { label: string; className: string }> = {
@@ -21,9 +28,20 @@ const priorityConfig: Record<OrchestratorPriority, { label: string; className: s
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700' },
 };
 
+const planStatusBadge: Record<PlanStatus, { label: string; className: string }> = {
+  draft: { label: 'Draft', className: 'bg-slate-100 text-slate-700' },
+  active: { label: 'Active', className: 'bg-green-100 text-green-700' },
+  waiting: { label: 'Waiting', className: 'bg-yellow-100 text-yellow-700' },
+  blocked: { label: 'Blocked', className: 'bg-red-100 text-red-700' },
+  completed: { label: 'Done', className: 'bg-emerald-100 text-emerald-700' },
+  cancelled: { label: 'Cancelled', className: 'bg-slate-100 text-slate-500' },
+  superseded: { label: 'Superseded', className: 'bg-slate-100 text-slate-500' },
+};
+
 export function OrchestratorStatusCard({
   orchestrator,
   onPauseResume,
+  planSummary,
 }: OrchestratorStatusCardProps) {
   if (!orchestrator) {
     return (
@@ -117,6 +135,37 @@ export function OrchestratorStatusCard({
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
               <p className="text-xs text-muted-foreground leading-relaxed">{riskText}</p>
+            </div>
+          </>
+        )}
+
+        {/* Plan summary */}
+        {planSummary && (
+          <>
+            <Separator />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground mb-1.5">
+                Plan
+              </p>
+              <div className="flex items-center gap-2">
+                <Map className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <p className="text-xs text-foreground truncate flex-1">
+                  {planSummary.objective.length > 60
+                    ? `${planSummary.objective.slice(0, 60)}...`
+                    : planSummary.objective}
+                </p>
+                <Badge
+                  className={cn(
+                    'text-[10px] font-medium shrink-0',
+                    planStatusBadge[planSummary.status]?.className ?? 'bg-slate-100 text-slate-600',
+                  )}
+                >
+                  {planStatusBadge[planSummary.status]?.label ?? planSummary.status}
+                </Badge>
+                <span className="text-[10px] font-medium tabular-nums text-muted-foreground shrink-0">
+                  {planSummary.completionPercentage}%
+                </span>
+              </div>
             </div>
           </>
         )}

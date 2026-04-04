@@ -3,6 +3,8 @@ import type {
   OrchestratorCycleStatus,
   OrchestratorCycleTrigger,
   OrchestratorActionProposal,
+  OrchestratorPlan,
+  OrchestratorSubgoal,
 } from '@/types';
 import * as orchestratorRepo from '@/lib/repositories/deal-orchestrators';
 import * as worldStateService from '@/lib/services/orchestrator-world-state-service';
@@ -11,12 +13,22 @@ import * as memoryRepo from '@/lib/repositories/orchestrator-memory';
 import * as cycleRepo from '@/lib/repositories/orchestrator-cycles';
 import * as actionRepo from '@/lib/repositories/orchestrator-actions';
 import * as nextActionRepo from '@/lib/repositories/orchestrator-next-actions';
+import * as planRepo from '@/lib/repositories/orchestrator-plans';
+import * as subgoalRepo from '@/lib/repositories/orchestrator-subgoals';
+import * as planRevisionRepo from '@/lib/repositories/orchestrator-plan-revisions';
 import { logAction } from '@/lib/audit/logger';
 import { registerAllTools } from './tools';
 import { runPlanner } from './planner';
 import { runCritic } from './critic';
 import { executeApprovedActions } from './executor';
 import { processFollowThroughSequences } from './follow-through';
+import {
+  evaluatePlanAction,
+  generateSubgoals,
+  computePlanProgress,
+  type PlanRefreshContext,
+  type PlanAction,
+} from './plan-lifecycle';
 import type { ToolExecutionContext } from './tool-registry';
 import crypto from 'crypto';
 
@@ -143,7 +155,232 @@ export async function runOrchestrationCycle(
     // 4. Load memory
     const memory = await memoryRepo.findRecent(orchestratorId, PIPELINE_CONFIG.MAX_MEMORY_ENTRIES);
 
-    // 5. Run planner
+    // 4a. Evaluate plan lifecycle
+    const currentPlan = await planRepo.findActivePlan(orchestratorId);
+    const currentSubgoals: OrchestratorSubgoal[] = currentPlan
+      ? await subgoalRepo.findByPlan(currentPlan.id)
+      : [];
+
+    const unresolvedBlockers = memory
+      .filter(m => m.memory_type === 'blocker' && !m.resolved)
+      .map(m => m.summary);
+    const recentFailures = memory
+      .filter(m => m.memory_type === 'failure_pattern')
+      .map(m => m.summary);
+    const waitingSubgoals = currentSubgoals
+      .filter(sg => sg.status === 'waiting' || sg.status === 'blocked')
+      .map(sg => sg.title);
+
+    const planRefreshCtx: PlanRefreshContext = {
+      orchestratorId,
+      organizationId: orchestrator.organization_id,
+      entityType: orchestrator.entity_type,
+      entityId: orchestrator.entity_id,
+      currentPlan,
+      worldState: worldSnapshot,
+      unresolvedBlockers,
+      recentFailures,
+      deadlines: worldSnapshot.urgent_deadlines,
+      waitingStates: waitingSubgoals,
+    };
+
+    const planDecision = evaluatePlanAction(planRefreshCtx);
+
+    let activePlan: OrchestratorPlan | null = currentPlan;
+    let activeSubgoals: OrchestratorSubgoal[] = currentSubgoals;
+
+    // Act on plan decision
+    switch (planDecision.action as PlanAction) {
+      case 'wait': {
+        // Skip this cycle — no actionable work
+        const skippedCycle = await cycleRepo.update(cycle.id, {
+          status: 'skipped',
+          skip_reason: planDecision.reason,
+          duration_ms: Date.now() - startTime,
+          completed_at: new Date().toISOString(),
+        });
+        return skippedCycle;
+      }
+
+      case 'create_plan': {
+        const newSubgoalDefs = generateSubgoals(planRefreshCtx);
+        const plan = await planRepo.create({
+          orchestrator_id: orchestratorId,
+          organization_id: orchestrator.organization_id,
+          title: `Plan for ${orchestrator.entity_type} ${orchestrator.entity_id.slice(0, 8)}`,
+          objective: `Advance ${orchestrator.entity_type} through ${worldSnapshot.stage} stage to completion.`,
+          entity_type: orchestrator.entity_type,
+          entity_id: orchestrator.entity_id,
+          status: 'active',
+          priority: orchestrator.priority,
+          priority_rationale: null,
+          review_cadence_hours: 24,
+          refresh_conditions: ['stage_change', 'document_upload', 'blocker_resolved'],
+          version: 1,
+          superseded_by: null,
+          blocked_reason: null,
+          blocked_since: null,
+          completed_at: null,
+          expires_at: null,
+        });
+
+        const createdSubgoals: OrchestratorSubgoal[] = [];
+        for (const sgDef of newSubgoalDefs) {
+          const sg = await subgoalRepo.create({ ...sgDef, plan_id: plan.id });
+          createdSubgoals.push(sg);
+        }
+
+        activePlan = plan;
+        activeSubgoals = createdSubgoals;
+
+        await logAction({
+          organizationId: orchestrator.organization_id,
+          transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
+          actorType: 'ai',
+          action: 'orchestrator.plan_created',
+          targetType: 'orchestrator_plan',
+          targetId: plan.id,
+          metadata: {
+            orchestrator_id: orchestratorId,
+            cycle_id: cycle.id,
+            reason: planDecision.reason,
+            subgoal_count: createdSubgoals.length,
+          },
+        });
+        break;
+      }
+
+      case 'replan': {
+        // Create revision record for the old plan
+        if (currentPlan) {
+          await planRevisionRepo.create({
+            plan_id: currentPlan.id,
+            revision_number: currentPlan.version,
+            reason: planDecision.reason,
+            changes_summary: `Superseded due to replan: ${planDecision.reason}`,
+            previous_snapshot: {
+              plan: currentPlan,
+              subgoals: currentSubgoals,
+              progress: computePlanProgress(currentSubgoals),
+            },
+          });
+        }
+
+        // Create new plan
+        const newSubgoalDefs = generateSubgoals(planRefreshCtx);
+        const newVersion = currentPlan ? currentPlan.version + 1 : 1;
+        const newPlan = await planRepo.create({
+          orchestrator_id: orchestratorId,
+          organization_id: orchestrator.organization_id,
+          title: `Plan v${newVersion} for ${orchestrator.entity_type} ${orchestrator.entity_id.slice(0, 8)}`,
+          objective: `Advance ${orchestrator.entity_type} through ${worldSnapshot.stage} stage to completion.`,
+          entity_type: orchestrator.entity_type,
+          entity_id: orchestrator.entity_id,
+          status: 'active',
+          priority: orchestrator.priority,
+          priority_rationale: null,
+          review_cadence_hours: 24,
+          refresh_conditions: ['stage_change', 'document_upload', 'blocker_resolved'],
+          version: newVersion,
+          superseded_by: null,
+          blocked_reason: null,
+          blocked_since: null,
+          completed_at: null,
+          expires_at: null,
+        });
+
+        // Supersede old plan
+        if (currentPlan) {
+          await planRepo.supersede(currentPlan.id, newPlan.id);
+        }
+
+        const createdSubgoals: OrchestratorSubgoal[] = [];
+        for (const sgDef of newSubgoalDefs) {
+          const sg = await subgoalRepo.create({ ...sgDef, plan_id: newPlan.id });
+          createdSubgoals.push(sg);
+        }
+
+        activePlan = newPlan;
+        activeSubgoals = createdSubgoals;
+
+        await logAction({
+          organizationId: orchestrator.organization_id,
+          transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
+          actorType: 'ai',
+          action: 'orchestrator.plan_replanned',
+          targetType: 'orchestrator_plan',
+          targetId: newPlan.id,
+          metadata: {
+            orchestrator_id: orchestratorId,
+            cycle_id: cycle.id,
+            reason: planDecision.reason,
+            previous_plan_id: currentPlan?.id ?? null,
+            version: newVersion,
+            subgoal_count: createdSubgoals.length,
+          },
+        });
+        break;
+      }
+
+      case 'block_plan': {
+        if (currentPlan) {
+          await planRepo.block(currentPlan.id, planDecision.reason);
+          activePlan = { ...currentPlan, status: 'blocked', blocked_reason: planDecision.reason };
+
+          await logAction({
+            organizationId: orchestrator.organization_id,
+            transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
+            actorType: 'ai',
+            action: 'orchestrator.plan_blocked',
+            targetType: 'orchestrator_plan',
+            targetId: currentPlan.id,
+            metadata: {
+              orchestrator_id: orchestratorId,
+              cycle_id: cycle.id,
+              reason: planDecision.reason,
+            },
+          });
+        }
+        break;
+      }
+
+      case 'complete_plan': {
+        if (currentPlan) {
+          await planRepo.complete(currentPlan.id);
+          activePlan = { ...currentPlan, status: 'completed' };
+
+          // Mark remaining pending subgoals as skipped
+          for (const sg of currentSubgoals) {
+            if (sg.status === 'pending' || sg.status === 'in_progress' || sg.status === 'waiting') {
+              await subgoalRepo.skip(sg.id);
+            }
+          }
+
+          await logAction({
+            organizationId: orchestrator.organization_id,
+            transactionId: orchestrator.entity_type === 'transaction' ? orchestrator.entity_id : undefined,
+            actorType: 'ai',
+            action: 'orchestrator.plan_completed',
+            targetType: 'orchestrator_plan',
+            targetId: currentPlan.id,
+            metadata: {
+              orchestrator_id: orchestratorId,
+              cycle_id: cycle.id,
+              reason: planDecision.reason,
+              progress: computePlanProgress(currentSubgoals),
+            },
+          });
+        }
+        break;
+      }
+
+      case 'continue':
+      default:
+        // Keep existing plan context
+        break;
+    }
+
+    // 5. Run planner (with plan context)
     const plannerOutput = await runPlanner(worldSnapshot, memory, {
       entityType: orchestrator.entity_type,
       entityId: orchestrator.entity_id,
@@ -235,6 +472,62 @@ export async function runOrchestrationCycle(
       total_failed: totalFailed,
       total_gated: gatedCount,
     };
+
+    // 8a. Update subgoal statuses based on executed actions
+    if (activePlan && activePlan.status === 'active' && activeSubgoals.length > 0) {
+      const executedToolNames = new Set(
+        executions.filter(e => e.success).map(e => {
+          const proposal = approvedProposals.find(p => p.id === e.proposal_id);
+          return proposal?.tool_name;
+        }).filter(Boolean) as string[],
+      );
+
+      for (const sg of activeSubgoals) {
+        if (sg.status === 'pending' || sg.status === 'waiting') {
+          // If any of the subgoal's linked tools were executed, mark in_progress
+          const hasLinkedExecution = sg.linked_tool_names.some(tn => executedToolNames.has(tn));
+          if (hasLinkedExecution) {
+            await subgoalRepo.update(sg.id, { status: 'in_progress' });
+          }
+        }
+      }
+
+      // Check if document-related subgoals can be completed
+      for (const sg of activeSubgoals) {
+        if (
+          sg.status !== 'completed' &&
+          sg.status !== 'skipped' &&
+          sg.title.startsWith('Obtain ') &&
+          !worldSnapshot.missing_docs.some(doc => sg.title.includes(doc))
+        ) {
+          await subgoalRepo.complete(sg.id);
+        }
+      }
+
+      // Check if completeness subgoal can be completed
+      for (const sg of activeSubgoals) {
+        if (
+          sg.title === 'Improve completeness' &&
+          sg.status !== 'completed' &&
+          sg.status !== 'skipped' &&
+          worldSnapshot.completeness_score >= 70
+        ) {
+          await subgoalRepo.complete(sg.id);
+        }
+      }
+
+      // Check if approval subgoals can be completed
+      for (const sg of activeSubgoals) {
+        if (
+          sg.title.includes('pending approval') &&
+          sg.status !== 'completed' &&
+          sg.status !== 'skipped' &&
+          worldSnapshot.pending_approvals === 0
+        ) {
+          await subgoalRepo.complete(sg.id);
+        }
+      }
+    }
 
     // 9. Update next action cards
     await nextActionRepo.staleAll(orchestratorId);

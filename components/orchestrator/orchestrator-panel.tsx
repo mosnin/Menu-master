@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Brain, RefreshCw, Target, Activity, Eye, Zap } from 'lucide-react';
+import { Brain, RefreshCw, Target, Activity, Eye, Zap, Map } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OrchestratorStatusCard } from './orchestrator-status-card';
 import { NextActionsPanel } from './next-actions-panel';
+import { PlanOverview } from './plan-overview';
 import { ReasoningSummary } from './reasoning-summary';
 import { AgentActivityFeed } from './agent-activity-feed';
 import { ExecutionMonitor } from './execution-monitor';
@@ -18,6 +19,7 @@ import {
   getNextActionsAction,
   getRecentCyclesAction,
   getRecentExecutionsAction,
+  getActivePlanAction,
   pauseOrchestratorAction,
   resumeOrchestratorAction,
   dismissNextActionAction,
@@ -30,7 +32,14 @@ import type {
   OrchestratorCycle,
   OrchestratorActionExecution,
   OrchestratorEntityType,
+  PlanStatus,
 } from '@/types';
+
+interface PlanSummaryData {
+  objective: string;
+  status: PlanStatus;
+  completionPercentage: number;
+}
 
 interface OrchestratorPanelProps {
   entityType: OrchestratorEntityType;
@@ -73,6 +82,7 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
   const [actions, setActions] = useState<OrchestratorNextAction[]>([]);
   const [cycles, setCycles] = useState<OrchestratorCycle[]>([]);
   const [executions, setExecutions] = useState<OrchestratorActionExecution[]>([]);
+  const [planSummary, setPlanSummary] = useState<PlanSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,15 +99,28 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
       setOrchestrator(orch);
 
       if (orch) {
-        const [actionsResult, cyclesResult, execResult] = await Promise.all([
+        const [actionsResult, cyclesResult, execResult, planResult] = await Promise.all([
           getNextActionsAction(orch.id),
           getRecentCyclesAction(orch.id, 5),
           getRecentExecutionsAction(orch.id, 10),
+          getActivePlanAction(orch.id),
         ]);
 
         setActions(actionsResult.data ?? []);
         setCycles(cyclesResult.data ?? []);
         setExecutions(execResult.data ?? []);
+
+        if (planResult.data?.plan) {
+          const p = planResult.data.plan as { objective: string; status: PlanStatus };
+          const prog = planResult.data.progress as { completion_percentage: number } | null;
+          setPlanSummary({
+            objective: p.objective,
+            status: p.status,
+            completionPercentage: prog?.completion_percentage ?? 0,
+          });
+        } else {
+          setPlanSummary(null);
+        }
       }
 
       setError(null);
@@ -242,6 +265,10 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
               <Eye className="h-3 w-3 mr-1.5" />
               Status
             </TabsTrigger>
+            <TabsTrigger value="plan" className="flex-1 text-xs">
+              <Map className="h-3 w-3 mr-1.5" />
+              Plan
+            </TabsTrigger>
             <TabsTrigger value="actions" className="flex-1 text-xs">
               <Target className="h-3 w-3 mr-1.5" />
               Actions
@@ -264,6 +291,14 @@ export function OrchestratorPanel({ entityType, entityId }: OrchestratorPanelPro
             <OrchestratorStatusCard
               orchestrator={orchestrator}
               onPauseResume={handlePauseResume}
+              planSummary={planSummary}
+            />
+          </TabsContent>
+
+          <TabsContent value="plan" className="mt-4">
+            <PlanOverview
+              orchestratorId={orchestrator.id}
+              organizationId={orchestrator.organization_id}
             />
           </TabsContent>
 
