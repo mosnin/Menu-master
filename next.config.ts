@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    // @ts-expect-error: nodeMiddleware exists at runtime but not yet in ExperimentalConfig types
     nodeMiddleware: true,
   },
   webpack: (config) => {
