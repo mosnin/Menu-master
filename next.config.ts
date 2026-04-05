@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    nodeMiddleware: true,
   },
   webpack: (config) => {
     // pdf-parse uses fs module
