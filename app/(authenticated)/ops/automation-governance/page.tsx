@@ -54,13 +54,13 @@ export default function AutomationGovernancePage() {
     init();
   }, [orgId]);
 
-  async function run(fn: () => Promise<{ error?: string }>) {
+  async function run(fn: () => Promise<Record<string, unknown>>) {
     if (!orgId) return;
     setBusy(true);
     setError(null);
     try {
       const result = await fn();
-      if (result.error) {
+      if (typeof result.error === 'string') {
         setError(result.error);
         return;
       }
