@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Play, Clock } from 'lucide-react';
 import { getWorkflowRunsAction } from '@/app/actions/workflow-actions';
+import { AutomationNav } from '@/components/ops/automation-nav';
 import { formatDate, humanizeStatus } from '@/lib/format';
 import type { WorkflowRun } from '@/types';
 
@@ -57,6 +58,7 @@ export default function WorkflowRunsPage() {
 
   return (
     <div className="space-y-10">
+      <AutomationNav />
       <PageHeader
         title="Workflow Runs"
         description="Monitor workflow executions across your organization."

@@ -76,6 +76,7 @@ const breadcrumbLabels: Record<string, string> = {
   'automation-economics': 'ROI',
   versions: 'Versions',
   edit: 'Edit',
+  onboarding: 'Onboarding',
 };
 
 function Breadcrumbs() {

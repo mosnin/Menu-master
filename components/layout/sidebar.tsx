@@ -30,6 +30,8 @@ import {
   Stethoscope,
   CopyCheck,
   Award,
+  LayoutGrid,
+  Rocket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -63,6 +65,7 @@ const workNav: NavItem[] = [
 
 // coordinator+ — all pages exist under /ops/
 const automationNav: NavItem[] = [
+  { name: 'Overview',    href: '/ops',                       icon: LayoutGrid, exact: true },
   { name: 'Workflows',   href: '/ops/workflows',             icon: GitBranch },
   { name: 'Runs',        href: '/ops/workflow-runs',         icon: Play },
   { name: 'Governance',  href: '/ops/automation-governance', icon: Shield },
@@ -92,11 +95,12 @@ const adminNav: NavItem[] = [
 
 const settingsNav: NavItem[] = [
   // exact: true so /settings/rules doesn't also highlight this
-  { name: 'Overview',    href: '/settings',           icon: Settings,       exact: true },
-  { name: 'Rules',       href: '/settings/rules',     icon: Scale },
-  { name: 'Templates',   href: '/settings/templates', icon: LayoutTemplate },
-  { name: 'Digest Prefs', href: '/settings/digests',  icon: Newspaper },
-  { name: 'Policies',    href: '/settings/policies',  icon: Shield, adminOnly: true },
+  { name: 'Overview',       href: '/settings',           icon: Settings,       exact: true },
+  { name: 'Rules',          href: '/settings/rules',     icon: Scale },
+  { name: 'Templates',      href: '/settings/templates', icon: LayoutTemplate },
+  { name: 'Digest Prefs',   href: '/settings/digests',   icon: Newspaper },
+  { name: 'Policies',       href: '/settings/policies',  icon: Shield, adminOnly: true },
+  { name: 'Getting Started', href: '/getting-started',   icon: Rocket },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -280,7 +284,7 @@ function DesktopSidebar({ userRole }: { userRole?: string }) {
   const common = { pathname, pendingCount };
 
   // Auto-open sections based on current route
-  const inAutomation = pathname.startsWith('/ops/');
+  const inAutomation = pathname === '/ops' || pathname.startsWith('/ops/');
   const inBroker = pathname.startsWith('/broker') || pathname.startsWith('/analytics');
   const inAdmin = pathname.startsWith('/admin');
   const inSettings = pathname.startsWith('/settings');
