@@ -49,7 +49,7 @@ export default function AutomationSetupPage() {
     if (result.error) setError(result.error);
     else setDashboard(result.dashboard);
 
-    if ('readiness' in envResult) setEnvReadiness(envResult.readiness);
+    if ('readiness' in envResult) setEnvReadiness(envResult.readiness!);
   }
 
   useEffect(() => {
