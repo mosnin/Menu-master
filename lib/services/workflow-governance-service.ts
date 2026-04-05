@@ -180,13 +180,13 @@ export async function createDefaultApprovalChain(input: {
 }
 
 export function buildApprovalSteps(riskLevel: 'safe' | 'medium_risk' | 'high_risk') {
-  const steps = [{ stepOrder: 1, stepMode: 'sequential' as const, requiredRole: 'automation_owner', requiredAssignmentType: 'automation_owner', requiresDistinctUser: false, rationale: 'Owner review' }];
+  const steps: Array<{ stepOrder: number; stepMode: 'sequential' | 'parallel'; requiredRole: string; requiredAssignmentType: string; requiresDistinctUser: boolean; rationale: string }> = [{ stepOrder: 1, stepMode: 'sequential', requiredRole: 'automation_owner', requiredAssignmentType: 'automation_owner', requiresDistinctUser: false, rationale: 'Owner review' }];
   if (riskLevel !== 'safe') {
-    steps.push({ stepOrder: 2, stepMode: 'sequential' as const, requiredRole: 'coordinator', requiredAssignmentType: 'compliance_reviewer', requiresDistinctUser: true, rationale: 'Compliance review' });
+    steps.push({ stepOrder: 2, stepMode: 'sequential', requiredRole: 'coordinator', requiredAssignmentType: 'compliance_reviewer', requiresDistinctUser: true, rationale: 'Compliance review' });
   }
   if (riskLevel === 'high_risk') {
-    steps.push({ stepOrder: 3, stepMode: 'parallel' as const, requiredRole: 'broker_admin', requiredAssignmentType: 'release_reviewer', requiresDistinctUser: true, rationale: 'Release reviewer approval' });
-    steps.push({ stepOrder: 3, stepMode: 'parallel' as const, requiredRole: 'broker_admin', requiredAssignmentType: 'enterprise_admin_delegate', requiresDistinctUser: true, rationale: 'Enterprise admin approval' });
+    steps.push({ stepOrder: 3, stepMode: 'parallel', requiredRole: 'broker_admin', requiredAssignmentType: 'release_reviewer', requiresDistinctUser: true, rationale: 'Release reviewer approval' });
+    steps.push({ stepOrder: 3, stepMode: 'parallel', requiredRole: 'broker_admin', requiredAssignmentType: 'enterprise_admin_delegate', requiresDistinctUser: true, rationale: 'Enterprise admin approval' });
   }
   return steps;
 }
