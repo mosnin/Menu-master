@@ -4,6 +4,7 @@ import * as workflowVersionsRepo from '@/lib/repositories/workflow-versions';
 import { logAction } from '@/lib/audit/logger';
 import { isAgentNodeType } from '@/lib/ai/agent-nodes/registry';
 import { executeAgentNode } from '@/lib/ai/agent-nodes/executor';
+import { executeToolWithPolicy } from '@/lib/services/automation-action-executor';
 import type {
   WorkflowRun,
   WorkflowRunStep,
@@ -404,7 +405,7 @@ export async function evaluateNode(
     default: {
       // Domain nodes
       if (DOMAIN_NODE_TYPES.has(node.type)) {
-        const domainOutput = await executeDomainNode(node.type, node.config, context);
+        const domainOutput = await executeDomainNode(node.type, node.config, context, run, step);
         return {
           output: domainOutput,
           nextNodeIds: outgoingEdges.map((e) => e.target_node_id),
@@ -424,6 +425,8 @@ export async function executeDomainNode(
   nodeType: string,
   config: Record<string, unknown>,
   context: Record<string, unknown>,
+  run: WorkflowRun,
+  step: WorkflowRunStep,
 ): Promise<Record<string, unknown>> {
   // Dispatch to agent node executor if applicable
   if (isAgentNodeType(nodeType)) {
@@ -431,8 +434,51 @@ export async function executeDomainNode(
     return { agent_result: result, executed: true, node_type: nodeType };
   }
 
-  // Stub implementation — will be replaced with real service calls later
-  return { executed: true, node_type: nodeType };
+  const toolNameByNodeType: Record<string, string> = {
+    create_notification: 'create_notification',
+    create_approval: 'create_approval_request',
+    create_checklist_item: 'create_checklist_item',
+    create_timeline_event: 'create_timeline_event',
+    request_missing_document: 'create_document_request',
+    recompute_health_score: 'recompute_health_score',
+    recompute_exceptions: 'recompute_exceptions',
+    evaluate_transaction_completeness: 'recompute_completeness',
+    evaluate_listing_readiness: 'recompute_listing_readiness',
+    evaluate_closing_readiness: 'recompute_closing_readiness',
+    human_checkpoint: 'request_manual_review',
+    send_digest: 'create_reminder_draft',
+  };
+
+  const toolName = toolNameByNodeType[nodeType];
+  if (!toolName) {
+    return { executed: false, node_type: nodeType, message: 'No shared tool mapping for workflow node type' };
+  }
+
+  const sharedExecution = await executeToolWithPolicy({
+    organizationId: run.organization_id,
+    sourceSystem: 'workflow',
+    toolName,
+    toolParams: config,
+    riskClass: 'safe',
+    confidence: 0.95,
+    entityType: (run.entity_type as 'transaction' | 'listing' | null) ?? 'transaction',
+    entityId: run.entity_id ?? '',
+    actorRole: 'coordinator',
+    complianceFlags: [],
+    worldStage: 'active',
+    workflowRunId: run.id,
+    workflowRunStepId: step.id,
+  });
+
+  return {
+    executed: sharedExecution.executed,
+    node_type: nodeType,
+    tool_name: toolName,
+    policy_decision: sharedExecution.policyDecision,
+    tool_result: sharedExecution.result,
+    side_effects: sharedExecution.sideEffects,
+    error: sharedExecution.errorMessage ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------

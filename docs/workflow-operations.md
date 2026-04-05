@@ -258,3 +258,234 @@ To roll back to a previous version, find the archived version in the version his
 - **Agent step summaries stored in generic `output_data`** -- There is no dedicated table for agent reasoning traces. Summaries are serialized into the step's generic `output_data` JSON column.
 - **Max 500 steps per run** -- A depth guard prevents runaway workflows. Runs exceeding 500 steps are terminated.
 - **No natural language workflow generation** -- Workflows must be authored manually in the canvas editor. AI-assisted generation from natural language descriptions is planned.
+
+## Natural Language Draft Authoring (v1)
+
+Workflow admins can now draft a workflow graph from plain English in **Ops → Workflows → New Workflow**.
+
+### Pipeline
+1. Admin enters a natural-language description.
+2. Server generates a bounded **authoring intent** JSON object.
+3. Intent is mapped into the existing workflow graph schema (`nodes`, `edges`, `triggers`).
+4. Graph validation runs immediately.
+5. Review data is returned: inferred explanation, assumptions, warnings, missing information.
+6. Admin explicitly creates a workflow and opens the existing builder to refine.
+
+### Safety boundaries
+- Drafting is available only to `broker_admin` via existing role checks.
+- Generation creates draft graph data only; it does not publish or execute automation.
+- Ambiguous language is surfaced as warnings/missing-information instead of silent assumptions.
+- Unknown triggers map to `manual_trigger` placeholder to prevent hidden execution.
+
+### Persistence
+Drafting attempts are persisted in new org-scoped tables:
+- `workflow_authoring_sessions`
+- `workflow_authoring_intents`
+- `workflow_generation_attempts`
+- `workflow_generation_assumptions`
+- `workflow_generation_warnings`
+- `workflow_generation_repair_attempts`
+
+---
+
+## Enterprise Admin and Delegated Governance
+
+Deal Desk now supports delegated automation governance so enterprise teams can scale review and control without central bottlenecks.
+
+### Scope model
+- Governance scopes are explicit (`organization`, `office`, `team`, category/library segments).
+- Scopes can inherit governance intent from parent scopes while remaining inspectable.
+- Scope-local assignments and reviewer routes are constrained by scope identity and org membership.
+
+### Ownership and approvals
+- Delegated ownership is captured in `automation_governance_assignments` with assignment type, asset scope, and actor audit context.
+- Risk-based approval chains support sequential and parallel reviewer steps by role/assignment type.
+- High-risk chains include stronger reviewer separation requirements.
+
+### Separation of duties
+- Deterministic SoD checks prevent risky self-approval patterns.
+- Publish guardrails now evaluate governance checks for risky workflow publish actions.
+
+### Queues and routing
+- Governance overview surfaces queue slices for:
+  - my approvals,
+  - office/team delegated reviews,
+  - missing-owner conflicts,
+  - SoD conflict queue.
+- Reviewer routes are deterministic by scope + risk + route type with fallback role.
+
+### Safety boundaries
+- Governance mutation actions are role-gated (`broker_admin`).
+- Read/routing views require active org membership and remain org scoped.
+- Governance events and conflicts are auditable records.
+
+---
+
+## Automation Economics and ROI Analytics
+
+Automation reporting now includes business-value semantics so broker leaders can evaluate economic impact in addition to safety and governance posture.
+
+### Value model
+- `automation_value_records` stores structured value events linked to real source records (trace events and workflow runtime outcomes).
+- Value categories include manual step avoided, review/coordination/follow-up time saved, queue reduction, and reduced manual rework/override burden.
+- Each record includes confidence and explicit assumptions to avoid unsupported precision.
+
+### Time-saved and displacement model
+- Time-saved estimates distinguish gross minutes saved vs review/correction costs and net minutes saved.
+- Manual displacement tracks fully automated, assisted, review-required, override, correction, and avoided manual-step counts.
+- Estimates are heuristic and transparent by design.
+
+### ROI and cost model
+- `automation_roi_summaries` aggregates run volume, success rate, override/correction burden, gross/net time saved, and value score.
+- `automation_cost_signals` tracks practical cost drivers (execution volume, retry/failure overhead, override burden, agent usage proxies).
+- `automation_negative_value_signals` flags churn-heavy or low-value automations with deterministic recommendations.
+
+### Leadership surfaces
+- `/ops/automation-economics` provides ROI overview metrics, top-value workflow ranking, and underperforming/churn signals.
+- Reports are scoped by org membership and recomputation is restricted to authorized admin roles.
+
+### Trust and safety semantics
+- Reporting distinguishes measured counts from estimated time/cost outputs.
+- Confidence bands and assumptions are persisted to keep estimates explainable.
+- No unsupported hard-dollar claims are generated by default.
+
+---
+
+## Enterprise Packaging and Distribution Controls
+
+Deal Desk now includes a packaging and library-distribution layer so workflow templates, playbooks, and workflow libraries can be productized and shared safely with explicit entitlement and compatibility checks.
+
+### Packaging model
+- `automation_packages` defines package identity, owner/source, trust state, risk class, and asset family (`template_bundle`, `playbook_bundle`, `workflow_library`).
+- `automation_package_versions` stores versioned bundle metadata (manifest, entitlement requirements, compatibility notes, operator guidance, simulation guidance).
+- `automation_package_assets` stores inspectable included assets with sensitivity and validation status.
+- Packaging is separate from live activation; package import/install does not publish or execute workflows.
+
+### Entitlement and capability model
+- `automation_entitlements` stores inspectable capability grants by org/scope and plan tier.
+- `automation_feature_flags` controls rollout state (`on` / `off` / `beta`) at global/org/scope boundaries.
+- Capability checks are explicit server-side and combine entitlement + feature flag resolution before advanced automation features are enabled.
+
+### Export and import semantics
+- Exports produce structured JSON bundles and log auditable events in `automation_package_exports`.
+- Export sanitization removes secret/evidence payloads from bundle output.
+- Imports parse manifest data, run deterministic compatibility checks, and persist results to `automation_package_imports`.
+- Imports can install as `draft_only`, `template_only`, or `library_copy`; none auto-activate live automation.
+
+### Compatibility rules
+- Compatibility checks verify tools, node deprecation, risky-action policy fit, entitlement requirements, and required simulation evidence.
+- Findings persist in `automation_package_compatibility_reports` with remediation guidance.
+- Unsafe imports are blocked explicitly rather than silently downgraded.
+
+### Distribution governance
+- `automation_package_distribution_events` provides audit history for request/approval/rejection/revoke events.
+- Broad or risky distribution can require governance review before export/import in admin flows.
+- Distribution remains org-scoped by default; trust/source are visible on package metadata.
+
+### Library management surface
+- New UI route: `/ops/automation-library`.
+- Surface includes overview metrics, export flow, import review, installation history, and entitlement/flag visibility.
+- UX emphasizes trust cues and operational clarity over convenience.
+
+### Safety boundaries
+- Packaging/export/import actions are role-gated for admin operators.
+- Org membership and org isolation checks are enforced on server actions and repository queries.
+- Imported assets remain drafts/templates/library copies until normal publish/release controls are executed.
+
+### Known limitations
+- Linked managed-package sync (upstream updates) is not implemented yet.
+- Cross-org distribution allowlists are event-ready but no dedicated UI workflow exists yet.
+- Compatibility engine currently uses deterministic rule checks and does not yet include deep graph-level auto-repair.
+
+---
+
+## Customer Automation Setup and Managed Success
+
+Deal Desk now includes a customer-facing setup and managed success layer focused on fast, safe activation and first-value outcomes without bypassing governance, release, policy, or entitlement controls.
+
+### Onboarding and setup architecture
+- `automation_onboarding_sessions` tracks scoped onboarding flows (org/office/team) for new or expanding automation adoption.
+- `automation_setup_states` persists setup mode, scope, checklist status, and blocker payloads.
+- `automation_activation_checklists` stores readiness status and explicit missing items.
+- Setup state is explicit and inspectable instead of hidden in UI-only state.
+
+### Recommendation model
+- `automation_recommendation_profiles` captures profile inputs (org type, team/volume buckets, lifecycle focus).
+- Recommendation scoring is deterministic and explainable, using package metadata, entitlement fit, risk class, and profile fit.
+- Recommendations never auto-install or auto-activate packages.
+
+### Readiness and milestone model
+- Activation readiness tracks package install, entitlement fit, config completion, owner/reviewer assignment, simulation, validation, release review, scope choice, and activation state.
+- `automation_setup_blockers` captures unresolved readiness blockers with severity and remediation guidance.
+- `automation_first_value_milestones` tracks first install/simulation/release/safe-run/time-saved/office-rollout events.
+
+### Adoption health and rollout guidance
+- `automation_adoption_health_summaries` classifies adoption states (`onboarding`, `setup_blocked`, `ready_for_activation`, `pilot_active`, `broadly_adopted`, `underperforming`) with deterministic reasons and intervention cues.
+- `automation_rollout_guidance_records` stores staged rollout guidance (`single_office_pilot` → `small_team_canary` → `staged_office_rollout` → `org_wide_rollout`).
+- Health and first-value signals are tied to existing ROI/economics data where possible.
+
+### Customer and success surfaces
+- `/ops/automation-setup` provides setup overview, package recommendations, wizard actions, readiness KPIs, and blocker visibility.
+- `/ops/automation-success` provides role-gated success/support visibility for blockers, health summaries, and intervention notes.
+- `automation_customer_success_notes` supports internal/customer-visible notes and handoff context.
+
+### Safety boundaries
+- Setup mutations remain role-gated; org membership and isolation checks apply to all onboarding/success actions.
+- Setup flows cannot auto-activate live automation.
+- Release, governance, policy, and entitlement controls remain required for activation.
+- Setup, checklist, milestone, and intervention actions are auditable via persisted events/records.
+
+### Known limitations
+- Cross-customer success visibility is intentionally constrained; no broad unmanaged global dashboard is exposed.
+- Recommendation profiles currently use deterministic heuristics and do not yet include learned personalization.
+- Wizard UX currently uses bounded fast actions and does not yet include deep per-node configuration forms.
+
+---
+
+## Cross-Layer UX and Performance Unification (Automation Ops)
+
+A unification pass was applied across automation operations surfaces to reduce navigation friction, tighten state language, and improve client-side responsiveness under dense admin usage.
+
+### UX coherence improvements
+- Added shared automation sub-navigation (`Builder`, `Governance`, `Library`, `Setup`, `Success`, `ROI`) to unify movement across major automation surfaces.
+- Standardized status language presentation using shared status chips and state label/tone mapping across setup, success, governance, library, and ROI views.
+- Reduced repeated page-level context boilerplate by adopting shared org-context resolution behavior.
+
+### Performance and responsiveness improvements
+- Introduced a cached org-context hook (`useActiveOrg`) to reduce repeated `/api/me` fetch churn across automation pages.
+- Reworked key pages to use shared org resolution and immediate loading/error indicators for clearer async behavior.
+- Updated ops index layout to remain readable with expanded automation card density across laptop/desktop breakpoints.
+
+### Shared primitives introduced
+- `AutomationNav` for cross-layer navigation consistency.
+- `AutomationStatusChip` and `automation-status` mapping helpers for consistent state semantics.
+- `useActiveOrg` hook for shared client org-context loading.
+
+### Known rough edges
+- Dense tables/traces in deeper builder/simulation routes still use local rendering patterns and may need additional virtualization pass.
+- Some surfaces still rely on optimistic local refresh instead of streaming incremental updates.
+
+### Follow-up unification refinements
+- Added `AutomationPageState` to standardize loading, error, and retry surfaces across automation ops pages.
+- Moved navigation definitions to shared `AUTOMATION_NAV_ITEMS` to make information architecture explicit and testable.
+- Added keyboard/focus affordances and `aria-current` behavior for automation sub-navigation links.
+- Added navigation and state-vocabulary tests to prevent regressions in cross-layer coherence.
+
+---
+
+## Release Candidate and Pilot Hardening Notes
+
+### Reliability/correctness hardening
+- Setup readiness updates now enforce lifecycle transition validity (`onboarding` → `ready_for_activation` → `pilot_active` ...), preventing invalid jumps that bypass rollout discipline.
+- Setup-state status is updated alongside checklist updates so dashboards and support views stay consistent with actual readiness outcomes.
+
+### Environment readiness hardening
+- Added automation environment readiness checks for required and recommended variables.
+- Setup dashboard now exposes an explicit **Validate environment** control so pilot admins can fail fast on missing config.
+
+### Supportability hardening
+- Standardized page-level retry and alert behavior across automation ops pages via shared `AutomationPageState`.
+- Navigation IA and state vocabulary now have explicit regression tests to reduce cross-layer drift.
+
+### Operational handoff artifacts
+- Added release candidate, pilot, support, incident, environment, known limitation, and demo runbook documents at repo root.

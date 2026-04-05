@@ -12,6 +12,7 @@ import * as actionRepo from '@/lib/repositories/orchestrator-actions';
 import * as memoryRepo from '@/lib/repositories/orchestrator-memory';
 import { logAction } from '@/lib/audit/logger';
 import { evaluatePolicy } from './action-policy';
+import { createTraceEvent } from '@/lib/repositories/automation-trace-events';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -97,7 +98,7 @@ function dispositionToProposalStatus(disposition: import('@/types').ActionDispos
       return 'gated';
     case 'block':
       return 'rejected';
-    default:
+     default:
       return 'rejected';
   }
 }
@@ -116,7 +117,7 @@ function dispositionToAuditAction(
       return 'orchestrator.action_gated';
     case 'block':
       return 'orchestrator.action_rejected';
-    default:
+     default:
       return 'orchestrator.action_rejected';
   }
 }
@@ -304,6 +305,22 @@ export async function executeApprovedActions(
         },
       });
 
+      await createTraceEvent({
+        organization_id: context.organizationId,
+        source_system: 'orchestrator',
+        status: toolResult.success ? 'executed' : 'failed',
+        orchestrator_id: context.orchestratorId,
+        orchestrator_cycle_id: proposal.cycle_id,
+        orchestrator_proposal_id: proposal.id,
+        orchestrator_execution_id: execution.id,
+        tool_name: proposal.tool_name,
+        tool_params: proposal.tool_params,
+        policy_disposition: policyDecision.disposition,
+        policy_rule: policyDecision.policy_rule,
+        policy_reason: policyDecision.reason,
+        outcome_summary: toolResult.success ? 'Tool executed through orchestrator executor' : 'Tool execution failed in orchestrator executor',
+      });
+
       executions.push(execution);
     } catch (error) {
       const execution = await recordFailedExecution(
@@ -360,7 +377,7 @@ async function recordPolicyDecision(
   });
 
   // Record a non-executed entry with the policy decision
-  return actionRepo.createExecution({
+  const execution = await actionRepo.createExecution({
     proposal_id: proposal.id,
     orchestrator_id: context.orchestratorId,
     tool_name: proposal.tool_name,
@@ -380,6 +397,24 @@ async function recordPolicyDecision(
     side_effects: [],
     idempotency_key: idempotencyKey,
   });
+
+  await createTraceEvent({
+    organization_id: context.organizationId,
+    source_system: 'orchestrator',
+    status: policyDecision.disposition,
+    orchestrator_id: context.orchestratorId,
+    orchestrator_cycle_id: proposal.cycle_id,
+    orchestrator_proposal_id: proposal.id,
+    orchestrator_execution_id: execution.id,
+    tool_name: proposal.tool_name,
+    tool_params: proposal.tool_params,
+    policy_disposition: policyDecision.disposition,
+    policy_rule: policyDecision.policy_rule,
+    policy_reason: policyDecision.reason,
+    outcome_summary: policyDecision.reason,
+  });
+
+  return execution;
 }
 
 async function recordFailedExecution(
@@ -408,7 +443,7 @@ async function recordFailedExecution(
     expires_at: null,
   });
 
-  return actionRepo.createExecution({
+  const execution = await actionRepo.createExecution({
     proposal_id: proposal.id,
     orchestrator_id: context.orchestratorId,
     tool_name: proposal.tool_name,
@@ -420,4 +455,20 @@ async function recordFailedExecution(
     side_effects: [],
     idempotency_key: idempotencyKey,
   });
+
+  await createTraceEvent({
+    organization_id: context.organizationId,
+    source_system: 'orchestrator',
+    status: 'failed',
+    orchestrator_id: context.orchestratorId,
+    orchestrator_cycle_id: proposal.cycle_id,
+    orchestrator_proposal_id: proposal.id,
+    orchestrator_execution_id: execution.id,
+    tool_name: proposal.tool_name,
+    tool_params: proposal.tool_params,
+    outcome_summary: errorMessage,
+    metadata: { failure_source: 'executor' },
+  });
+
+  return execution;
 }

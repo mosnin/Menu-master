@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import {
   getWorkflowRunAction,
+  getWorkflowAutomationTraceAction,
   pauseRunAction,
   resumeRunAction,
   cancelRunAction,
@@ -207,6 +208,7 @@ export default function WorkflowRunDetailPage() {
   const [run, setRun] = useState<WorkflowRun | null>(null);
   const [steps, setSteps] = useState<WorkflowRunStep[]>([]);
   const [loading, setLoading] = useState(true);
+  const [automationTrace, setAutomationTrace] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [overrideStepId, setOverrideStepId] = useState<string | null>(null);
 
@@ -216,6 +218,8 @@ export default function WorkflowRunDetailPage() {
       if (result) {
         setRun(result.run);
         setSteps(result.steps);
+        const traceEvents = await getWorkflowAutomationTraceAction(params.runId);
+        setAutomationTrace(traceEvents);
       }
     } catch {
       // silently fail
@@ -417,6 +421,29 @@ export default function WorkflowRunDetailPage() {
             <div className="mt-5 rounded-lg bg-red-50 p-4">
               <p className="text-[12px] font-medium text-red-800">Error</p>
               <p className="text-[12px] text-red-700 mt-1">{run.error_message}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl shadow-sm">
+        <CardContent className="p-5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Unified Automation Trace
+          </p>
+          {automationTrace.length === 0 ? (
+            <p className="text-[12px] text-muted-foreground/70">No shared automation trace events recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {automationTrace.slice(0, 20).map((event: any) => (
+                <div key={event.id} className="rounded-lg border p-3 text-[12px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium">{event.tool_name ?? 'policy-evaluation'}</p>
+                    <Badge variant="outline" className="text-[10px]">{event.status}</Badge>
+                  </div>
+                  <p className="text-muted-foreground mt-1">{event.outcome_summary ?? event.policy_reason ?? 'No summary'}</p>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
