@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch } from 'lucide-react';
+import { GitBranch, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getWorkflowsAction } from '@/app/actions/workflow-actions';
 import { AutomationNav } from '@/components/ops/automation-nav';
 import type { Workflow } from '@/types';
@@ -44,7 +45,14 @@ export default function WorkflowsPage() {
         description="Automation workflows configured for your organization."
         backHref="/ops"
         backLabel="Operations"
-      />
+      >
+        <Link href="/ops/workflows/new">
+          <Button size="sm" className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            New Workflow
+          </Button>
+        </Link>
+      </PageHeader>
 
       <div>
         <h3 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-4">
