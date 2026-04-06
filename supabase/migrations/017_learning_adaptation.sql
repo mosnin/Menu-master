@@ -9,7 +9,7 @@
 CREATE TABLE orchestrator_outcomes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  orchestrator_id UUID NOT NULL REFERENCES orchestrators(id),
+  orchestrator_id UUID NOT NULL REFERENCES deal_orchestrators(id),
   cycle_id UUID REFERENCES orchestrator_cycles(id),
   proposal_id UUID REFERENCES orchestrator_action_proposals(id),
   execution_id UUID REFERENCES orchestrator_action_executions(id),
@@ -89,7 +89,7 @@ CREATE INDEX idx_action_scores_effectiveness ON orchestrator_action_scores(effec
 CREATE TABLE orchestrator_recommendation_feedback (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  orchestrator_id UUID NOT NULL REFERENCES orchestrators(id),
+  orchestrator_id UUID NOT NULL REFERENCES deal_orchestrators(id),
   proposal_id UUID REFERENCES orchestrator_action_proposals(id),
   next_action_id UUID REFERENCES orchestrator_next_actions(id),
 
@@ -160,7 +160,7 @@ CREATE INDEX idx_correction_patterns_active ON orchestrator_correction_patterns(
 CREATE TABLE orchestrator_counterparty_signals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  orchestrator_id UUID NOT NULL REFERENCES orchestrators(id),
+  orchestrator_id UUID NOT NULL REFERENCES deal_orchestrators(id),
 
   -- Who
   counterparty_type TEXT NOT NULL CHECK (counterparty_type IN (
@@ -295,7 +295,7 @@ CREATE INDEX idx_org_profiles_org ON orchestrator_org_profiles(organization_id);
 CREATE TABLE orchestrator_memory_summaries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  orchestrator_id UUID NOT NULL REFERENCES orchestrators(id),
+  orchestrator_id UUID NOT NULL REFERENCES deal_orchestrators(id),
 
   -- Summary type
   summary_type TEXT NOT NULL CHECK (summary_type IN (
@@ -332,7 +332,7 @@ CREATE INDEX idx_memory_summaries_active ON orchestrator_memory_summaries(is_act
 CREATE TABLE orchestrator_learning_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id),
-  orchestrator_id UUID REFERENCES orchestrators(id),
+  orchestrator_id UUID REFERENCES deal_orchestrators(id),
 
   event_type TEXT NOT NULL CHECK (event_type IN (
     'outcome_recorded', 'score_updated', 'feedback_recorded',

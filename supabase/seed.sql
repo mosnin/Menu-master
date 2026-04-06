@@ -718,7 +718,7 @@ INSERT INTO transaction_economics (
   false, NULL, NULL, NULL,
   3825.00,
   true, false, NULL, NULL,
-  80.0000, '2026-05-15', 'Standard buyer purchase commission'
+  0.8000, '2026-05-15', 'Standard buyer purchase commission'
 );
 
 -- Transaction 2: $650,000, 2.5% commission, seller side, 65/35 split, 25% referral, 60% close prob
@@ -741,7 +741,7 @@ INSERT INTO transaction_economics (
   true, 25.0000, 4062.50, 'Colorado Referral Network',
   1625.00,
   true, false, NULL, NULL,
-  60.0000, '2026-05-20', 'Seller listing with referral fee'
+  0.6000, '2026-05-20', 'Seller listing with referral fee'
 );
 
 -- Transaction 3 (closed): $380,000, 3%, finalized economics
@@ -764,7 +764,7 @@ INSERT INTO transaction_economics (
   false, NULL, NULL, NULL,
   3420.00,
   false, true, '2026-03-15 12:00:00-06', 'b0000000-0000-4000-8000-000000000001',
-  100.0000, '2026-03-15', 'Finalized at closing'
+  1.0000, '2026-03-15', 'Finalized at closing'
 );
 
 -- Transaction 4 (pending_closing): $525,000, 2.75%, 90% close prob, nearly ready
@@ -787,7 +787,7 @@ INSERT INTO transaction_economics (
   false, NULL, NULL, NULL,
   4331.25,
   true, false, NULL, NULL,
-  90.0000, '2026-04-10', 'Pending closing — nearly ready'
+  0.9000, '2026-04-10', 'Pending closing — nearly ready'
 );
 
 -- ---------------------------------------------------------------------------
