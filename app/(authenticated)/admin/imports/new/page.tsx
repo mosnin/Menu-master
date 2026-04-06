@@ -120,7 +120,7 @@ export default function NewImportPage() {
     <div className="space-y-10 max-w-3xl">
       <PageHeader
         title="New CSV Import"
-        description="Upload a CSV file, map fields, and import data into Deal Desk."
+        description="Upload a CSV file, map fields, and import data into Chippi."
         backHref="/admin/imports"
       />
 
@@ -186,7 +186,7 @@ export default function NewImportPage() {
           <CardHeader className="p-7">
             <CardTitle className="text-base">Map Fields</CardTitle>
             <CardDescription>
-              Map each CSV column to a Deal Desk field. Found {csvRows.length} rows in {fileName}.
+              Map each CSV column to a Chippi field. Found {csvRows.length} rows in {fileName}.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-7 pb-7 space-y-4">

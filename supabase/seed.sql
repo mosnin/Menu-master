@@ -2162,7 +2162,7 @@ INSERT INTO orchestrator_follow_through_runs (
 ) VALUES (
   'fa000000-0000-4000-8000-000000000003',
   'f1000000-0000-4000-8000-000000000004',
-  'deadline_approaching', 'in_progress',
+  'deadline_approaching', 'active',
   2,
   '{"deadline_type": "closing_date", "deadline_date": "2026-04-09", "days_remaining": 5}'::jsonb,
   '[{"step_name": "recompute_completeness", "success": true, "timestamp": "2026-04-04T08:00:00Z"}, {"step_name": "recompute_health", "success": true, "timestamp": "2026-04-04T08:00:05Z"}]'::jsonb,
@@ -2178,7 +2178,7 @@ INSERT INTO orchestrator_follow_through_runs (
 ) VALUES (
   'fa000000-0000-4000-8000-000000000004',
   'f1000000-0000-4000-8000-000000000003',
-  'closing_prep', 'in_progress',
+  'closing_prep', 'active',
   1,
   '{"stage": "closing", "entered_at": "2026-04-04T10:00:00Z"}'::jsonb,
   '[{"step_name": "recompute_closing_readiness", "success": true, "timestamp": "2026-04-04T10:00:00Z"}]'::jsonb,

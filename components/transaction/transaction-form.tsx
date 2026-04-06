@@ -56,7 +56,7 @@ export function TransactionForm() {
                 className="h-10 rounded-lg"
               />
               <p className="text-xs text-muted-foreground">
-                Used as the primary label throughout Deal Desk.
+                Used as the primary label throughout Chippi.
               </p>
             </div>
           </CardContent>

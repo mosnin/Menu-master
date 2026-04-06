@@ -215,18 +215,18 @@ function BrandHeader({ onNavigate }: { onNavigate?: () => void }) {
         className="flex items-center gap-3 transition-opacity duration-[150ms] hover:opacity-80"
         onClick={onNavigate}
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground shadow-[var(--shadow-soft)]">
-          <FileText className="h-4 w-4 text-background" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[13px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
-            Deal Desk
-          </span>
-          <span className="text-[10px] font-normal text-muted-foreground/70 leading-tight flex items-center gap-1 mt-0.5">
-            <Building2 className="h-2.5 w-2.5" />
-            Realty Partners Group
-          </span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://framerusercontent.com/images/zYFHiXFMHRJ9Sc04WXXnhSpzOuQ.png?scale-down-to=512"
+          alt="Chippi"
+          className="h-7 dark:hidden"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://framerusercontent.com/images/X7CPDKEefl9vCbwB8MZZx12I9Xc.png?scale-down-to=512"
+          alt="Chippi"
+          className="h-7 hidden dark:block"
+        />
       </Link>
     </div>
   );
@@ -343,7 +343,7 @@ function DesktopSidebar({ userRole }: { userRole?: string }) {
 
       <div className="mx-5 h-px bg-[hsl(var(--sidebar-border))]" />
       <div className="px-5 py-4">
-        <p className="text-[10px] text-muted-foreground/40 tracking-wide font-medium">Deal Desk v0.1.0</p>
+        <p className="text-[10px] text-muted-foreground/40 tracking-wide font-medium">Chippi v0.1.0</p>
       </div>
     </div>
   );
@@ -510,7 +510,7 @@ function MobileSidebar({ onClose, userRole }: { onClose: () => void; userRole?: 
       </div>
 
       <div className="px-5 py-4 border-t border-[hsl(var(--sidebar-border))]">
-        <p className="text-[10px] text-muted-foreground/40 tracking-wide font-medium">Deal Desk v0.1.0</p>
+        <p className="text-[10px] text-muted-foreground/40 tracking-wide font-medium">Chippi v0.1.0</p>
       </div>
     </div>
   );
