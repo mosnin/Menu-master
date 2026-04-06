@@ -2154,6 +2154,28 @@ INSERT INTO orchestrator_follow_through_runs (
 -- Execution Hardening Scenarios
 -- ---------------------------------------------------------------------------
 
+-- Proposals needed by the hardening executions below
+INSERT INTO orchestrator_action_proposals (
+  id, cycle_id, orchestrator_id,
+  tool_name, tool_params, risk_class, confidence, reason,
+  critic_approved, status
+) VALUES
+  ('f5000000-0000-4000-8000-000000000010',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000001',
+   'recompute_deal_health', '{}'::jsonb,
+   'safe', 0.90, 'Plan-linked health recompute',
+   true, 'executed'),
+  ('f5000000-0000-4000-8000-000000000011',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000002',
+   'recompute_deal_health', '{}'::jsonb,
+   'safe', 0.90, 'Cooldown test recompute',
+   true, 'executed'),
+  ('f5000000-0000-4000-8000-000000000012',
+   'f4000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000003',
+   'flag_missing_documents', '{"transaction_id": "10000000-0000-4000-8000-000000000003"}'::jsonb,
+   'safe', 0.90, 'Retry scenario flag docs',
+   true, 'executed');
+
 -- TX4: Deadline approaching follow-through (closing in 5 days)
 INSERT INTO orchestrator_follow_through_runs (
   id, orchestrator_id, sequence_name, status,
@@ -2193,7 +2215,7 @@ INSERT INTO orchestrator_action_executions (
   idempotency_key, created_at
 ) VALUES (
   'ae000000-0000-4000-8000-000000000010',
-  'ab000000-0000-4000-8000-000000000001',
+  'f5000000-0000-4000-8000-000000000010',
   'f1000000-0000-4000-8000-000000000001',
   'recompute_deal_health', '{}',
   '{"health_score": 0.82, "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}, "plan_context": {"plan_id": "p0000000-0000-4000-8000-000000000001", "subgoal_id": "sg000000-0000-4000-8000-000000000001"}}'::jsonb,
@@ -2209,7 +2231,7 @@ INSERT INTO orchestrator_action_executions (
   idempotency_key, created_at
 ) VALUES (
   'ae000000-0000-4000-8000-000000000011',
-  'ab000000-0000-4000-8000-000000000002',
+  'f5000000-0000-4000-8000-000000000011',
   'f1000000-0000-4000-8000-000000000002',
   'recompute_deal_health', '{}',
   '{"policy_decision": {"disposition": "block", "reason": "Action \"recompute_deal_health\" was already executed recently (cooldown)", "policy_rule": "action_cooldown", "can_override": false}}'::jsonb,
@@ -2227,7 +2249,7 @@ INSERT INTO orchestrator_action_executions (
   idempotency_key, created_at
 ) VALUES (
   'ae000000-0000-4000-8000-000000000012',
-  'ab000000-0000-4000-8000-000000000003',
+  'f5000000-0000-4000-8000-000000000012',
   'f1000000-0000-4000-8000-000000000003',
   'flag_missing_documents', '{"transaction_id": "10000000-0000-4000-8000-000000000003"}',
   '{"flagged": ["closing_disclosure", "title_commitment"], "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}}'::jsonb,
