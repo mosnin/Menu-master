@@ -7,7 +7,12 @@ import * as versionRepo from '@/lib/repositories/workflow-versions';
 import * as runRepo from '@/lib/repositories/workflow-runs';
 import * as publishService from '@/lib/services/workflow-publish-service';
 import * as engineService from '@/lib/services/workflow-engine-service';
+import { generateWorkflowAuthoringIntent } from '@/lib/ai/workflow-authoring-generator';
+import { mapAuthoringIntentToGraph } from '@/lib/services/workflow-authoring-mapper';
+import * as workflowAuthoringRepo from '@/lib/repositories/workflow-authoring';
 import { compareWorkflowVersions } from '@/lib/services/workflow-diff-service';
+import * as automationTraceRepo from '@/lib/repositories/automation-trace-events';
+import { ensurePublishGovernance } from '@/lib/services/workflow-governance-service';
 import type { WorkflowGraphData } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +53,73 @@ export async function createWorkflowAction(data: {
     return { id: workflow.id };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Failed to create workflow' };
+  }
+}
+
+
+export async function generateWorkflowDraftFromDescriptionAction(data: {
+  orgId: string;
+  description: string;
+}): Promise<{
+  intent?: unknown;
+  graphData?: WorkflowGraphData;
+  assumptions?: string[];
+  warnings?: string[];
+  missingInformation?: string[];
+  explanation?: string[];
+  validation?: { valid: boolean; errors: unknown[] };
+  error?: string;
+}> {
+  try {
+    await requireAuth();
+    const profile = await getCurrentUserProfile();
+    if (!profile) return { error: 'User profile not found' };
+
+    await requireRole(data.orgId, ['broker_admin']);
+
+    if (!data.description.trim()) {
+      return { error: 'Description is required' };
+    }
+
+    const session = await workflowAuthoringRepo.createAuthoringSession({
+      organization_id: data.orgId,
+      created_by_user_id: profile.id,
+      prompt_text: data.description.trim(),
+    });
+
+    const intent = await generateWorkflowAuthoringIntent(data.description.trim());
+    await workflowAuthoringRepo.createIntentRecord({
+      session_id: session.id,
+      organization_id: data.orgId,
+      created_by_user_id: profile.id,
+      intent_json: intent,
+    });
+
+    const mapped = mapAuthoringIntentToGraph(intent);
+
+    await workflowAuthoringRepo.createGenerationAttempt({
+      session_id: session.id,
+      organization_id: data.orgId,
+      created_by_user_id: profile.id,
+      prompt_text: data.description.trim(),
+      draft_graph_json: mapped.graphData,
+      assumptions_json: mapped.metadata.assumptions,
+      warnings_json: mapped.metadata.warnings,
+      missing_information_json: mapped.metadata.missingInformation,
+      validation_json: { valid: mapped.validation.valid, errors: mapped.validation.errors },
+    });
+
+    return {
+      intent,
+      graphData: mapped.graphData,
+      assumptions: mapped.metadata.assumptions,
+      warnings: mapped.metadata.warnings,
+      missingInformation: mapped.metadata.missingInformation,
+      explanation: mapped.metadata.explanation,
+      validation: { valid: mapped.validation.valid, errors: mapped.validation.errors as unknown[] },
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Failed to generate workflow draft' };
   }
 }
 
@@ -139,6 +211,15 @@ export async function publishVersionAction(
     if (!workflow) return { error: 'Workflow not found' };
     const { membership } = await requireRole(workflow.organization_id, ['broker_admin']);
 
+    const governance = await ensurePublishGovernance({
+      orgId: workflow.organization_id,
+      workflowId: workflow.id,
+      actorUserId: profile.id,
+    });
+    if (!governance.pass) {
+      return { error: governance.reason };
+    }
+
     await publishService.publishVersion(versionId, profile.id, membership.role);
 
     revalidatePath(`/ops/workflows/${workflow.id}`);
@@ -172,6 +253,14 @@ export async function getWorkflowRunAction(runId: string) {
   if (!result) return null;
   await requireOrgMembership(result.run.organization_id);
   return result;
+}
+
+export async function getWorkflowAutomationTraceAction(runId: string) {
+  await requireAuth();
+  const run = await runRepo.findById(runId);
+  if (!run) return [];
+  await requireOrgMembership(run.organization_id);
+  return automationTraceRepo.findByWorkflowRun(runId);
 }
 
 // ---------------------------------------------------------------------------

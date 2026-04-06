@@ -60,7 +60,7 @@ export default async function ImportsPage() {
         <EmptyState
           icon={Upload}
           title="No imports yet"
-          description="Upload a CSV file to import contacts, transactions, or properties into Deal Desk."
+          description="Upload a CSV file to import contacts, transactions, or properties into Chippi."
           action={
             <Button asChild className="rounded-lg">
               <Link href="/admin/imports/new" className="flex items-center gap-2">

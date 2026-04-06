@@ -464,3 +464,25 @@ Seven deterministic rules (PC1–PC7) check plan-level issues:
 7. **Counterparty identity resolution** — Counterparty profiles keyed by type, not individual identity; per-individual tracking deferred
 8. **Automated profile refresh** — Org profiles updated on demand; automated batch aggregation deferred
 9. **Learning confidence intervals** — Scores are point estimates; confidence intervals deferred
+
+## Automation Convergence Update
+
+The automation stack now uses a clearer shared model:
+
+- **Workflow runtime**: deterministic graph control and sequencing.
+- **Orchestrator**: planning/replanning and cross-cycle prioritization.
+- **Shared execution layer**: common tool + policy evaluation (`automation-action-executor`).
+- **Unified trace events**: policy and execution outcomes from workflow + orchestrator recorded in `automation_trace_events`.
+
+### Shared tool and policy path
+
+Workflow domain nodes now map to shared tool contracts where available and execute through the same policy evaluation engine used by orchestrator actions.
+This ensures both systems use the same `ActionDisposition` semantics (`auto_execute`, `create_draft`, `create_approval`, `block`) before side effects.
+
+### Unified trace linkage
+
+`automation_trace_events` links policy decisions and tool outcomes across:
+- workflow runs / workflow steps
+- orchestrator cycles / action proposals / action executions
+
+This provides one inspectable automation story without exposing chain-of-thought content.

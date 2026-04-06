@@ -3,7 +3,6 @@ import { auth0 } from '@/lib/auth/session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  FileText,
   Brain,
   ListChecks,
   Users,
@@ -24,14 +23,13 @@ export default async function Home() {
         <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto">
           {/* Logo */}
           <div className="mb-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-              <FileText className="h-7 w-7 text-primary-foreground" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="https://framerusercontent.com/images/zYFHiXFMHRJ9Sc04WXXnhSpzOuQ.png?scale-down-to=512" alt="Chippi" className="h-10" />
           </div>
 
           {/* Product name & tagline */}
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Deal Desk
+            Chippi
           </h1>
           <p className="mt-3 text-lg text-muted-foreground leading-relaxed">
             The operations platform for modern real estate teams
@@ -107,11 +105,10 @@ export default async function Home() {
       <div className="flex w-full md:w-1/2 flex-col items-center justify-center bg-white px-6 py-12">
         {/* Mobile-only logo */}
         <div className="mb-8 flex flex-col items-center md:hidden">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-            <FileText className="h-7 w-7 text-primary-foreground" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://framerusercontent.com/images/zYFHiXFMHRJ9Sc04WXXnhSpzOuQ.png?scale-down-to=512" alt="Chippi" className="h-10" />
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">
-            Deal Desk
+            Chippi
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             The operations platform for modern real estate teams

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { GitBranch } from 'lucide-react';
 import { getWorkflowsAction } from '@/app/actions/workflow-actions';
+import { AutomationNav } from '@/components/ops/automation-nav';
 import type { Workflow } from '@/types';
 
 export default function WorkflowsPage() {
@@ -37,6 +38,7 @@ export default function WorkflowsPage() {
 
   return (
     <div className="space-y-10">
+      <AutomationNav />
       <PageHeader
         title="Workflows"
         description="Automation workflows configured for your organization."

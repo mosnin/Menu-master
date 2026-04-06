@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
 
 export default function SignUpPage() {
   return (
@@ -18,9 +17,8 @@ export default function SignUpPage() {
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg">
-            <FileText className="h-7 w-7 text-primary-foreground" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://framerusercontent.com/images/zYFHiXFMHRJ9Sc04WXXnhSpzOuQ.png?scale-down-to=512" alt="Chippi" className="h-10" />
         </div>
 
         <Card className="rounded-2xl shadow-sm">
@@ -31,7 +29,7 @@ export default function SignUpPage() {
                 Start your free workspace
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Create your Deal Desk account to get started
+                Create your Chippi account to get started
               </p>
             </div>
 
