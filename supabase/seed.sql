@@ -1236,13 +1236,21 @@ INSERT INTO collaborator_invites (
 
 -- ---------------------------------------------------------------------------
 -- Listings
--- ---------------------------------------------------------------------------
--- L1: In-prep listing (missing disclosures)
+-- Properties for listings that don't reuse transaction properties
+INSERT INTO properties (id, organization_id, address_line_1, address_line_2, city, state, postal_code) VALUES
+  ('d0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000001',
+   '1200 Summit View Drive', NULL, 'Boulder', 'CO', '80302'),
+  ('d0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000001',
+   '89 Copper Ridge Lane', NULL, 'Boulder', 'CO', '80302'),
+  ('d0000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000001',
+   '456 Maple Court', NULL, 'Boulder', 'CO', '80302');
+
+-- L1: In-prep listing (missing disclosures) — reuses property d...001 (742 Evergreen Terrace)
 INSERT INTO listings (id, organization_id, property_id, created_by_user_id, title, listing_stage, listing_type,
   list_price, listing_description, target_launch_date, seller_name, seller_email, seller_phone,
   readiness_score, readiness_state) VALUES
 ('d1000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001',
- 'c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
+ 'd0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
  '742 Evergreen Terrace', 'preparing', 'residential',
  485000, 'Charming 3BR/2BA in desirable Evergreen neighborhood', '2026-04-20',
  'Robert Williams', 'robert.williams@email.com', '(512) 555-7742',
@@ -1253,7 +1261,7 @@ INSERT INTO listings (id, organization_id, property_id, created_by_user_id, titl
   list_price, listing_description, target_launch_date, seller_name, seller_email,
   readiness_score, readiness_state) VALUES
 ('d1000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001',
- 'c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002',
+ 'd0000000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000002',
  '1200 Summit View Drive', 'ready_to_launch', 'residential',
  725000, 'Stunning 4BR/3BA with panoramic mountain views', '2026-04-10',
  'Patricia Henderson', 'patricia.h@email.com',
@@ -1264,7 +1272,7 @@ INSERT INTO listings (id, organization_id, property_id, created_by_user_id, titl
   list_price, listing_description, actual_launch_date, seller_name, seller_email,
   readiness_score, readiness_state, mls_number) VALUES
 ('d1000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000001',
- 'c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003',
+ 'd0000000-0000-4000-8000-000000000006', 'b0000000-0000-4000-8000-000000000003',
  '89 Copper Ridge Lane', 'live', 'residential',
  550000, 'Move-in ready 3BR townhome in Copper Ridge community', '2026-03-25',
  'David & Karen Martinez', 'martinez.dk@email.com',
@@ -1275,7 +1283,7 @@ INSERT INTO listings (id, organization_id, property_id, created_by_user_id, titl
   list_price, seller_name, seller_email,
   readiness_score, readiness_state, converted_transaction_id, converted_at) VALUES
 ('d1000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000001',
- 'c0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001',
+ 'd0000000-0000-4000-8000-000000000007', 'b0000000-0000-4000-8000-000000000001',
  '456 Maple Court', 'under_contract', 'residential',
  390000, 'Thomas Anderson', 'tanderson@email.com',
  100, 'ready', 'e0000000-0000-4000-8000-000000000004', '2026-03-28 14:30:00-06');
