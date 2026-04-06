@@ -2218,7 +2218,7 @@ INSERT INTO orchestrator_action_executions (
   'f5000000-0000-4000-8000-000000000010',
   'f1000000-0000-4000-8000-000000000001',
   'recompute_deal_health', '{}',
-  '{"health_score": 0.82, "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}, "plan_context": {"plan_id": "p0000000-0000-4000-8000-000000000001", "subgoal_id": "sg000000-0000-4000-8000-000000000001"}}'::jsonb,
+  '{"health_score": 0.82, "policy_decision": {"disposition": "auto_execute", "policy_rule": "safe_active"}, "plan_context": {"plan_id": "f1000000-0000-4000-8000-000000000001", "subgoal_id": "5a000000-0000-4000-8000-000000000001"}}'::jsonb,
   true, NULL, 45, '[]'::jsonb,
   'plan_linked_exec_001',
   '2026-04-04 09:00:00-06'
@@ -2271,7 +2271,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, risk_summary, source_signals,
   replan_count, last_replan_reason, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
   'f1000000-0000-4000-8000-000000000001',
   'e0000000-0000-4000-8000-000000000001',
   'Plan v2 for transaction 10000000',
@@ -2295,8 +2295,8 @@ INSERT INTO orchestrator_subgoals (
 ) VALUES
 -- Completed subgoal (doc was uploaded)
 (
-  'sg000000-0000-4000-8000-000000000001',
-  'p0000000-0000-4000-8000-000000000001',
+  '5a000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
   'Obtain purchase_agreement', 'Obtain the missing document "purchase_agreement".',
   'completed', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
   1, '{}', 'Document "purchase_agreement" is uploaded and verified.',
@@ -2306,8 +2306,8 @@ INSERT INTO orchestrator_subgoals (
 ),
 -- Waiting subgoal (waiting on seller)
 (
-  'sg000000-0000-4000-8000-000000000002',
-  'p0000000-0000-4000-8000-000000000001',
+  '5a000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000001',
   'Obtain seller_disclosure', 'Obtain the missing document "seller_disclosure".',
   'waiting', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
   2, '{}', 'Document "seller_disclosure" is uploaded and verified.',
@@ -2317,8 +2317,8 @@ INSERT INTO orchestrator_subgoals (
 ),
 -- In-progress subgoal (waiting on title)
 (
-  'sg000000-0000-4000-8000-000000000003',
-  'p0000000-0000-4000-8000-000000000001',
+  '5a000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000001',
   'Obtain title_commitment', 'Obtain the missing document "title_commitment".',
   'in_progress', 'high', 'b0000000-0000-4000-8000-000000000002', 'agent',
   3, '{}', 'Document "title_commitment" is uploaded and verified.',
@@ -2328,8 +2328,8 @@ INSERT INTO orchestrator_subgoals (
 ),
 -- Pending approval subgoal
 (
-  'sg000000-0000-4000-8000-000000000004',
-  'p0000000-0000-4000-8000-000000000001',
+  '5a000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000001',
   'Resolve 1 pending approval(s)', 'Get all pending approvals reviewed and decided.',
   'pending', 'high', NULL, NULL,
   4, '{}', 'All pending approvals are resolved.',
@@ -2342,8 +2342,8 @@ INSERT INTO orchestrator_subgoals (
 INSERT INTO orchestrator_plan_revisions (
   id, plan_id, revision_number, reason, changes_summary, previous_snapshot
 ) VALUES (
-  'pr000000-0000-4000-8000-000000000001',
-  'p0000000-0000-4000-8000-000000000001',
+  '5b000000-0000-4000-8000-000000000001',
+  'f1000000-0000-4000-8000-000000000001',
   1, 'Replan needed: 2 recent uploads changed world state.',
   'Superseded due to replan: 2 recent uploads changed world state.',
   '{"plan": {"version": 1, "status": "active", "objective": "In under_contract stage: collect 3 missing document(s)"}, "subgoals": [{"title": "Obtain purchase_agreement", "status": "pending"}, {"title": "Obtain seller_disclosure", "status": "pending"}, {"title": "Obtain title_commitment", "status": "pending"}], "progress": {"total_subgoals": 3, "completed": 0, "pending": 3, "completion_percentage": 0}}'::jsonb
@@ -2358,7 +2358,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, blocked_reason, blocked_since,
   risk_summary, source_signals, replan_count, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000002',
+  'f1000000-0000-4000-8000-000000000002',
   'f1000000-0000-4000-8000-000000000002',
   'e0000000-0000-4000-8000-000000000001',
   'Plan for listing 10000000',
@@ -2381,8 +2381,8 @@ INSERT INTO orchestrator_subgoals (
   waiting_escalation_hours, depends_on_subgoal_ids
 ) VALUES
 (
-  'sg000000-0000-4000-8000-000000000010',
-  'p0000000-0000-4000-8000-000000000002',
+  '5a000000-0000-4000-8000-000000000010',
+  'f1000000-0000-4000-8000-000000000002',
   'Resolve compliance: missing_lead_paint', 'Address lead paint disclosure requirement.',
   'blocked', 'critical', 1,
   '{}', 'Compliance flag "missing_lead_paint" is cleared.',
@@ -2392,8 +2392,8 @@ INSERT INTO orchestrator_subgoals (
   '{}'
 ),
 (
-  'sg000000-0000-4000-8000-000000000011',
-  'p0000000-0000-4000-8000-000000000002',
+  '5a000000-0000-4000-8000-000000000011',
+  'f1000000-0000-4000-8000-000000000002',
   'Obtain listing_agreement', 'Obtain signed listing agreement.',
   'blocked', 'high', 2,
   '{}', 'Document "listing_agreement" is uploaded.',
@@ -2403,8 +2403,8 @@ INSERT INTO orchestrator_subgoals (
   '{}'
 ),
 (
-  'sg000000-0000-4000-8000-000000000012',
-  'p0000000-0000-4000-8000-000000000002',
+  '5a000000-0000-4000-8000-000000000012',
+  'f1000000-0000-4000-8000-000000000002',
   'Obtain photos', 'Get property photos for listing.',
   'pending', 'normal', 3,
   '{}', 'Photos uploaded.',
@@ -2423,7 +2423,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, risk_summary, source_signals,
   replan_count, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000003',
+  'f1000000-0000-4000-8000-000000000003',
   'f1000000-0000-4000-8000-000000000003',
   'e0000000-0000-4000-8000-000000000001',
   'Plan for transaction 10000000',
@@ -2445,8 +2445,8 @@ INSERT INTO orchestrator_subgoals (
 ) VALUES
 -- Waiting on lender for commitment letter
 (
-  'sg000000-0000-4000-8000-000000000020',
-  'p0000000-0000-4000-8000-000000000003',
+  '5a000000-0000-4000-8000-000000000020',
+  'f1000000-0000-4000-8000-000000000003',
   'Obtain lender_commitment_letter', 'Obtain lender commitment letter for closing.',
   'waiting', 'high', 1,
   '{}', 'Document "lender_commitment_letter" is uploaded.',
@@ -2457,27 +2457,27 @@ INSERT INTO orchestrator_subgoals (
 ),
 -- Depends on lender letter: completeness improvement
 (
-  'sg000000-0000-4000-8000-000000000021',
-  'p0000000-0000-4000-8000-000000000003',
+  '5a000000-0000-4000-8000-000000000021',
+  'f1000000-0000-4000-8000-000000000003',
   'Improve completeness', 'Raise completeness from 55% to at least 70%.',
   'pending', 'high', 2,
   '{"Lender commitment letter should be obtained first"}',
   'Completeness score reaches 70% or higher.',
   '{"recompute_completeness"}',
   NULL, NULL, NULL, NULL,
-  NULL, '{"sg000000-0000-4000-8000-000000000020"}'
+  NULL, '{"5a000000-0000-4000-8000-000000000020"}'
 ),
 -- Closing readiness depends on completeness
 (
-  'sg000000-0000-4000-8000-000000000022',
-  'p0000000-0000-4000-8000-000000000003',
+  '5a000000-0000-4000-8000-000000000022',
+  'f1000000-0000-4000-8000-000000000003',
   'Verify closing readiness', 'Ensure all closing prerequisites are met.',
   'pending', 'normal', 3,
   '{"Completeness must be >= 70%"}',
   'Closing readiness confirmed.',
   '{"recompute_closing_readiness"}',
   NULL, NULL, NULL, NULL,
-  NULL, '{"sg000000-0000-4000-8000-000000000021"}'
+  NULL, '{"5a000000-0000-4000-8000-000000000021"}'
 );
 
 -- ---------------------------------------------------------------------------
@@ -2489,7 +2489,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, risk_summary, source_signals,
   replan_count, last_replan_reason, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000004',
+  'f1000000-0000-4000-8000-000000000004',
   'f1000000-0000-4000-8000-000000000004',
   'e0000000-0000-4000-8000-000000000001',
   'Plan v2 for transaction 10000000',
@@ -2510,8 +2510,8 @@ INSERT INTO orchestrator_subgoals (
   waiting_on_type, depends_on_subgoal_ids
 ) VALUES
 (
-  'sg000000-0000-4000-8000-000000000030',
-  'p0000000-0000-4000-8000-000000000004',
+  '5a000000-0000-4000-8000-000000000030',
+  'f1000000-0000-4000-8000-000000000004',
   'Resolve 1 unresolved exception(s)', 'Clear open exception to proceed with closing.',
   'completed', 'critical', 1,
   '{}', 'All exceptions resolved.',
@@ -2519,8 +2519,8 @@ INSERT INTO orchestrator_subgoals (
   NULL, '{}'
 ),
 (
-  'sg000000-0000-4000-8000-000000000031',
-  'p0000000-0000-4000-8000-000000000004',
+  '5a000000-0000-4000-8000-000000000031',
+  'f1000000-0000-4000-8000-000000000004',
   'Address 1 overdue obligation(s)', 'Resolve overdue obligation before closing.',
   'in_progress', 'critical', 2,
   '{}', 'No overdue obligations remain.',
@@ -2528,14 +2528,14 @@ INSERT INTO orchestrator_subgoals (
   NULL, '{}'
 ),
 (
-  'sg000000-0000-4000-8000-000000000032',
-  'p0000000-0000-4000-8000-000000000004',
+  '5a000000-0000-4000-8000-000000000032',
+  'f1000000-0000-4000-8000-000000000004',
   'Complete before 2026-04-09: Closing date', 'Ensure closing is ready by deadline.',
   'pending', 'critical', 3,
   '{"Overdue obligations must be resolved first"}',
   'Closing date met or extended.',
   '{"recompute_closing_readiness"}',
-  NULL, '{"sg000000-0000-4000-8000-000000000031"}'
+  NULL, '{"5a000000-0000-4000-8000-000000000031"}'
 );
 
 -- ---------------------------------------------------------------------------
@@ -2547,7 +2547,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, completed_at,
   risk_summary, source_signals, replan_count, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000005',
+  'f1000000-0000-4000-8000-000000000005',
   'f1000000-0000-4000-8000-000000000003',
   'e0000000-0000-4000-8000-000000000001',
   'Plan for transaction 10000000',
@@ -2570,7 +2570,7 @@ INSERT INTO orchestrator_plans (
   refresh_conditions, version, superseded_by,
   risk_summary, source_signals, replan_count, world_state_hash
 ) VALUES (
-  'p0000000-0000-4000-8000-000000000006',
+  'f1000000-0000-4000-8000-000000000006',
   'f1000000-0000-4000-8000-000000000001',
   'e0000000-0000-4000-8000-000000000001',
   'Plan for transaction 10000000',
@@ -2578,7 +2578,7 @@ INSERT INTO orchestrator_plans (
   'transaction', '10000000-0000-4000-8000-000000000001',
   'superseded', 'normal', 24,
   '["stage_change", "document_upload"]'::jsonb,
-  1, 'p0000000-0000-4000-8000-000000000001',
+  1, 'f1000000-0000-4000-8000-000000000001',
   NULL,
   '[{"type": "missing_docs", "docs": ["purchase_agreement", "seller_disclosure", "title_commitment"]}]'::jsonb,
   0, 'original_hash_001'
