@@ -247,7 +247,7 @@ export default function OnboardingPage() {
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
               <Sparkles className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Welcome to Deal Desk</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Welcome to Chippi</h1>
             <p className="mt-3 text-muted-foreground">
               Hi {profile?.full_name?.split(' ')[0] || 'there'}, let&apos;s set up your workspace
               in just a few steps.

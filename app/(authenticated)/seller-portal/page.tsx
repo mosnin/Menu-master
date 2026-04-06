@@ -88,7 +88,7 @@ export default function SellerPortalPage() {
             <div className="h-9 w-9 rounded-lg bg-foreground flex items-center justify-center">
               <Home className="h-4.5 w-4.5 text-background" />
             </div>
-            <span className="text-[13px] font-semibold">Deal Desk</span>
+            <span className="text-[13px] font-semibold">Chippi</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight mt-4">{progress.listingTitle}</h1>
           <p className="text-muted-foreground mt-1 text-[15px]">Your listing progress</p>
@@ -180,7 +180,7 @@ export default function SellerPortalPage() {
         {/* Footer */}
         <div className="text-center mt-10">
           <p className="text-[11px] text-muted-foreground/40">
-            Powered by Deal Desk
+            Powered by Chippi
           </p>
         </div>
       </div>

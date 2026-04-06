@@ -5,7 +5,7 @@ describe('automation environment readiness', () => {
   it('flags missing required variables', () => {
     const readiness = getAutomationEnvReadiness({
       OPENAI_API_KEY: 'test',
-    } as NodeJS.ProcessEnv);
+    } as unknown as NodeJS.ProcessEnv);
 
     expect(readiness.ready).toBe(false);
     expect(readiness.missingRequired).toContain('NEXT_PUBLIC_SUPABASE_URL');
@@ -22,7 +22,7 @@ describe('automation environment readiness', () => {
       AUTH0_ISSUER_BASE_URL: 'https://issuer',
       AUTH0_CLIENT_ID: 'id',
       AUTH0_CLIENT_SECRET: 'client_secret',
-    } as NodeJS.ProcessEnv);
+    } as unknown as NodeJS.ProcessEnv);
 
     expect(readiness.ready).toBe(true);
     expect(readiness.missingRequired.length).toBe(0);

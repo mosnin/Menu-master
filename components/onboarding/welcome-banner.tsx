@@ -73,7 +73,7 @@ export function WelcomeBanner() {
           <Sparkles className="h-4.5 w-4.5 text-primary" />
         </div>
         <h2 className="text-xl font-semibold tracking-tight">
-          Welcome to Deal Desk
+          Welcome to Chippi
         </h2>
       </div>
       <p className="text-sm text-muted-foreground leading-relaxed max-w-xl mb-8">

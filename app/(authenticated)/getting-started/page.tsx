@@ -31,7 +31,7 @@ export default async function GettingStartedPage() {
 
   // In a production app these would be real data queries.
   // For now we use safe defaults so the page renders for every user.
-  const orgName: string | null = 'Deal Desk Inc.';
+  const orgName: string | null = 'Chippi Inc.';
   const teamMemberCount = 1;
   const transactionCount = 0;
   const documentCount = 0;
@@ -99,7 +99,7 @@ export default async function GettingStartedPage() {
     <div className="mx-auto max-w-2xl space-y-10 py-2">
       <PageHeader
         title="Getting Started"
-        description="Complete these steps to get the most out of Deal Desk."
+        description="Complete these steps to get the most out of Chippi."
       />
 
       {/* Progress bar */}

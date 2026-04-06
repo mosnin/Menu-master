@@ -82,7 +82,7 @@ export function computeActivationReadiness(checklist: OnboardingChecklist) {
     .filter(([, complete]) => !complete)
     .map(([key]) => key);
 
-  const state = missing.length === 0
+  const state: 'ready' | 'blocked' | 'in_progress' = missing.length === 0
     ? 'ready'
     : missing.includes('entitlementsSatisfied') || missing.includes('ownerAssigned') || missing.includes('reviewerAssigned')
       ? 'blocked'

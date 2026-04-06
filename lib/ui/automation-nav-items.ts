@@ -1,5 +1,6 @@
 export const AUTOMATION_NAV_ITEMS = [
   { href: '/ops/workflows', label: 'Builder' },
+  { href: '/ops/workflow-runs', label: 'Runs' },
   { href: '/ops/automation-governance', label: 'Governance' },
   { href: '/ops/automation-library', label: 'Library' },
   { href: '/ops/automation-setup', label: 'Setup' },
